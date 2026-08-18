@@ -172,6 +172,8 @@ function defaultState() {
     mysteryBox: null,      // { prize, coins }
     lastHpDay: todayKey(),
     lastDailyChest: null,  // آخر يوم فتح فيه الطفل صندوق الدخول اليومي
+    autopilot: { enabled: false, goals: ['study', 'sport', 'health'], count: 4, lastGen: null },
+    taskArchive: {},       // { taskId: cat } لمهام آلية سابقة — لإبقاء إحصاءات المسارات دقيقة
   };
 }
 
@@ -202,9 +204,48 @@ function totalCompletions(s) {
 }
 function catCompletions(s, cat) {
   const ids = new Set(s.tasks.filter(t => t.cat === cat).map(t => t.id));
+  for (const [id, c] of Object.entries(s.taskArchive || {})) if (c === cat) ids.add(id);
   let n = 0;
   for (const arr of Object.values(s.completions)) n += arr.filter(id => ids.has(id)).length;
   return n;
+}
+
+function strHash(str) {
+  let h = 0;
+  for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) % 1000003;
+  return h;
+}
+
+/* ─── المساعد الآلي: توليد مهام اليوم من المكتبة حسب أهداف الوالد ─── */
+function runAutopilot(force) {
+  const ap = S.autopilot;
+  if (!ap.enabled) return;
+  const today = todayKey();
+  if (!force && ap.lastGen === today) return;
+
+  // أرشفة مهام الأيام السابقة الآلية وإزالتها (المهام اليدوية ومهام المعلم تبقى)
+  S.tasks = S.tasks.filter(t => {
+    if (t.auto) { S.taskArchive[t.id] = t.cat; return false; }
+    return true;
+  });
+
+  const manualTitles = new Set(S.tasks.map(t => t.title));
+  const pool = TASK_LIBRARY.filter(t => ap.goals.includes(t.cat) && !manualTitles.has(t.title));
+  // ترتيب حتمي متغير يوميًا — تنويع تلقائي مع ضمان تغطية الأهداف المختارة
+  pool.sort((a, b) => strHash(a.title + today) - strHash(b.title + today));
+  const picked = [];
+  for (const goal of ap.goals) {           // مهمة واحدة على الأقل من كل هدف
+    const t = pool.find(x => x.cat === goal && !picked.includes(x));
+    if (t && picked.length < ap.count) picked.push(t);
+  }
+  for (const t of pool) {                  // إكمال العدد المطلوب
+    if (picked.length >= ap.count) break;
+    if (!picked.includes(t)) picked.push(t);
+  }
+  for (const t of picked) S.tasks.push({ id: uid(), ...t, auto: true });
+
+  ap.lastGen = today;
+  save();
 }
 /* المهمة الذهبية: مهمة مختلفة كل يوم بمكافأة مضاعفة — اختيار ثابت طوال اليوم */
 function goldenTaskId(dateKey) {
@@ -246,6 +287,8 @@ function load() {
       s.tasks.forEach(t => { if (!t.proof) t.proof = 'self'; });
       s.pendingProofs = s.pendingProofs || [];
       s.unseenApprovals = s.unseenApprovals || [];
+      s.autopilot = s.autopilot || { enabled: false, goals: ['study', 'sport', 'health'], count: 4, lastGen: null };
+      s.taskArchive = s.taskArchive || {};
       return s;
     }
   } catch (e) { /* بيانات تالفة → نبدأ من جديد */ }
@@ -288,7 +331,24 @@ function dailyUpkeep() {
   if (S.child.lastFullDay && S.child.lastFullDay !== today && S.child.lastFullDay !== dayKeyOffset(-1)) {
     S.child.streak = 0;
   }
+  runAutopilot(false);
   save();
+}
+
+/* ─── رموز المشاركة (مهام ومكافآت المعلمين) ─── */
+function encodeShareCode(obj) {
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/=+$/, '');
+  return 'JZR1.' + b64 + '.' + (strHash(b64) % 46655).toString(36).padStart(3, '0');
+}
+function decodeShareCode(code) {
+  try {
+    const m = String(code).trim().match(/JZR1\.([A-Za-z0-9+/]+)\.([a-z0-9]{3})/);
+    if (!m) return null;
+    if ((strHash(m[1]) % 46655).toString(36).padStart(3, '0') !== m[2]) return null;
+    const obj = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    if (!obj || !obj.t || !obj.n) return null;
+    return obj;
+  } catch (e) { return null; }
 }
 
 /* منح مكافآت إنجاز مهمة وتسجيلها — يُستدعى فورًا (مهام الثقة) أو عند موافقة الوالد */
@@ -499,14 +559,33 @@ const App = {
           </div>`).join('')}
       </div>` : '';
 
+    // بطاقة المساعد الآلي
+    const ap = S.autopilot;
+    const autoCount = S.tasks.filter(t => t.auto).length;
+    const apHtml = ap.enabled ? `
+      <div class="card autopilot-card on">
+        <h3>🤖 المساعد الآلي يعمل</h3>
+        <p class="muted">ولّد اليوم ${autoCount} مهام من أهدافك: ${ap.goals.map(g => CATEGORIES[g].emoji).join(' ')} — يجدد المهام تلقائيًا كل صباح</p>
+        <div class="form-row" style="margin-top:10px">
+          <div><button class="btn-ghost" style="width:100%" onclick="App.autopilotForm()">⚙️ الأهداف</button></div>
+          <div><button class="btn-ghost" style="width:100%" onclick="App.autopilotToggle(false)">إيقاف</button></div>
+        </div>
+      </div>` : `
+      <div class="card autopilot-card">
+        <h3>🤖 مشغول؟ فعّل المساعد الآلي</h3>
+        <p class="muted">حدد الأهداف مرة واحدة، وسيولّد التطبيق مهام يومية متنوعة من المكتبة ويجددها كل صباح — أنت فقط تتابع التقارير</p>
+        <button class="btn-primary purple" style="margin-top:10px" onclick="App.autopilotForm()">تفعيل المساعد ⚡</button>
+      </div>`;
+
     const rows = S.tasks.map(t => {
       const state = doneIds.has(t.id) ? '✅ ' : (pendingIds.has(t.id + '|' + today) ? '⏳ ' : '');
+      const source = t.teacher ? ` · 🏫 موثقة من ${esc(t.teacher)}` : (t.auto ? ' · 🤖 آلية' : '');
       return `
       <div class="task-row">
         <span class="task-cat">${CATEGORIES[t.cat].emoji}</span>
         <div class="task-info">
           <div class="t-title">${state}${esc(t.title)}</div>
-          <div class="t-meta">${CATEGORIES[t.cat].name} · ${t.xp} XP · ${t.coins} 🥕 · ${PROOF_MODES[t.proof].emoji} ${PROOF_MODES[t.proof].short}</div>
+          <div class="t-meta">${CATEGORIES[t.cat].name} · ${t.xp} XP · ${t.coins} 🥕 · ${PROOF_MODES[t.proof].emoji} ${PROOF_MODES[t.proof].short}${source}</div>
         </div>
         <div class="task-actions">
           <button class="icon-btn" title="تعديل" onclick="App.taskForm('${t.id}')">✏️</button>
@@ -517,6 +596,7 @@ const App = {
 
     document.getElementById('ptab-tasks').innerHTML = `
       ${reviewHtml}
+      ${apHtml}
       <div class="card">
         <h3>مهام اليوم (${S.tasks.length})</h3>
         ${rows || '<p class="muted">لا توجد مهام بعد — أضف أول مهمة!</p>'}
@@ -525,6 +605,7 @@ const App = {
         <div><button class="btn-primary" onclick="App.taskLibrary()">📚 أضف من المكتبة</button></div>
         <div><button class="btn-primary green" onclick="App.taskForm()">✏️ مهمة مخصصة</button></div>
       </div>
+      <button class="btn-primary purple" style="margin-top:10px" onclick="App.importCodeForm()">🏫 إضافة رمز من المعلم</button>
       <div class="card tip-card" style="margin-top:14px">
         <h3>💡 نصيحة اليوم</h3>
         <p>${PARENT_TIPS[dayOfYear() % PARENT_TIPS.length]}</p>
@@ -536,6 +617,53 @@ const App = {
           ? `<p class="pill">📦 صندوق بانتظار الفتح: ${esc(S.mysteryBox.prize)} (+${S.mysteryBox.coins} 🥕)</p>`
           : `<button class="btn-primary purple" onclick="App.mysteryForm()">إسقاط صندوق 📦</button>`}
       </div>`;
+  },
+
+  /* ── المساعد الآلي (الوالد الافتراضي) ── */
+  autopilotForm() {
+    const ap = S.autopilot;
+    const goalChecks = Object.entries(CATEGORIES).map(([k, c]) => `
+      <label class="goal-check">
+        <input type="checkbox" value="${k}" ${ap.goals.includes(k) ? 'checked' : ''} />
+        <span>${c.emoji} ${c.name}</span>
+      </label>`).join('');
+    const countOptions = [3, 4, 5, 6].map(n =>
+      `<option value="${n}" ${ap.count === n ? 'selected' : ''}>${n} مهام يوميًا</option>`).join('');
+    this.openModal(`
+      <h3>🤖 أهداف المساعد الآلي</h3>
+      <p class="muted" style="margin-bottom:12px">اختر العادات التي تريد بناءها — وسيولّد المساعد مهام يومية متنوعة منها كل صباح</p>
+      <div class="form-grid">
+        <div id="ap-goals">${goalChecks}</div>
+        <div><label>عدد المهام اليومية</label><select id="ap-count">${countOptions}</select></div>
+        <button class="btn-primary purple" onclick="App.saveAutopilot()">حفظ وتشغيل ⚡</button>
+      </div>`);
+  },
+
+  saveAutopilot() {
+    const goals = Array.from(document.querySelectorAll('#ap-goals input:checked')).map(i => i.value);
+    if (!goals.length) { this.toast('اختر هدفًا واحدًا على الأقل'); return; }
+    S.autopilot.goals = goals;
+    S.autopilot.count = parseInt(document.getElementById('ap-count').value) || 4;
+    S.autopilot.enabled = true;
+    runAutopilot(true);       // توليد فوري لليوم
+    this.closeModal();
+    this.renderPTasks();
+    this.toast('المساعد الآلي يعمل — مهام اليوم جاهزة 🤖✅');
+  },
+
+  autopilotToggle(on) {
+    S.autopilot.enabled = on;
+    if (!on) {
+      // إزالة المهام الآلية غير المنجزة عند الإيقاف
+      S.tasks = S.tasks.filter(t => {
+        if (t.auto) { S.taskArchive[t.id] = t.cat; return false; }
+        return true;
+      });
+      S.autopilot.lastGen = null;
+    }
+    save();
+    this.renderPTasks();
+    this.toast(on ? 'تم التشغيل 🤖' : 'توقف المساعد الآلي');
   },
 
   /* ── مكتبة المهام الجاهزة ── */
@@ -729,7 +857,7 @@ const App = {
     const rows = S.rewards.map(r => `
       <div class="task-row">
         <span class="task-cat">${r.emoji}</span>
-        <div class="task-info"><div class="t-title">${esc(r.title)}</div><div class="t-meta">${r.cost} 🥕</div></div>
+        <div class="task-info"><div class="t-title">${esc(r.title)}</div><div class="t-meta">${r.cost} 🥕${r.teacher ? ' · 🏫 موثقة من ' + esc(r.teacher) : ''}</div></div>
         <div class="task-actions">
           <button class="icon-btn" onclick="App.rewardForm('${r.id}')">✏️</button>
           <button class="icon-btn" onclick="App.deleteReward('${r.id}')">🗑️</button>
@@ -923,7 +1051,31 @@ const App = {
         </div>
         <h3 style="margin-top:6px">حسب المسار</h3>
         <div class="pill-list">${catStats}</div>
-      </div>`;
+      </div>
+      <button class="btn-primary purple" onclick="App.shareWeeklyReport()">📤 مشاركة تقرير الأسبوع (واتساب)</button>`;
+  },
+
+  /* تقرير أسبوعي نصي جاهز — للوالد المشغول أو لمشاركته مع الطرف الآخر */
+  shareWeeklyReport() {
+    let week = 0;
+    const dayLines = [];
+    for (let i = 6; i >= 0; i--) {
+      const n = (S.completions[dayKeyOffset(-i)] || []).length;
+      week += n;
+      dayLines.push(`${i === 0 ? 'اليوم' : dayNameOffset(-i)}: ${n ? '✅'.repeat(Math.min(n, 8)) : '—'}`);
+    }
+    const catLines = Object.entries(CATEGORIES)
+      .map(([k, c]) => `${c.emoji} ${c.name}: ${catCompletions(S, k)}`).join('\n');
+    const lines = [
+      `🥕 تقرير ${S.child.name} الأسبوعي — جَزَرة`,
+      `⭐ المستوى ${levelOf(S.child.xp)} · ✨ ${S.child.xp} XP · 🥕 ${S.child.coins} · 🔥 سلسلة ${S.child.streak} يوم`,
+      '', `📅 آخر 7 أيام (${week} مهمة):`, ...dayLines,
+      '', '📊 الإجمالي حسب المسار:', catLines,
+    ];
+    if (S.pendingProofs.length) lines.push('', `🔔 ${S.pendingProofs.length} إثبات بانتظار المراجعة`);
+    const text = lines.join('\n');
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
   },
 
   /* ── تبويب الإعدادات ── */
@@ -1032,6 +1184,7 @@ const App = {
             </button>
             <div class="node-card">
               <div class="n-title">${et.golden && !done ? '✨ ' : ''}${esc(t.title)}</div>
+              ${t.teacher ? `<div class="n-teacher">🏫 من ${esc(t.teacher)}</div>` : ''}
               <div class="n-reward">${pending ? '👀 بانتظار تأكيد والدك…'
                 : `✨ ${et.xp} XP &nbsp; 🥕 ${et.coins}${et.golden ? ' &nbsp; <b style="color:#cf9a1d">مهمة اليوم الذهبية ×2</b>' : ''}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
             </div>
@@ -1041,8 +1194,10 @@ const App = {
       html += '</div>';
     }
 
-    // مشاركة إنجاز اليوم مع الوالد البعيد
-    html += `<button class="btn-primary purple" style="margin-top:6px" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>`;
+    // مشاركة إنجاز اليوم مع الوالد البعيد + إضافة رمز معلم
+    html += `
+      <button class="btn-primary purple" style="margin-top:6px" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>
+      <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="App.importCodeForm()">🏫 عندي رمز من معلمي</button>`;
 
     document.getElementById('ktab-map').innerHTML = html;
   },
@@ -1239,6 +1394,7 @@ const App = {
       <div class="shop-item">
         <span class="s-emoji">${r.emoji}</span>
         <span class="s-name">${esc(r.title)}</span>
+        ${r.teacher ? `<small style="color:#8a86a8;font-weight:700">🏫 من ${esc(r.teacher)}</small>` : ''}
         <button class="buy-btn" ${S.child.coins < r.cost ? 'disabled' : ''} onclick="App.redeemReward('${r.id}')">${r.cost} 🥕</button>
       </div>`).join('');
 
@@ -1305,6 +1461,145 @@ const App = {
       <h2 class="map-title">🏅 أوسمتي (${earnedCount}/${BADGES.length})</h2>
       <p class="map-sub">كل إنجاز يفتح وسامًا جديدًا!</p>
       <div class="badges-grid">${cards}</div>`;
+  },
+
+  /* ═══════════ وضع المعلم ═══════════ */
+
+  enterTeacher() {
+    this.showScreen('screen-teacher');
+    this.renderTeacherForm();
+  },
+
+  renderTeacherForm() {
+    const catOptions = Object.entries(CATEGORIES)
+      .map(([k, c]) => `<option value="${k}">${c.emoji} ${c.name}</option>`).join('');
+    const proofOptions = Object.entries(PROOF_MODES)
+      .map(([k, m]) => `<option value="${k}" ${k === 'photo' ? 'selected' : ''}>${m.emoji} ${m.name}</option>`).join('');
+    document.getElementById('teacher-body').innerHTML = `
+      <div class="card">
+        <div class="form-grid">
+          <div><label>اسمك (يظهر للطالب وولي الأمر)</label><input id="t-name" placeholder="مثال: المعلمة نورة" /></div>
+          <div><label>النوع</label>
+            <select id="t-kind" onchange="App.teacherKindChanged()">
+              <option value="t">📋 مهمة</option>
+              <option value="r">🎁 مكافأة</option>
+            </select>
+          </div>
+          <div><label id="t-title-label">المهمة</label><input id="t-title" placeholder="مثال: حل صفحة 12 من كتاب الرياضيات" /></div>
+          <div id="t-task-fields">
+            <div style="margin-bottom:12px"><label>المسار</label><select id="t-cat">${catOptions}</select></div>
+            <div class="form-row">
+              <div><label>نقاط الخبرة XP</label><input id="t-xp" type="number" min="5" max="100" value="25" /></div>
+              <div><label>الجزر 🥕</label><input id="t-coins" type="number" min="1" max="50" value="10" /></div>
+            </div>
+            <div style="margin-top:12px"><label>طريقة تأكيد الإنجاز</label><select id="t-proof">${proofOptions}</select></div>
+          </div>
+          <div id="t-reward-fields" style="display:none">
+            <label>سعر المكافأة بالجزر 🥕</label><input id="t-cost" type="number" min="5" max="500" value="50" />
+          </div>
+          <button class="btn-primary purple" onclick="App.teacherGenerate()">توليد الرمز 🔑</button>
+        </div>
+      </div>
+      <div id="teacher-result"></div>`;
+  },
+
+  teacherKindChanged() {
+    const isReward = document.getElementById('t-kind').value === 'r';
+    document.getElementById('t-task-fields').style.display = isReward ? 'none' : 'block';
+    document.getElementById('t-reward-fields').style.display = isReward ? 'block' : 'none';
+    document.getElementById('t-title-label').textContent = isReward ? 'المكافأة' : 'المهمة';
+  },
+
+  _lastShareCode: '',
+  _lastShareMsg: '',
+
+  teacherGenerate() {
+    const name = document.getElementById('t-name').value.trim();
+    const title = document.getElementById('t-title').value.trim();
+    if (!name || !title) { this.toast('اكتب اسمك وعنوان المهمة أولًا'); return; }
+    const kind = document.getElementById('t-kind').value;
+    let payload;
+    if (kind === 'r') {
+      payload = { v: 1, k: 'r', n: name, t: title, o: Math.max(5, parseInt(document.getElementById('t-cost').value) || 50) };
+    } else {
+      payload = {
+        v: 1, k: 't', n: name, t: title,
+        c: document.getElementById('t-cat').value,
+        x: Math.max(5, parseInt(document.getElementById('t-xp').value) || 25),
+        o: Math.max(1, parseInt(document.getElementById('t-coins').value) || 10),
+        p: document.getElementById('t-proof').value,
+      };
+    }
+    const code = encodeShareCode(payload);
+    this._lastShareCode = code;
+    this._lastShareMsg = `🏫 ${kind === 'r' ? 'مكافأة' : 'مهمة'} من ${name} عبر تطبيق جَزَرة 🥕\n«${title}»\n\nانسخ الرمز التالي والصقه في التطبيق (زر: إضافة رمز من المعلم):\n\n${code}`;
+
+    // توليد QR (يحمل الرمز نفسه — يُمسح بكاميرا الجوال ثم يُنسخ ويُلصق)
+    let qrHtml = '';
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(code);
+      qr.make();
+      qrHtml = qr.createSvgTag({ scalable: true, margin: 2 });
+    } catch (e) { qrHtml = '<p class="muted">تعذر توليد QR — استخدم الرمز النصي</p>'; }
+
+    document.getElementById('teacher-result').innerHTML = `
+      <div class="card" style="text-align:center;border:3px solid var(--purple)">
+        <h3>✅ الرمز جاهز — أرسله لأولياء الأمور</h3>
+        <div class="qr-box">${qrHtml}</div>
+        <div class="code-box" dir="ltr">${this._lastShareCode}</div>
+        <div class="form-row" style="margin-top:12px">
+          <div><button class="btn-primary green" onclick="App.copyShareCode()">📋 نسخ الرمز</button></div>
+          <div><button class="btn-primary" onclick="App.whatsappShareCode()">💬 واتساب</button></div>
+        </div>
+      </div>`;
+    document.getElementById('teacher-result').scrollIntoView({ behavior: 'smooth' });
+  },
+
+  copyShareCode() {
+    navigator.clipboard.writeText(this._lastShareMsg).then(
+      () => this.toast('نُسخ الرمز مع التعليمات ✅'),
+      () => this.toast('انسخ الرمز يدويًا من المربع')
+    );
+  },
+
+  whatsappShareCode() {
+    window.open('https://wa.me/?text=' + encodeURIComponent(this._lastShareMsg), '_blank');
+  },
+
+  /* ── استيراد رمز المعلم (من لوحة الوالد أو عالم الطفل) ── */
+  importCodeForm() {
+    this.openModal(`
+      <h3>🏫 إضافة رمز من المعلم / المعلمة</h3>
+      <p class="muted" style="margin-bottom:12px">الصق الرمز الذي وصلكم (يبدأ بـ JZR1) — أو امسح الـ QR بكاميرا الجوال وانسخ النص</p>
+      <div class="form-grid">
+        <textarea id="f-import" rows="4" placeholder="JZR1.xxxx.xxx" style="width:100%;border:2px solid #e5e1f5;border-radius:12px;padding:10px;font-family:monospace" dir="ltr"></textarea>
+        <button class="btn-primary purple" onclick="App.importCode()">تحقق وأضف ✅</button>
+      </div>`);
+  },
+
+  importCode() {
+    const raw = document.getElementById('f-import').value;
+    const obj = decodeShareCode(raw);
+    if (!obj) { this.toast('الرمز غير صالح — تأكد من نسخه كاملًا'); return; }
+    if (obj.k === 'r') {
+      if (S.rewards.some(r => r.title === obj.t && r.teacher === obj.n)) { this.toast('هذه المكافأة مضافة من قبل'); this.closeModal(); return; }
+      S.rewards.push({ id: uid(), emoji: '🏫', title: obj.t, cost: obj.o, teacher: obj.n });
+      save();
+      this.closeModal();
+      this.toast(`أُضيفت مكافأة موثقة من ${obj.n} 🏫`);
+    } else {
+      if (S.tasks.some(t => t.title === obj.t && t.teacher === obj.n)) { this.toast('هذه المهمة مضافة من قبل'); this.closeModal(); return; }
+      const cat = CATEGORIES[obj.c] ? obj.c : 'study';
+      const proof = PROOF_MODES[obj.p] ? obj.p : 'photo';
+      S.tasks.push({ id: uid(), title: obj.t, cat, xp: Math.min(100, obj.x || 25), coins: Math.min(50, obj.o || 10), proof, teacher: obj.n });
+      save();
+      this.closeModal();
+      this.toast(`أُضيفت مهمة موثقة من ${obj.n} 🏫`);
+    }
+    // تحديث الشاشة الظاهرة حاليًا
+    if (document.getElementById('screen-parent').classList.contains('active')) { this.renderPTasks(); this.renderPRewards && this.parentTab(document.querySelector('.ptab.active').dataset.ptab); }
+    if (document.getElementById('screen-kid').classList.contains('active')) this.renderKMap();
   },
 
   /* ═══════════ الاحتفال والنوافذ ═══════════ */

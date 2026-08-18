@@ -29,6 +29,20 @@
           <span class="role-desc">غرفة قيادة المهام</span>
         </button>
       </div>
+      <button class="teacher-link" onclick="App.enterTeacher()">🏫 وضع المعلم / المعلمة</button>
+    </div>
+  </section>
+
+  <!-- ═══════════ وضع المعلم ═══════════ -->
+  <section id="screen-teacher" class="screen">
+    <div class="teacher-wrap">
+      <button class="btn-back" onclick="App.showScreen('screen-role')">→ رجوع</button>
+      <div class="teacher-head">
+        <span class="teacher-emoji">🏫</span>
+        <h2>وضع المعلم / المعلمة</h2>
+        <p class="muted">أنشئ مهمة أو مكافأة، وأرسل رمزها لأولياء الأمور عبر واتساب — تظهر في التطبيق موثقة باسمك</p>
+      </div>
+      <div id="teacher-body"></div>
     </div>
   </section>
 
@@ -119,6 +133,7 @@
 
   <div id="toast" class="toast"></div>
 
+  <script src="qrcode.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
