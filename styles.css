@@ -166,6 +166,42 @@ b { font-weight: 700; }
 @keyframes pulse-wait { 0%,100% { box-shadow: 0 5px 0 rgba(45,42,74,0.12); } 50% { box-shadow: 0 5px 0 rgba(45,42,74,0.12), 0 0 0 8px rgba(255,201,60,0.25); } }
 .map-node.pending .node-card { border: 2px dashed var(--gold); }
 
+/* مكتبة المهام والمكافآت */
+.lib-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.lib-chip {
+  background: #f4f2fb; border-radius: 99px; padding: 5px 12px; font-size: 0.78rem;
+  font-weight: 700; color: #8a86a8; border: 2px solid transparent;
+}
+.lib-chip.active { color: var(--carrot-dark); border-color: var(--carrot); background: #fff3e6; }
+.lib-list { max-height: 50vh; overflow-y: auto; }
+
+/* بطاقة النصيحة */
+.tip-card { background: linear-gradient(120deg, #fdf6ff, #f3ecff); border: 2px dashed #d9c8ff; }
+.tip-card p { color: #6b5a9e; font-weight: 700; font-size: 0.9rem; }
+
+/* مؤشر الاتجاه الأسبوعي */
+.trend { font-weight: 900; font-size: 0.85rem; margin-top: 10px; padding: 8px 12px; border-radius: 12px; }
+.trend.up { background: #e2f5ea; color: var(--green-dark); }
+.trend.down { background: #ffecec; color: #c94444; }
+
+/* المهمة الذهبية */
+.map-node.golden .node-circle {
+  background: linear-gradient(135deg, #fff3c4, #ffe08a); border-color: var(--gold);
+  animation: golden-glow 1.8s ease-in-out infinite;
+}
+@keyframes golden-glow {
+  0%,100% { box-shadow: 0 5px 0 rgba(45,42,74,0.12), 0 0 0 0 rgba(255,201,60,0.5); }
+  50% { box-shadow: 0 5px 0 rgba(45,42,74,0.12), 0 0 0 12px rgba(255,201,60,0); }
+}
+.map-node.golden .node-card { border: 2px solid var(--gold); background: #fffdf3; }
+
+/* صندوق الكنز اليومي */
+.chest-emoji { font-size: 5rem; animation: chest-bounce 1s ease-in-out infinite; }
+@keyframes chest-bounce {
+  0%,100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.05); }
+}
+
 /* شريط التقدم */
 .progressbar { background: #efeaf8; border-radius: 99px; height: 14px; overflow: hidden; }
 .progressbar > i {

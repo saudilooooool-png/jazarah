@@ -9,10 +9,96 @@
 const STORAGE_KEY = 'jazarah_state_v1';
 
 const CATEGORIES = {
-  study:  { emoji: '📚', name: 'فك شفرة المعرفة',   color: '#6ec6ff' },
-  sport:  { emoji: '⚡', name: 'تحدي طاقة البطل',   color: '#ffc93c' },
-  health: { emoji: '🛡️', name: 'جرعات الطاقة والحماية', color: '#4caf7d' },
+  study:    { emoji: '📚', name: 'فك شفرة المعرفة',      color: '#6ec6ff' },
+  sport:    { emoji: '⚡', name: 'تحدي طاقة البطل',      color: '#ffc93c' },
+  health:   { emoji: '🛡️', name: 'جرعات الطاقة والحماية', color: '#4caf7d' },
+  faith:    { emoji: '🌙', name: 'نور القلب',            color: '#9b6dff' },
+  kindness: { emoji: '🤝', name: 'القلوب الطيبة',        color: '#ff5da2' },
 };
+
+/* ─────────────── مكتبة المهام الجاهزة ─────────────── */
+const TASK_LIBRARY = [
+  // 📚 فك شفرة المعرفة
+  { title: 'حل الواجبات المدرسية',            cat: 'study',    xp: 30, coins: 10, proof: 'photo'  },
+  { title: 'مراجعة دروس اليوم',               cat: 'study',    xp: 30, coins: 10, proof: 'parent' },
+  { title: 'قراءة قصة 20 دقيقة',              cat: 'study',    xp: 20, coins: 8,  proof: 'parent' },
+  { title: 'حفظ 5 كلمات إنجليزية جديدة',      cat: 'study',    xp: 20, coins: 8,  proof: 'parent' },
+  { title: 'تجهيز الحقيبة لليوم التالي',      cat: 'study',    xp: 10, coins: 4,  proof: 'photo'  },
+  { title: 'تعلّم مهارة جديدة 15 دقيقة',      cat: 'study',    xp: 20, coins: 8,  proof: 'parent' },
+  // ⚡ تحدي طاقة البطل
+  { title: 'تمرين كرة قدم',                   cat: 'sport',    xp: 25, coins: 8,  proof: 'parent' },
+  { title: 'مشي أو جري 20 دقيقة',             cat: 'sport',    xp: 25, coins: 8,  proof: 'parent' },
+  { title: 'سباحة',                           cat: 'sport',    xp: 30, coins: 10, proof: 'parent' },
+  { title: 'تمارين صباحية 10 دقائق',          cat: 'sport',    xp: 15, coins: 5,  proof: 'self'   },
+  { title: 'ركوب الدراجة',                    cat: 'sport',    xp: 20, coins: 7,  proof: 'parent' },
+  { title: '30 قفزة حبل',                     cat: 'sport',    xp: 15, coins: 5,  proof: 'parent' },
+  // 🛡️ جرعات الطاقة والحماية
+  { title: 'شرب 6 أكواب ماء',                 cat: 'health',   xp: 10, coins: 4,  proof: 'self'   },
+  { title: 'النوم مبكرًا 😴',                  cat: 'health',   xp: 20, coins: 6,  proof: 'self'   },
+  { title: 'تناول فواكه وخضار',               cat: 'health',   xp: 15, coins: 5,  proof: 'self'   },
+  { title: 'ترتيب الغرفة',                    cat: 'health',   xp: 15, coins: 5,  proof: 'photo'  },
+  { title: 'تنظيف الأسنان صباحًا ومساءً',      cat: 'health',   xp: 10, coins: 4,  proof: 'self'   },
+  { title: 'ترتيب السرير بعد الاستيقاظ',      cat: 'health',   xp: 10, coins: 4,  proof: 'photo'  },
+  { title: 'الاستحمام دون تذكير',             cat: 'health',   xp: 10, coins: 4,  proof: 'self'   },
+  // 🌙 نور القلب
+  { title: 'الصلوات الخمس في وقتها',          cat: 'faith',    xp: 40, coins: 12, proof: 'parent' },
+  { title: 'صلاة الفجر في وقتها',             cat: 'faith',    xp: 30, coins: 10, proof: 'parent' },
+  { title: 'قراءة صفحة من القرآن',            cat: 'faith',    xp: 20, coins: 8,  proof: 'parent' },
+  { title: 'أذكار الصباح والمساء',            cat: 'faith',    xp: 15, coins: 5,  proof: 'self'   },
+  { title: 'الدعاء للوالدين',                 cat: 'faith',    xp: 10, coins: 4,  proof: 'self'   },
+  // 🤝 القلوب الطيبة
+  { title: 'مساعدة ماما في المطبخ',           cat: 'kindness', xp: 20, coins: 7,  proof: 'parent' },
+  { title: 'مساعدة بابا في مهمة',             cat: 'kindness', xp: 20, coins: 7,  proof: 'parent' },
+  { title: 'اللعب مع أخي الصغير',             cat: 'kindness', xp: 15, coins: 5,  proof: 'parent' },
+  { title: 'ترتيب طاولة الطعام',              cat: 'kindness', xp: 15, coins: 5,  proof: 'photo'  },
+  { title: 'إخراج النفايات',                  cat: 'kindness', xp: 10, coins: 4,  proof: 'photo'  },
+  { title: 'قول كلمة طيبة لشخص اليوم',        cat: 'kindness', xp: 10, coins: 4,  proof: 'self'   },
+];
+
+/* ─────────────── مكتبة أفكار المكافآت ─────────────── */
+const REWARD_LIBRARY = [
+  { group: '🎮 وقت الشاشة', items: [
+    { emoji: '🎮', title: 'نصف ساعة لعب إضافية',      cost: 25 },
+    { emoji: '📺', title: 'ساعة مشاهدة إضافية',        cost: 35 },
+    { emoji: '🎬', title: 'اختيار فيلم العائلة',       cost: 40 },
+  ]},
+  { group: '🚗 مشاوير', items: [
+    { emoji: '🌳', title: 'مشوار إلى الحديقة',         cost: 60 },
+    { emoji: '📚', title: 'مشوار للمكتبة وشراء قصة',   cost: 80 },
+    { emoji: '🍔', title: 'مطعمي المفضل',              cost: 100 },
+    { emoji: '🎡', title: 'رحلة إلى الملاهي',          cost: 150 },
+  ]},
+  { group: '🍦 حلويات', items: [
+    { emoji: '🧃', title: 'عصيري المفضل',              cost: 15 },
+    { emoji: '🍬', title: 'حلوى بعد العشاء',           cost: 20 },
+    { emoji: '🍦', title: 'آيس كريم',                  cost: 30 },
+  ]},
+  { group: '👑 امتيازات', items: [
+    { emoji: '🍕', title: 'اختيار وجبة العشاء',        cost: 40 },
+    { emoji: '🌙', title: 'سهر نصف ساعة إضافية',       cost: 35 },
+    { emoji: '🗓️', title: 'اختيار نشاط نهاية الأسبوع', cost: 90 },
+    { emoji: '🏖️', title: 'يوم بدون مهام',             cost: 120 },
+  ]},
+  { group: '🎁 هدايا', items: [
+    { emoji: '💵', title: 'مصروف إضافي',               cost: 150 },
+    { emoji: '🧸', title: 'لعبة صغيرة',                cost: 200 },
+    { emoji: '🎁', title: 'هدية مفاجأة كبيرة',         cost: 500 },
+  ]},
+];
+
+/* ─────────────── نصائح تربوية للوالدين ─────────────── */
+const PARENT_TIPS = [
+  'امدح الجهد لا النتيجة: «أعجبني تركيزك» أفضل من «أنت ذكي»',
+  'المكافأة الفورية الصغيرة أقوى أثرًا من الكبيرة المؤجلة',
+  'اجعل ابنك يشارك في تسعير المكافآت — الشعور بالملكية يضاعف الحماس',
+  'لا تحذف الجزر عقابًا؛ اجعل الخسارة الوحيدة هي ضياع الفرصة',
+  '3 مهام ثابتة خير من 8 متقلبة — الثبات يبني العادة',
+  'احتفل بسلسلة الأيام أمام العائلة، فالتقدير الاجتماعي وقود الاستمرار',
+  'راجع صور الإثبات مع ابنك وامدح تفصيلة محددة فيها',
+  'أسقط صندوق مفاجأة بعد سلوك طيب لم تطلبه — المفاجأة تعلّم المبادرة',
+  'اجعل تحدي الزعيم شيئًا تشاركون فيه فعلًا — رؤيتك تشارك أهم من أي جائزة',
+  'إن تعثرت السلسلة فذكّره بأفضل رقم وصله وشجعه على كسره',
+];
 
 const AVATAR_STAGES = ['🐣', '🐥', '🦊', '🦁', '🦸', '🦸‍♂️', '🐉'];
 
@@ -85,6 +171,7 @@ function defaultState() {
     bossesDefeated: 0,
     mysteryBox: null,      // { prize, coins }
     lastHpDay: todayKey(),
+    lastDailyChest: null,  // آخر يوم فتح فيه الطفل صندوق الدخول اليومي
   };
 }
 
@@ -98,6 +185,10 @@ function dayKeyOffset(offset) {
   const d = new Date();
   d.setDate(d.getDate() + offset);
   return todayKey(d);
+}
+function dayOfYear() {
+  const now = new Date();
+  return Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
 }
 const DAY_NAMES = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 function dayNameOffset(offset) {
@@ -115,6 +206,19 @@ function catCompletions(s, cat) {
   for (const arr of Object.values(s.completions)) n += arr.filter(id => ids.has(id)).length;
   return n;
 }
+/* المهمة الذهبية: مهمة مختلفة كل يوم بمكافأة مضاعفة — اختيار ثابت طوال اليوم */
+function goldenTaskId(dateKey) {
+  if (!S.tasks.length) return null;
+  let h = 0;
+  for (const ch of dateKey) h = (h * 31 + ch.charCodeAt(0)) % 100000;
+  return S.tasks[h % S.tasks.length].id;
+}
+/* قيم المهمة الفعلية لليوم (تُضاعف إن كانت ذهبية) */
+function effectiveTask(t, dateKey) {
+  if (t.id === goldenTaskId(dateKey)) return { ...t, xp: t.xp * 2, coins: t.coins * 2, golden: true };
+  return { ...t, golden: false };
+}
+
 function levelOf(xp) { return Math.floor(xp / 100) + 1; }
 function levelProgress(xp) { return xp % 100; }
 function heroTitle(level) {
@@ -249,7 +353,43 @@ const App = {
       this.celebrate('والدك اعتمد إنجازك! 🎊', list, [`+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '👏');
       this.refreshKidHeader();
       this.renderKMap();
+    } else if (S.lastDailyChest !== todayKey()) {
+      // صندوق الدخول اليومي — مرة واحدة يوميًا
+      this.showDailyChest();
     }
+  },
+
+  /* ── صندوق الكنز اليومي ── */
+  showDailyChest() {
+    this.openModal(`
+      <div style="text-align:center">
+        <div class="chest-emoji" id="chest-emoji">🎁</div>
+        <h3 style="margin-top:8px">كنز اليوم وصل!</h3>
+        <p class="muted" style="margin-bottom:16px">هدية دخولك اليومية — كل يوم تدخل فيه، الكنز ينتظرك</p>
+        <button class="btn-primary big" onclick="App.openDailyChest()">افتح الصندوق! 🔑</button>
+      </div>`);
+  },
+
+  openDailyChest() {
+    if (S.lastDailyChest === todayKey()) { this.closeModal(); return; }
+    S.lastDailyChest = todayKey();
+    const base = 2 + Math.floor(Math.random() * 4); // 2–5 جزرات
+    let streakBonus = 0;
+    if (S.child.streak >= 30) streakBonus = 20;
+    else if (S.child.streak >= 14) streakBonus = 10;
+    else if (S.child.streak >= 7) streakBonus = 7;
+    else if (S.child.streak >= 3) streakBonus = 3;
+    const total = base + streakBonus;
+    S.child.coins += total;
+    S.child.lifetimeCoins += total;
+    save();
+    this.closeModal();
+    const gains = [`+${base} 🥕`];
+    if (streakBonus) gains.push(`+${streakBonus} 🥕 مكافأة السلسلة 🔥`);
+    const goldenT = S.tasks.find(t => t.id === goldenTaskId(todayKey()));
+    this.celebrate('كنز اليوم! 💰', goldenT ? `مهمة اليوم الذهبية ×2: <b>✨ ${esc(goldenT.title)}</b>` : 'يوم موفق يا بطل!', gains, '🪙');
+    this.refreshKidHeader();
+    this.renderKMap();
   },
 
   /* ─────── الرقم السري ─────── */
@@ -381,14 +521,94 @@ const App = {
         <h3>مهام اليوم (${S.tasks.length})</h3>
         ${rows || '<p class="muted">لا توجد مهام بعد — أضف أول مهمة!</p>'}
       </div>
-      <button class="btn-primary" onclick="App.taskForm()">＋ إضافة مهمة جديدة</button>
-      <div class="card" style="margin-top:14px">
+      <div class="form-row">
+        <div><button class="btn-primary" onclick="App.taskLibrary()">📚 أضف من المكتبة</button></div>
+        <div><button class="btn-primary green" onclick="App.taskForm()">✏️ مهمة مخصصة</button></div>
+      </div>
+      <div class="card tip-card" style="margin-top:14px">
+        <h3>💡 نصيحة اليوم</h3>
+        <p>${PARENT_TIPS[dayOfYear() % PARENT_TIPS.length]}</p>
+      </div>
+      <div class="card">
         <h3>🎁 إسقاط صندوق مفاجأة</h3>
         <p class="muted" style="margin-bottom:10px">كافئ أداءً مميزًا غير متوقع بصندوق يظهر في خريطة ${esc(S.child.name)}</p>
         ${S.mysteryBox
           ? `<p class="pill">📦 صندوق بانتظار الفتح: ${esc(S.mysteryBox.prize)} (+${S.mysteryBox.coins} 🥕)</p>`
           : `<button class="btn-primary purple" onclick="App.mysteryForm()">إسقاط صندوق 📦</button>`}
       </div>`;
+  },
+
+  /* ── مكتبة المهام الجاهزة ── */
+  _libFilter: 'all',
+
+  taskLibrary(filter) {
+    this._libFilter = filter || this._libFilter || 'all';
+    const f = this._libFilter;
+    const chips = [`<button class="lib-chip ${f === 'all' ? 'active' : ''}" onclick="App.taskLibrary('all')">الكل</button>`]
+      .concat(Object.entries(CATEGORIES).map(([k, c]) =>
+        `<button class="lib-chip ${f === k ? 'active' : ''}" onclick="App.taskLibrary('${k}')">${c.emoji} ${c.name}</button>`)).join('');
+    const existing = new Set(S.tasks.map(t => t.title));
+    const items = TASK_LIBRARY.filter(t => f === 'all' || t.cat === f).map((t, i) => {
+      const idx = TASK_LIBRARY.indexOf(t);
+      const added = existing.has(t.title);
+      return `
+      <div class="task-row">
+        <span class="task-cat">${CATEGORIES[t.cat].emoji}</span>
+        <div class="task-info">
+          <div class="t-title">${esc(t.title)}</div>
+          <div class="t-meta">${t.xp} XP · ${t.coins} 🥕 · ${PROOF_MODES[t.proof].emoji} ${PROOF_MODES[t.proof].short}</div>
+        </div>
+        ${added
+          ? '<span class="pill" style="background:#e2f5ea">✔ مضافة</span>'
+          : `<button class="icon-btn" style="background:#fff3e6;font-weight:900;color:var(--carrot-dark)" onclick="App.addFromLibrary(${idx})">＋</button>`}
+      </div>`;
+    }).join('');
+    this.openModal(`
+      <h3>📚 مكتبة المهام</h3>
+      <div class="lib-chips">${chips}</div>
+      <div class="lib-list">${items || '<p class="muted">لا مهام في هذا المسار</p>'}</div>`);
+  },
+
+  addFromLibrary(idx) {
+    const t = TASK_LIBRARY[idx];
+    if (!t || S.tasks.some(x => x.title === t.title)) return;
+    S.tasks.push({ id: uid(), ...t });
+    save();
+    this.toast(`أُضيفت «${t.title}» لخريطة اليوم ✅`);
+    this.taskLibrary();       // تحديث النافذة
+    this.renderPTasks();
+  },
+
+  /* ── مكتبة أفكار المكافآت ── */
+  rewardLibrary() {
+    const existing = new Set(S.rewards.map(r => r.title));
+    const sections = REWARD_LIBRARY.map((g, gi) => `
+      <h3 style="margin-top:14px;font-size:1rem">${g.group}</h3>
+      ${g.items.map((r, ri) => `
+        <div class="task-row">
+          <span class="task-cat">${r.emoji}</span>
+          <div class="task-info">
+            <div class="t-title">${esc(r.title)}</div>
+            <div class="t-meta">سعر مقترح: ${r.cost} 🥕 — عدّله بعد الإضافة إن أردت</div>
+          </div>
+          ${existing.has(r.title)
+            ? '<span class="pill" style="background:#e2f5ea">✔</span>'
+            : `<button class="icon-btn" style="background:#fff3e6;font-weight:900;color:var(--carrot-dark)" onclick="App.addRewardFromLibrary(${gi},${ri})">＋</button>`}
+        </div>`).join('')}`).join('');
+    this.openModal(`
+      <h3>🎁 مكتبة أفكار المكافآت</h3>
+      <p class="muted">أنت من يعتمد الجائزة ويحدد سعرها النهائي</p>
+      <div class="lib-list">${sections}</div>`);
+  },
+
+  addRewardFromLibrary(gi, ri) {
+    const r = REWARD_LIBRARY[gi].items[ri];
+    if (!r || S.rewards.some(x => x.title === r.title)) return;
+    S.rewards.push({ id: uid(), ...r });
+    save();
+    this.toast(`أُضيفت «${r.title}» إلى الخزنة ✅`);
+    this.rewardLibrary();
+    this.renderPRewards();
   },
 
   approveProof(id) {
@@ -523,7 +743,10 @@ const App = {
         <p class="muted" style="margin-bottom:8px">جوائز واقعية يشتريها ${esc(S.child.name)} بالجزر 🥕</p>
         ${rows || '<p class="muted">أضف أول مكافأة!</p>'}
       </div>
-      <button class="btn-primary" onclick="App.rewardForm()">＋ إضافة مكافأة</button>`;
+      <div class="form-row">
+        <div><button class="btn-primary" onclick="App.rewardLibrary()">🎁 أفكار جاهزة</button></div>
+        <div><button class="btn-primary green" onclick="App.rewardForm()">✏️ مكافأة مخصصة</button></div>
+      </div>`;
   },
 
   rewardForm(rewardId) {
@@ -667,11 +890,26 @@ const App = {
     const catStats = Object.entries(CATEGORIES).map(([k, c]) =>
       `<span class="pill">${c.emoji} ${c.name}: <b>${catCompletions(S, k)}</b></span>`).join('');
 
+    // مقارنة هذا الأسبوع بالأسبوع السابق
+    let thisWeek = 0, prevWeek = 0;
+    for (let i = 0; i < 7; i++) thisWeek += (S.completions[dayKeyOffset(-i)] || []).length;
+    for (let i = 7; i < 14; i++) prevWeek += (S.completions[dayKeyOffset(-i)] || []).length;
+    let trendHtml = '';
+    if (prevWeek > 0) {
+      const diff = Math.round((thisWeek - prevWeek) / prevWeek * 100);
+      trendHtml = diff >= 0
+        ? `<p class="trend up">📈 تحسّن بنسبة ${diff}% عن الأسبوع الماضي (${thisWeek} مقابل ${prevWeek} مهمة)</p>`
+        : `<p class="trend down">📉 تراجع بنسبة ${-diff}% عن الأسبوع الماضي — جرّب صندوق مفاجأة لإشعال الحماس!</p>`;
+    } else if (thisWeek > 0) {
+      trendHtml = `<p class="trend up">🌱 أول أسبوع نشط — ${thisWeek} مهمة منجزة</p>`;
+    }
+
     const lvl = levelOf(S.child.xp);
     document.getElementById('ptab-report').innerHTML = `
       <div class="card">
         <h3>📊 الإنجاز في آخر 7 أيام</h3>
         <div class="chart">${bars}</div>
+        ${trendHtml}
       </div>
       <div class="card">
         <h3>نظرة عامة على ${esc(S.child.name)}</h3>
@@ -780,19 +1018,22 @@ const App = {
       html += `<div class="map-empty"><div class="big-emoji">🗺️</div><p class="muted">الخريطة فارغة… اطلب من والدك إضافة مهام المغامرة!</p></div>`;
     } else {
       const pendingToday = new Set(S.pendingProofs.filter(p => p.date === today).map(p => p.taskId));
+      const goldenId = goldenTaskId(today);
       html += '<div class="map-path">';
       S.tasks.forEach((t, i) => {
         const done = doneIds.has(t.id);
         const pending = pendingToday.has(t.id);
+        const et = effectiveTask(t, today);
         const side = i % 2 === 0 ? 'side-left' : 'side-right';
         html += `
-          <div class="map-node ${side} ${done ? 'done' : ''} ${pending ? 'pending' : ''}">
+          <div class="map-node ${side} ${done ? 'done' : ''} ${pending ? 'pending' : ''} ${et.golden && !done && !pending ? 'golden' : ''}">
             <button class="node-circle" onclick="App.completeTask('${t.id}')" ${done || pending ? 'disabled' : ''}>
               ${done ? '⭐' : (pending ? '⏳' : CATEGORIES[t.cat].emoji)}
             </button>
             <div class="node-card">
-              <div class="n-title">${esc(t.title)}</div>
-              <div class="n-reward">${pending ? '👀 بانتظار تأكيد والدك…' : `✨ ${t.xp} XP &nbsp; 🥕 ${t.coins}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
+              <div class="n-title">${et.golden && !done ? '✨ ' : ''}${esc(t.title)}</div>
+              <div class="n-reward">${pending ? '👀 بانتظار تأكيد والدك…'
+                : `✨ ${et.xp} XP &nbsp; 🥕 ${et.coins}${et.golden ? ' &nbsp; <b style="color:#cf9a1d">مهمة اليوم الذهبية ×2</b>' : ''}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
             </div>
           </div>
           ${i < S.tasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
@@ -832,19 +1073,20 @@ const App = {
     if ((S.completions[today] || []).includes(taskId)) return;
     if (S.pendingProofs.some(p => p.taskId === taskId && p.date === today)) return;
 
+    const et = effectiveTask(t, today); // تضاعف القيم إن كانت المهمة الذهبية
     if (t.proof === 'photo') {
       this.photoProofForm(taskId);
       return;
     }
     if (t.proof === 'parent') {
-      this._queueProof(t, null);
+      this._queueProof(et, null);
       this.celebrate('أرسلنا إنجازك! 📨', `${esc(t.title)}<br /><small>سيصلك الجزر بعد تأكيد والدك 👀</small>`, ['⏳ بانتظار التأكيد'], '📨');
       this.renderKMap();
       return;
     }
     // مهمة ثقة: صرف فوري
-    const res = grantCompletion(t, today);
-    this._celebrateGrant(t, res);
+    const res = grantCompletion(et, today);
+    this._celebrateGrant(et, res);
     this.renderKMap();
     this.refreshKidHeader();
   },
@@ -852,7 +1094,7 @@ const App = {
   _queueProof(t, photo) {
     const now = new Date();
     S.pendingProofs.push({
-      id: uid(), taskId: t.id, title: t.title, cat: t.cat, xp: t.xp, coins: t.coins,
+      id: uid(), taskId: t.id, title: t.title + (t.golden ? ' ✨' : ''), cat: t.cat, xp: t.xp, coins: t.coins,
       proof: t.proof, date: todayKey(),
       time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
       photo: photo || null,
@@ -861,7 +1103,7 @@ const App = {
   },
 
   _celebrateGrant(t, res) {
-    let title = 'أحسنت يا بطل!', emoji = '🎉', msg = esc(t.title);
+    let title = t.golden ? 'مهمة ذهبية! مكافأة مضاعفة ×2 ✨' : 'أحسنت يا بطل!', emoji = t.golden ? '✨' : '🎉', msg = esc(t.title);
     if (res.leveledUp) {
       title = `ترقّيت للمستوى ${res.newLevel}! 🆙`;
       emoji = avatarFor(res.newLevel);
@@ -918,7 +1160,7 @@ const App = {
   submitPhotoProof() {
     const t = S.tasks.find(x => x.id === this._pendingPhotoTaskId);
     if (!t || !this._pendingPhotoData) return;
-    this._queueProof(t, this._pendingPhotoData);
+    this._queueProof(effectiveTask(t, todayKey()), this._pendingPhotoData);
     this._pendingPhotoTaskId = null;
     this._pendingPhotoData = null;
     this.closeModal();
