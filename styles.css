@@ -471,6 +471,102 @@ b { font-weight: 700; }
 }
 .toast.show { opacity: 1; transform: translateX(50%) translateY(0); }
 
+/* ═══════════ اختيار البطل ═══════════ */
+#screen-childselect { background: linear-gradient(160deg, #bde8ff, #e0f5ff); }
+.childselect-wrap { max-width: 560px; margin: 0 auto; padding: 5vh 24px 40px; }
+.childselect-wrap .btn-back { color: #3d7ea6; }
+.cs-title { text-align: center; font-weight: 900; font-size: 1.5rem; margin-bottom: 24px; }
+.cs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.cs-card {
+  background: #fff; border-radius: 22px; padding: 20px 12px; text-align: center;
+  box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: transform 0.15s;
+}
+.cs-card:active { transform: scale(0.96); }
+.cs-avatar {
+  width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 2.6rem; border: 3px solid #fff; box-shadow: 0 3px 8px rgba(45,42,74,0.15);
+}
+.cs-avatar.small { width: 46px; height: 46px; font-size: 1.6rem; flex-shrink: 0; }
+.cs-name { font-weight: 900; font-size: 1.1rem; }
+.cs-level { font-size: 0.8rem; color: #8a86a8; font-weight: 700; }
+.cs-join { text-align: center; margin-top: 28px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+/* مبدل الأطفال في لوحة الوالد */
+.child-switcher {
+  display: flex; gap: 8px; padding: 4px 20px 8px; max-width: 640px; margin: 0 auto;
+  overflow-x: auto;
+}
+.child-chip {
+  display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 99px;
+  padding: 5px 14px 5px 6px; font-weight: 900; font-size: 0.9rem; color: #8a86a8;
+  border: 2px solid transparent; white-space: nowrap;
+}
+.child-chip span {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 1.1rem;
+}
+.child-chip.active { color: var(--purple); border-color: var(--purple); }
+
+/* منتقي الأفاتار */
+.av-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.av-pick {
+  aspect-ratio: 1; border-radius: 14px; background: #f4f2fb; font-size: 1.7rem;
+  display: grid; place-items: center; border: 3px solid transparent;
+}
+.av-pick.active { border-color: var(--carrot); background: #fff3e6; }
+.av-pick.locked { opacity: 0.55; font-size: 1.1rem; flex-direction: column; display: flex; align-items: center; justify-content: center; }
+.av-pick.locked small { font-size: 0.6rem; color: #8a86a8; font-weight: 900; }
+.bg-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.bg-pick {
+  width: 42px; height: 42px; border-radius: 50%; border: 3px solid #e5e1f5;
+}
+.bg-pick.active { border-color: var(--ink); transform: scale(1.1); }
+
+/* شارة الأفاتار في ترويسة الطفل */
+#kid-avatar-mini {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 1.2rem !important;
+}
+
+/* ═══════════ التجاوب: جوال → آيباد → تابلت كبير ═══════════ */
 @media (min-width: 560px) {
   .kid-nav { right: 50%; transform: translateX(50%); left: auto; width: 560px; }
+}
+
+@media (min-width: 700px) {
+  /* شاشة الدور: البطاقات جنبًا إلى جنب */
+  .role-wrap { max-width: 760px; }
+  .role-cards { flex-direction: row; }
+  .role-card { flex: 1; padding: 32px 22px; }
+  .app-title { font-size: 3.6rem; }
+
+  /* لوحة الوالد أوسع مع عمودين للبطاقات */
+  .parent-header, .parent-tabs, .child-switcher { max-width: 880px; }
+  .ptab-panel { max-width: 880px; }
+  #ptab-report .card, #ptab-settings .card { max-width: none; }
+  .ptab { font-size: 1rem; padding: 10px 18px; }
+
+  /* عالم الطفل أوسع */
+  .ktab-panel { max-width: 680px; }
+  .kid-header { max-width: 680px; }
+  .kid-nav { width: 680px; }
+  .shop-grid { grid-template-columns: repeat(3, 1fr); }
+  .badges-grid { grid-template-columns: repeat(3, 1fr); }
+  .cs-grid { grid-template-columns: repeat(3, 1fr); }
+  .childselect-wrap { max-width: 760px; }
+  .av-grid { grid-template-columns: repeat(6, 1fr); }
+  .hero-stats-grid { max-width: 480px; margin: 8px auto 0; }
+  .teacher-wrap { max-width: 620px; }
+  .node-circle { width: 84px; height: 84px; font-size: 2.3rem; }
+  .knav { font-size: 0.85rem; padding: 6px 18px; }
+  .knav span { font-size: 1.7rem; }
+}
+
+@media (min-width: 1024px) {
+  /* آيباد أفقي وتابلت كبير: تبويبات الوالد بعرض مريح وشبكات أكثر أعمدة */
+  .parent-header, .parent-tabs, .ptab-panel, .child-switcher { max-width: 1000px; }
+  .shop-grid { grid-template-columns: repeat(4, 1fr); }
+  .badges-grid { grid-template-columns: repeat(4, 1fr); }
+  .cs-grid { grid-template-columns: repeat(4, 1fr); }
+  .chart { height: 170px; }
 }

@@ -100,7 +100,14 @@ const PARENT_TIPS = [
   'إن تعثرت السلسلة فذكّره بأفضل رقم وصله وشجعه على كسره',
 ];
 
-const AVATAR_STAGES = ['🐣', '🐥', '🦊', '🦁', '🦸', '🦸‍♂️', '🐉'];
+/* مكتبة شخصيات الأفاتار — تُفتح بالمستويات */
+const AVATAR_BASES = [
+  { e: '🐣', lvl: 1 }, { e: '🐱', lvl: 1 }, { e: '🐰', lvl: 1 }, { e: '🐹', lvl: 1 },
+  { e: '🦊', lvl: 2 }, { e: '🐸', lvl: 2 }, { e: '🐼', lvl: 3 }, { e: '🐨', lvl: 3 },
+  { e: '🦁', lvl: 4 }, { e: '🐯', lvl: 4 }, { e: '🦖', lvl: 5 }, { e: '🦄', lvl: 6 },
+  { e: '🦅', lvl: 7 }, { e: '🦸', lvl: 8 }, { e: '🧙', lvl: 10 }, { e: '🐉', lvl: 12 },
+];
+const AVATAR_BGS = ['#ffe3c4', '#d6ecff', '#dff5e4', '#f3e3ff', '#ffe0ec', '#fff6c9'];
 
 const HERO_TITLES = [
   { level: 1,  title: 'مستكشف مبتدئ' },
@@ -120,62 +127,79 @@ const GEAR_ITEMS = [
 ];
 
 const BADGES = [
-  { id: 'first_task',   emoji: '🌟', name: 'أول خطوة',      desc: 'أنجزت أول مهمة!',              check: s => totalCompletions(s) >= 1 },
-  { id: 'ten_tasks',    emoji: '💪', name: 'عشرة أبطال',    desc: 'أنجزت 10 مهام',                 check: s => totalCompletions(s) >= 10 },
-  { id: 'fifty_tasks',  emoji: '🏆', name: 'نجم الإنجاز',   desc: 'أنجزت 50 مهمة',                 check: s => totalCompletions(s) >= 50 },
-  { id: 'streak_3',     emoji: '🔥', name: 'شعلة النشاط',   desc: '3 أيام متتالية',                check: s => s.child.bestStreak >= 3 },
-  { id: 'streak_7',     emoji: '🌋', name: 'بركان الهمّة',  desc: '7 أيام متتالية',                check: s => s.child.bestStreak >= 7 },
-  { id: 'reader',       emoji: '📖', name: 'بطل القراءة',   desc: '10 مهام دراسية',                check: s => catCompletions(s, 'study') >= 10 },
-  { id: 'athlete',      emoji: '🏅', name: 'سيد اللياقة',   desc: '10 مهام رياضية',                check: s => catCompletions(s, 'sport') >= 10 },
-  { id: 'healthy',      emoji: '🥗', name: 'حارس الصحة',    desc: '10 عادات صحية',                 check: s => catCompletions(s, 'health') >= 10 },
-  { id: 'boss_slayer',  emoji: '⚔️', name: 'قاهر الوحوش',   desc: 'هزمتم زعيمًا عائليًا',          check: s => s.bossesDefeated >= 1 },
-  { id: 'rich',         emoji: '💰', name: 'كنز الجزر',     desc: 'جمعت 100 جزرة',                 check: s => s.child.lifetimeCoins >= 100 },
+  { id: 'first_task',   emoji: '🌟', name: 'أول خطوة',      desc: 'أنجزت أول مهمة!',              check: c => totalCompletions(c) >= 1 },
+  { id: 'ten_tasks',    emoji: '💪', name: 'عشرة أبطال',    desc: 'أنجزت 10 مهام',                 check: c => totalCompletions(c) >= 10 },
+  { id: 'fifty_tasks',  emoji: '🏆', name: 'نجم الإنجاز',   desc: 'أنجزت 50 مهمة',                 check: c => totalCompletions(c) >= 50 },
+  { id: 'streak_3',     emoji: '🔥', name: 'شعلة النشاط',   desc: '3 أيام متتالية',                check: c => c.bestStreak >= 3 },
+  { id: 'streak_7',     emoji: '🌋', name: 'بركان الهمّة',  desc: '7 أيام متتالية',                check: c => c.bestStreak >= 7 },
+  { id: 'reader',       emoji: '📖', name: 'بطل القراءة',   desc: '10 مهام دراسية',                check: c => catCompletions(c, 'study') >= 10 },
+  { id: 'athlete',      emoji: '🏅', name: 'سيد اللياقة',   desc: '10 مهام رياضية',                check: c => catCompletions(c, 'sport') >= 10 },
+  { id: 'healthy',      emoji: '🥗', name: 'حارس الصحة',    desc: '10 عادات صحية',                 check: c => catCompletions(c, 'health') >= 10 },
+  { id: 'boss_slayer',  emoji: '⚔️', name: 'قاهر الوحوش',   desc: 'هزمتم زعيمًا عائليًا',          check: () => S.bossesDefeated >= 1 },
+  { id: 'rich',         emoji: '💰', name: 'كنز الجزر',     desc: 'جمعت 100 جزرة',                 check: c => c.lifetimeCoins >= 100 },
 ];
 
 /* ─────────────── الحالة الافتراضية ─────────────── */
 
-function defaultState() {
+function defaultTasks() {
+  return [
+    { id: uid(), title: 'إنهاء الواجبات المدرسية', cat: 'study',  xp: 30, coins: 10, proof: 'photo'  },
+    { id: uid(), title: 'قراءة 20 دقيقة',          cat: 'study',  xp: 20, coins: 8,  proof: 'parent' },
+    { id: uid(), title: 'حركة ونشاط 30 دقيقة',     cat: 'sport',  xp: 25, coins: 8,  proof: 'parent' },
+    { id: uid(), title: 'ترتيب الغرفة',            cat: 'health', xp: 15, coins: 5,  proof: 'photo'  },
+    { id: uid(), title: 'شرب 6 أكواب ماء',         cat: 'health', xp: 10, coins: 4,  proof: 'self'   },
+    { id: uid(), title: 'النوم مبكرًا 😴',          cat: 'health', xp: 20, coins: 6,  proof: 'self'   },
+  ];
+}
+
+/* ملف طفل كامل — كل بيانات الطفل معزولة تحت حسابه */
+function defaultChild(name, avatarBase, avatarBg) {
   return {
-    pin: null,
-    child: {
-      name: 'البطل',
-      xp: 0,
-      coins: 0,
-      lifetimeCoins: 0,
-      hp: 100,
-      streak: 0,
-      bestStreak: 0,
-      lastFullDay: null,   // آخر يوم أنجز فيه مهمة
-      gear: [],            // معرفات العتاد المُشترى
-      equipped: [],        // العتاد الظاهر على الأفاتار
-    },
-    tasks: [
-      { id: uid(), title: 'إنهاء الواجبات المدرسية', cat: 'study',  xp: 30, coins: 10, proof: 'photo'  },
-      { id: uid(), title: 'قراءة 20 دقيقة',          cat: 'study',  xp: 20, coins: 8,  proof: 'parent' },
-      { id: uid(), title: 'حركة ونشاط 30 دقيقة',     cat: 'sport',  xp: 25, coins: 8,  proof: 'parent' },
-      { id: uid(), title: 'ترتيب الغرفة',            cat: 'health', xp: 15, coins: 5,  proof: 'photo'  },
-      { id: uid(), title: 'شرب 6 أكواب ماء',         cat: 'health', xp: 10, coins: 4,  proof: 'self'   },
-      { id: uid(), title: 'النوم مبكرًا 😴',          cat: 'health', xp: 20, coins: 6,  proof: 'self'   },
-    ],
-    pendingProofs: [],     // { id, taskId, title, cat, xp, coins, proof, date, time, photo|null }
-    unseenApprovals: [],   // إنجازات وافق عليها الوالد ولم يرها الطفل بعد
+    id: uid(),
+    name: name || 'البطل',
+    username: 'hero_' + uid().slice(0, 5),   // اسم مستخدم فريد — لبطاقة QR والمزامنة مستقبلًا
+    avatar: { base: avatarBase || '🐣', bg: avatarBg || AVATAR_BGS[0] },
+    xp: 0, coins: 0, lifetimeCoins: 0, hp: 100,
+    streak: 0, bestStreak: 0, lastFullDay: null,
+    gear: [], equipped: [],
+    tasks: defaultTasks(),
     completions: {},       // { 'YYYY-MM-DD': [taskId, ...] }
+    pendingProofs: [],     // { id, taskId, title, cat, xp, coins, proof, date, time, photo|null }
+    unseenApprovals: [],
+    redemptions: [],       // { id, rewardId, title, cost, date, status }
+    mysteryBox: null,
+    lastHpDay: todayKey(),
+    lastDailyChest: null,
+    autopilot: { enabled: false, goals: ['study', 'sport', 'health'], count: 4, lastGen: null },
+    taskArchive: {},
+  };
+}
+
+function defaultState() {
+  const first = defaultChild('البطل');
+  return {
+    v: 2,
+    pin: null,
+    children: [first],
+    activeChildId: first.id,
+    joinRequests: [],      // طلبات انضمام أرسلها أطفال بانتظار موافقة الوالد
     rewards: [
       { id: uid(), emoji: '🎮', title: 'نصف ساعة لعب إضافية', cost: 25 },
       { id: uid(), emoji: '🌳', title: 'مشوار إلى الحديقة',    cost: 60 },
       { id: uid(), emoji: '🍕', title: 'اختيار وجبة العشاء',   cost: 40 },
       { id: uid(), emoji: '🎬', title: 'سهرة فيلم عائلي',      cost: 70 },
     ],
-    redemptions: [],       // { id, rewardId, title, cost, date, status: 'pending'|'approved' }
-    boss: null,            // { title, target, progress, reward, defeated }
+    boss: null,
     bossesDefeated: 0,
-    mysteryBox: null,      // { prize, coins }
-    lastHpDay: todayKey(),
-    lastDailyChest: null,  // آخر يوم فتح فيه الطفل صندوق الدخول اليومي
-    autopilot: { enabled: false, goals: ['study', 'sport', 'health'], count: 4, lastGen: null },
-    taskArchive: {},       // { taskId: cat } لمهام آلية سابقة — لإبقاء إحصاءات المسارات دقيقة
   };
 }
+
+/* الطفل النشط حاليًا (الذي سجل دخوله أو يعرضه الوالد) */
+function C() {
+  return S.children.find(c => c.id === S.activeChildId) || S.children[0];
+}
+function heroFace(c) { return (c && c.avatar && c.avatar.base) || '🐣'; }
+function heroBg(c) { return (c && c.avatar && c.avatar.bg) || AVATAR_BGS[0]; }
 
 /* ─────────────── أدوات مساعدة ─────────────── */
 
@@ -218,18 +242,18 @@ function strHash(str) {
 
 /* ─── المساعد الآلي: توليد مهام اليوم من المكتبة حسب أهداف الوالد ─── */
 function runAutopilot(force) {
-  const ap = S.autopilot;
+  const ap = C().autopilot;
   if (!ap.enabled) return;
   const today = todayKey();
   if (!force && ap.lastGen === today) return;
 
   // أرشفة مهام الأيام السابقة الآلية وإزالتها (المهام اليدوية ومهام المعلم تبقى)
-  S.tasks = S.tasks.filter(t => {
-    if (t.auto) { S.taskArchive[t.id] = t.cat; return false; }
+  C().tasks = C().tasks.filter(t => {
+    if (t.auto) { C().taskArchive[t.id] = t.cat; return false; }
     return true;
   });
 
-  const manualTitles = new Set(S.tasks.map(t => t.title));
+  const manualTitles = new Set(C().tasks.map(t => t.title));
   const pool = TASK_LIBRARY.filter(t => ap.goals.includes(t.cat) && !manualTitles.has(t.title));
   // ترتيب حتمي متغير يوميًا — تنويع تلقائي مع ضمان تغطية الأهداف المختارة
   pool.sort((a, b) => strHash(a.title + today) - strHash(b.title + today));
@@ -242,17 +266,17 @@ function runAutopilot(force) {
     if (picked.length >= ap.count) break;
     if (!picked.includes(t)) picked.push(t);
   }
-  for (const t of picked) S.tasks.push({ id: uid(), ...t, auto: true });
+  for (const t of picked) C().tasks.push({ id: uid(), ...t, auto: true });
 
   ap.lastGen = today;
   save();
 }
 /* المهمة الذهبية: مهمة مختلفة كل يوم بمكافأة مضاعفة — اختيار ثابت طوال اليوم */
 function goldenTaskId(dateKey) {
-  if (!S.tasks.length) return null;
+  if (!C().tasks.length) return null;
   let h = 0;
   for (const ch of dateKey) h = (h * 31 + ch.charCodeAt(0)) % 100000;
-  return S.tasks[h % S.tasks.length].id;
+  return C().tasks[h % C().tasks.length].id;
 }
 /* قيم المهمة الفعلية لليوم (تُضاعف إن كانت ذهبية) */
 function effectiveTask(t, dateKey) {
@@ -267,8 +291,9 @@ function heroTitle(level) {
   for (const h of HERO_TITLES) if (level >= h.level) t = h.title;
   return t;
 }
-function avatarFor(level) {
-  return AVATAR_STAGES[Math.min(AVATAR_STAGES.length - 1, Math.floor((level - 1) / 2))];
+/* الشخصيات المتاحة لمستوى معين */
+function unlockedBases(level) {
+  return AVATAR_BASES.filter(b => level >= b.lvl);
 }
 function esc(str) {
   return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -282,14 +307,38 @@ function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const s = Object.assign(defaultState(), JSON.parse(raw));
-      // ترحيل بيانات النسخ السابقة
-      s.tasks.forEach(t => { if (!t.proof) t.proof = 'self'; });
-      s.pendingProofs = s.pendingProofs || [];
-      s.unseenApprovals = s.unseenApprovals || [];
-      s.autopilot = s.autopilot || { enabled: false, goals: ['study', 'sport', 'health'], count: 4, lastGen: null };
-      s.taskArchive = s.taskArchive || {};
-      return s;
+      const old = JSON.parse(raw);
+      if (old.v === 2 && Array.isArray(old.children)) {
+        const s = Object.assign(defaultState(), old);
+        if (!s.children.length) s.children = [defaultChild('البطل')];
+        s.children = s.children.map(c => Object.assign(defaultChild(), c));
+        s.joinRequests = s.joinRequests || [];
+        return s;
+      }
+      // ترحيل النسخة القديمة (طفل واحد) → v2
+      if (old.child) {
+        const c = defaultChild(old.child.name || 'البطل');
+        Object.assign(c, old.child);
+        c.tasks = old.tasks || c.tasks;
+        c.tasks.forEach(t => { if (!t.proof) t.proof = 'self'; });
+        c.completions = old.completions || {};
+        c.pendingProofs = old.pendingProofs || [];
+        c.unseenApprovals = old.unseenApprovals || [];
+        c.redemptions = old.redemptions || [];
+        c.mysteryBox = old.mysteryBox || null;
+        c.lastHpDay = old.lastHpDay || todayKey();
+        c.lastDailyChest = old.lastDailyChest || null;
+        c.autopilot = old.autopilot || c.autopilot;
+        c.taskArchive = old.taskArchive || {};
+        const s = defaultState();
+        s.pin = old.pin || null;
+        s.children = [c];
+        s.activeChildId = c.id;
+        s.rewards = old.rewards || s.rewards;
+        s.boss = old.boss || null;
+        s.bossesDefeated = old.bossesDefeated || 0;
+        return s;
+      }
     }
   } catch (e) { /* بيانات تالفة → نبدأ من جديد */ }
   return defaultState();
@@ -299,7 +348,7 @@ function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
   } catch (e) {
     // امتلأت مساحة التخزين (غالبًا بسبب صور الإثبات) → نحذف أقدم الصور ونعيد المحاولة
-    for (const p of S.pendingProofs) { if (p.photo) { p.photo = null; break; } }
+    for (const p of C().pendingProofs) { if (p.photo) { p.photo = null; break; } }
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e2) { /* تجاهل */ }
   }
 }
@@ -310,28 +359,32 @@ const PROOF_MODES = {
   photo:  { emoji: '📸', name: 'إثبات بصورة يراجعها الوالد', short: 'صورة إثبات' },
 };
 
-/* عند بداية كل يوم: خصم نقاط الصحة عن الأيام الفائتة بلا عادات صحية، وتصفير السلسلة عند الانقطاع */
+/* عند بداية كل يوم ولكل طفل: خصم الصحة عن الأيام الفائتة، كسر السلسلة، وتوليد مهام المساعد الآلي */
 function dailyUpkeep() {
   const today = todayKey();
-  if (S.lastHpDay !== today) {
-    const last = new Date(S.lastHpDay + 'T00:00:00');
-    const now = new Date(today + 'T00:00:00');
-    const missedDays = Math.min(7, Math.round((now - last) / 86400000));
-    const healthIds = new Set(S.tasks.filter(t => t.cat === 'health').map(t => t.id));
-    for (let i = 1; i <= missedDays; i++) {
-      const d = new Date(last); d.setDate(d.getDate() + i);
-      const key = todayKey(d);
-      if (key === today) break;
-      const done = (S.completions[key] || []).some(id => healthIds.has(id));
-      if (!done && healthIds.size > 0) S.child.hp = Math.max(10, S.child.hp - 15);
+  const orig = S.activeChildId;
+  for (const child of S.children) {
+    S.activeChildId = child.id;   // C() تشير مؤقتًا لهذا الطفل
+    if (child.lastHpDay !== today) {
+      const last = new Date(child.lastHpDay + 'T00:00:00');
+      const now = new Date(today + 'T00:00:00');
+      const missedDays = Math.min(7, Math.round((now - last) / 86400000));
+      const healthIds = new Set(child.tasks.filter(t => t.cat === 'health').map(t => t.id));
+      for (let i = 1; i <= missedDays; i++) {
+        const d = new Date(last); d.setDate(d.getDate() + i);
+        const key = todayKey(d);
+        if (key === today) break;
+        const done = (child.completions[key] || []).some(id => healthIds.has(id));
+        if (!done && healthIds.size > 0) child.hp = Math.max(10, child.hp - 15);
+      }
+      child.lastHpDay = today;
     }
-    S.lastHpDay = today;
+    if (child.lastFullDay && child.lastFullDay !== today && child.lastFullDay !== dayKeyOffset(-1)) {
+      child.streak = 0;
+    }
+    runAutopilot(false);
   }
-  // السلسلة: إذا لم يُنجز شيء أمس ولا اليوم بعدُ، تنكسر
-  if (S.child.lastFullDay && S.child.lastFullDay !== today && S.child.lastFullDay !== dayKeyOffset(-1)) {
-    S.child.streak = 0;
-  }
-  runAutopilot(false);
+  S.activeChildId = orig;
   save();
 }
 
@@ -353,34 +406,34 @@ function decodeShareCode(code) {
 
 /* منح مكافآت إنجاز مهمة وتسجيلها — يُستدعى فورًا (مهام الثقة) أو عند موافقة الوالد */
 function grantCompletion(t, dateKey) {
-  S.completions[dateKey] = S.completions[dateKey] || [];
-  if (S.completions[dateKey].includes(t.id)) return { bonus: 0, allDone: false, leveledUp: false, newLevel: levelOf(S.child.xp) };
-  S.completions[dateKey].push(t.id);
+  C().completions[dateKey] = C().completions[dateKey] || [];
+  if (C().completions[dateKey].includes(t.id)) return { bonus: 0, allDone: false, leveledUp: false, newLevel: levelOf(C().xp) };
+  C().completions[dateKey].push(t.id);
 
-  const prevLevel = levelOf(S.child.xp);
-  S.child.xp += t.xp;
-  S.child.coins += t.coins;
-  S.child.lifetimeCoins += t.coins;
-  if (t.cat === 'health') S.child.hp = Math.min(100, S.child.hp + 10);
+  const prevLevel = levelOf(C().xp);
+  C().xp += t.xp;
+  C().coins += t.coins;
+  C().lifetimeCoins += t.coins;
+  if (t.cat === 'health') C().hp = Math.min(100, C().hp + 10);
 
   // السلسلة: أول إنجاز في يومه يمددها
-  if (S.child.lastFullDay !== dateKey) {
+  if (C().lastFullDay !== dateKey) {
     const dayBefore = new Date(dateKey + 'T00:00:00');
     dayBefore.setDate(dayBefore.getDate() - 1);
-    S.child.streak = (S.child.lastFullDay === todayKey(dayBefore)) ? S.child.streak + 1 : 1;
-    S.child.bestStreak = Math.max(S.child.bestStreak, S.child.streak);
-    S.child.lastFullDay = dateKey;
+    C().streak = (C().lastFullDay === todayKey(dayBefore)) ? C().streak + 1 : 1;
+    C().bestStreak = Math.max(C().bestStreak, C().streak);
+    C().lastFullDay = dateKey;
   }
 
   // مكافأة إتمام كل مهام اليوم (لليوم الحالي فقط)
   let bonus = 0, allDone = false;
   if (dateKey === todayKey()) {
-    allDone = S.tasks.length > 0 && S.tasks.every(x => (S.completions[dateKey] || []).includes(x.id));
-    if (allDone) { bonus = 10; S.child.coins += bonus; S.child.lifetimeCoins += bonus; }
+    allDone = C().tasks.length > 0 && C().tasks.every(x => (C().completions[dateKey] || []).includes(x.id));
+    if (allDone) { bonus = 10; C().coins += bonus; C().lifetimeCoins += bonus; }
   }
 
   save();
-  const newLevel = levelOf(S.child.xp);
+  const newLevel = levelOf(C().xp);
   return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel };
 }
 
@@ -397,23 +450,62 @@ const App = {
     window.scrollTo(0, 0);
   },
 
+  /* شاشة اختيار البطل — تسجيل دخول الأطفال */
   enterKid() {
     dailyUpkeep();
+    this.renderChildSelect();
+    this.showScreen('screen-childselect');
+  },
+
+  renderChildSelect() {
+    const grid = document.getElementById('childselect-grid');
+    grid.innerHTML = S.children.map(c => `
+      <button class="cs-card" onclick="App.enterKidAs('${c.id}')">
+        <span class="cs-avatar" style="background:${heroBg(c)}">${heroFace(c)}</span>
+        <span class="cs-name">${esc(c.name)}</span>
+        <span class="cs-level">⭐ المستوى ${levelOf(c.xp)}</span>
+      </button>`).join('') ||
+      '<p class="muted" style="grid-column:1/-1;text-align:center">لا يوجد أبطال بعد — اطلب من والدك إضافتك!</p>';
+  },
+
+  joinRequestForm() {
+    this.openModal(`
+      <h3>🙋 طلب انضمام</h3>
+      <p class="muted" style="margin-bottom:12px">اكتب اسمك وسيصل الطلب إلى لوحة والدك — هو وحده من يستطيع إنشاء حسابك</p>
+      <div class="form-grid">
+        <div><label>اسمك</label><input id="f-joinname" placeholder="مثال: سلطان" /></div>
+        <button class="btn-primary" onclick="App.submitJoinRequest()">أرسل الطلب 📨</button>
+      </div>`);
+  },
+
+  submitJoinRequest() {
+    const name = document.getElementById('f-joinname').value.trim();
+    if (!name) { this.toast('اكتب اسمك أولًا'); return; }
+    if (S.joinRequests.some(r => r.name === name)) { this.toast('طلبك موجود — بانتظار موافقة والدك ⏳'); this.closeModal(); return; }
+    S.joinRequests.push({ id: uid(), name, date: todayKey() });
+    save();
+    this.closeModal();
+    this.celebrate('أرسلنا طلبك! 📨', `يا ${esc(name)}، سيظهر طلبك في لوحة والدك ليعتمد حسابك`, ['⏳ بانتظار الموافقة'], '🙋');
+  },
+
+  enterKidAs(childId) {
+    S.activeChildId = childId;
+    save();
     this.showScreen('screen-kid');
     this.kidTab('map');
     this.refreshKidHeader();
     // موافقات وصلت أثناء غياب الطفل عن الشاشة
-    if (S.unseenApprovals.length) {
-      const items = S.unseenApprovals;
+    if (C().unseenApprovals.length) {
+      const items = C().unseenApprovals;
       const totalCoins = items.reduce((a, x) => a + x.coins, 0);
       const totalXp = items.reduce((a, x) => a + x.xp, 0);
       const list = items.map(x => `⭐ ${esc(x.title)}`).join('<br />');
-      S.unseenApprovals = [];
+      C().unseenApprovals = [];
       save();
       this.celebrate('والدك اعتمد إنجازك! 🎊', list, [`+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '👏');
       this.refreshKidHeader();
       this.renderKMap();
-    } else if (S.lastDailyChest !== todayKey()) {
+    } else if (C().lastDailyChest !== todayKey()) {
       // صندوق الدخول اليومي — مرة واحدة يوميًا
       this.showDailyChest();
     }
@@ -431,22 +523,22 @@ const App = {
   },
 
   openDailyChest() {
-    if (S.lastDailyChest === todayKey()) { this.closeModal(); return; }
-    S.lastDailyChest = todayKey();
+    if (C().lastDailyChest === todayKey()) { this.closeModal(); return; }
+    C().lastDailyChest = todayKey();
     const base = 2 + Math.floor(Math.random() * 4); // 2–5 جزرات
     let streakBonus = 0;
-    if (S.child.streak >= 30) streakBonus = 20;
-    else if (S.child.streak >= 14) streakBonus = 10;
-    else if (S.child.streak >= 7) streakBonus = 7;
-    else if (S.child.streak >= 3) streakBonus = 3;
+    if (C().streak >= 30) streakBonus = 20;
+    else if (C().streak >= 14) streakBonus = 10;
+    else if (C().streak >= 7) streakBonus = 7;
+    else if (C().streak >= 3) streakBonus = 3;
     const total = base + streakBonus;
-    S.child.coins += total;
-    S.child.lifetimeCoins += total;
+    C().coins += total;
+    C().lifetimeCoins += total;
     save();
     this.closeModal();
     const gains = [`+${base} 🥕`];
     if (streakBonus) gains.push(`+${streakBonus} 🥕 مكافأة السلسلة 🔥`);
-    const goldenT = S.tasks.find(t => t.id === goldenTaskId(todayKey()));
+    const goldenT = C().tasks.find(t => t.id === goldenTaskId(todayKey()));
     this.celebrate('كنز اليوم! 💰', goldenT ? `مهمة اليوم الذهبية ×2: <b>✨ ${esc(goldenT.title)}</b>` : 'يوم موفق يا بطل!', gains, '🪙');
     this.refreshKidHeader();
     this.renderKMap();
@@ -513,13 +605,39 @@ const App = {
   openParent() {
     dailyUpkeep();
     this.showScreen('screen-parent');
+    this.renderChildSwitcher();
     this.parentTab('tasks');
+    this.refreshParentSubtitle();
+  },
+
+  refreshParentSubtitle() {
     const today = todayKey();
-    const done = (S.completions[today] || []).length;
-    const pending = S.pendingProofs.length;
+    const done = (C().completions[today] || []).length;
+    const pending = C().pendingProofs.length;
+    const requests = S.joinRequests.length;
     document.getElementById('parent-subtitle').textContent =
-      `${S.child.name} أنجز اليوم ${done} من ${S.tasks.length} مهام` +
-      (pending ? ` · 🔔 ${pending} إثبات بانتظارك` : '');
+      `${C().name} أنجز اليوم ${done} من ${C().tasks.length} مهام` +
+      (pending ? ` · 🔔 ${pending} إثبات بانتظارك` : '') +
+      (requests ? ` · 🙋 ${requests} طلب انضمام` : '');
+  },
+
+  /* شريط تبديل الأطفال — يحدد أي طفل تديره اللوحة الآن */
+  renderChildSwitcher() {
+    const bar = document.getElementById('child-switcher');
+    if (S.children.length < 2) { bar.innerHTML = ''; bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    bar.innerHTML = S.children.map(c => `
+      <button class="child-chip ${c.id === S.activeChildId ? 'active' : ''}" onclick="App.switchChild('${c.id}')">
+        <span style="background:${heroBg(c)}">${heroFace(c)}</span>${esc(c.name)}
+      </button>`).join('');
+  },
+
+  switchChild(childId) {
+    S.activeChildId = childId;
+    save();
+    this.renderChildSwitcher();
+    this.parentTab(document.querySelector('.ptab.active').dataset.ptab);
+    this.refreshParentSubtitle();
   },
 
   /* ═══════════ لوحة الوالدين ═══════════ */
@@ -535,14 +653,14 @@ const App = {
   /* ── تبويب المهام ── */
   renderPTasks() {
     const today = todayKey();
-    const doneIds = new Set(S.completions[today] || []);
-    const pendingIds = new Set(S.pendingProofs.map(p => p.taskId + '|' + p.date));
+    const doneIds = new Set(C().completions[today] || []);
+    const pendingIds = new Set(C().pendingProofs.map(p => p.taskId + '|' + p.date));
 
     // قائمة مراجعة الإثباتات المعلقة
-    const reviewHtml = S.pendingProofs.length ? `
+    const reviewHtml = C().pendingProofs.length ? `
       <div class="card" style="border:3px solid var(--gold)">
-        <h3>🔔 إثباتات بانتظار مراجعتك (${S.pendingProofs.length})</h3>
-        ${S.pendingProofs.map(p => `
+        <h3>🔔 إثباتات بانتظار مراجعتك (${C().pendingProofs.length})</h3>
+        ${C().pendingProofs.map(p => `
           <div class="proof-row">
             <div class="task-row" style="border-bottom:none">
               <span class="task-cat">${CATEGORIES[p.cat].emoji}</span>
@@ -560,8 +678,8 @@ const App = {
       </div>` : '';
 
     // بطاقة المساعد الآلي
-    const ap = S.autopilot;
-    const autoCount = S.tasks.filter(t => t.auto).length;
+    const ap = C().autopilot;
+    const autoCount = C().tasks.filter(t => t.auto).length;
     const apHtml = ap.enabled ? `
       <div class="card autopilot-card on">
         <h3>🤖 المساعد الآلي يعمل</h3>
@@ -577,7 +695,7 @@ const App = {
         <button class="btn-primary purple" style="margin-top:10px" onclick="App.autopilotForm()">تفعيل المساعد ⚡</button>
       </div>`;
 
-    const rows = S.tasks.map(t => {
+    const rows = C().tasks.map(t => {
       const state = doneIds.has(t.id) ? '✅ ' : (pendingIds.has(t.id + '|' + today) ? '⏳ ' : '');
       const source = t.teacher ? ` · 🏫 موثقة من ${esc(t.teacher)}` : (t.auto ? ' · 🤖 آلية' : '');
       return `
@@ -598,7 +716,7 @@ const App = {
       ${reviewHtml}
       ${apHtml}
       <div class="card">
-        <h3>مهام اليوم (${S.tasks.length})</h3>
+        <h3>مهام اليوم (${C().tasks.length})</h3>
         ${rows || '<p class="muted">لا توجد مهام بعد — أضف أول مهمة!</p>'}
       </div>
       <div class="form-row">
@@ -612,16 +730,16 @@ const App = {
       </div>
       <div class="card">
         <h3>🎁 إسقاط صندوق مفاجأة</h3>
-        <p class="muted" style="margin-bottom:10px">كافئ أداءً مميزًا غير متوقع بصندوق يظهر في خريطة ${esc(S.child.name)}</p>
-        ${S.mysteryBox
-          ? `<p class="pill">📦 صندوق بانتظار الفتح: ${esc(S.mysteryBox.prize)} (+${S.mysteryBox.coins} 🥕)</p>`
+        <p class="muted" style="margin-bottom:10px">كافئ أداءً مميزًا غير متوقع بصندوق يظهر في خريطة ${esc(C().name)}</p>
+        ${C().mysteryBox
+          ? `<p class="pill">📦 صندوق بانتظار الفتح: ${esc(C().mysteryBox.prize)} (+${C().mysteryBox.coins} 🥕)</p>`
           : `<button class="btn-primary purple" onclick="App.mysteryForm()">إسقاط صندوق 📦</button>`}
       </div>`;
   },
 
   /* ── المساعد الآلي (الوالد الافتراضي) ── */
   autopilotForm() {
-    const ap = S.autopilot;
+    const ap = C().autopilot;
     const goalChecks = Object.entries(CATEGORIES).map(([k, c]) => `
       <label class="goal-check">
         <input type="checkbox" value="${k}" ${ap.goals.includes(k) ? 'checked' : ''} />
@@ -642,9 +760,9 @@ const App = {
   saveAutopilot() {
     const goals = Array.from(document.querySelectorAll('#ap-goals input:checked')).map(i => i.value);
     if (!goals.length) { this.toast('اختر هدفًا واحدًا على الأقل'); return; }
-    S.autopilot.goals = goals;
-    S.autopilot.count = parseInt(document.getElementById('ap-count').value) || 4;
-    S.autopilot.enabled = true;
+    C().autopilot.goals = goals;
+    C().autopilot.count = parseInt(document.getElementById('ap-count').value) || 4;
+    C().autopilot.enabled = true;
     runAutopilot(true);       // توليد فوري لليوم
     this.closeModal();
     this.renderPTasks();
@@ -652,14 +770,14 @@ const App = {
   },
 
   autopilotToggle(on) {
-    S.autopilot.enabled = on;
+    C().autopilot.enabled = on;
     if (!on) {
       // إزالة المهام الآلية غير المنجزة عند الإيقاف
-      S.tasks = S.tasks.filter(t => {
-        if (t.auto) { S.taskArchive[t.id] = t.cat; return false; }
+      C().tasks = C().tasks.filter(t => {
+        if (t.auto) { C().taskArchive[t.id] = t.cat; return false; }
         return true;
       });
-      S.autopilot.lastGen = null;
+      C().autopilot.lastGen = null;
     }
     save();
     this.renderPTasks();
@@ -675,7 +793,7 @@ const App = {
     const chips = [`<button class="lib-chip ${f === 'all' ? 'active' : ''}" onclick="App.taskLibrary('all')">الكل</button>`]
       .concat(Object.entries(CATEGORIES).map(([k, c]) =>
         `<button class="lib-chip ${f === k ? 'active' : ''}" onclick="App.taskLibrary('${k}')">${c.emoji} ${c.name}</button>`)).join('');
-    const existing = new Set(S.tasks.map(t => t.title));
+    const existing = new Set(C().tasks.map(t => t.title));
     const items = TASK_LIBRARY.filter(t => f === 'all' || t.cat === f).map((t, i) => {
       const idx = TASK_LIBRARY.indexOf(t);
       const added = existing.has(t.title);
@@ -699,8 +817,8 @@ const App = {
 
   addFromLibrary(idx) {
     const t = TASK_LIBRARY[idx];
-    if (!t || S.tasks.some(x => x.title === t.title)) return;
-    S.tasks.push({ id: uid(), ...t });
+    if (!t || C().tasks.some(x => x.title === t.title)) return;
+    C().tasks.push({ id: uid(), ...t });
     save();
     this.toast(`أُضيفت «${t.title}» لخريطة اليوم ✅`);
     this.taskLibrary();       // تحديث النافذة
@@ -740,30 +858,30 @@ const App = {
   },
 
   approveProof(id) {
-    const p = S.pendingProofs.find(x => x.id === id);
+    const p = C().pendingProofs.find(x => x.id === id);
     if (!p) return;
-    S.pendingProofs = S.pendingProofs.filter(x => x.id !== id);
+    C().pendingProofs = C().pendingProofs.filter(x => x.id !== id);
     // نمنح المكافآت بهوية المهمة الأصلية وتاريخ الإنجاز الأصلي
     const taskLike = { id: p.taskId, cat: p.cat, xp: p.xp, coins: p.coins };
     grantCompletion(taskLike, p.date);
-    S.unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins });
+    C().unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins });
     save();
     this.renderPTasks();
-    this.toast(`تم الاعتماد — وصل ${p.coins} 🥕 إلى ${S.child.name} ✅`);
+    this.toast(`تم الاعتماد — وصل ${p.coins} 🥕 إلى ${C().name} ✅`);
   },
 
   rejectProof(id) {
-    const p = S.pendingProofs.find(x => x.id === id);
+    const p = C().pendingProofs.find(x => x.id === id);
     if (!p) return;
-    if (!confirm(`رفض إثبات "${p.title}"؟ ستعود المهمة متاحة في خريطة ${S.child.name}`)) return;
-    S.pendingProofs = S.pendingProofs.filter(x => x.id !== id);
+    if (!confirm(`رفض إثبات "${p.title}"؟ ستعود المهمة متاحة في خريطة ${C().name}`)) return;
+    C().pendingProofs = C().pendingProofs.filter(x => x.id !== id);
     save();
     this.renderPTasks();
     this.toast('تم الرفض — عادت المهمة إلى الخريطة');
   },
 
   zoomPhoto(proofId) {
-    const p = S.pendingProofs.find(x => x.id === proofId);
+    const p = C().pendingProofs.find(x => x.id === proofId);
     if (!p || !p.photo) return;
     this.openModal(`
       <h3>📸 ${esc(p.title)}</h3>
@@ -775,7 +893,7 @@ const App = {
   },
 
   taskForm(taskId) {
-    const t = taskId ? S.tasks.find(x => x.id === taskId) : null;
+    const t = taskId ? C().tasks.find(x => x.id === taskId) : null;
     const catOptions = Object.entries(CATEGORIES)
       .map(([k, c]) => `<option value="${k}" ${t && t.cat === k ? 'selected' : ''}>${c.emoji} ${c.name}</option>`).join('');
     const proofOptions = Object.entries(PROOF_MODES)
@@ -802,10 +920,10 @@ const App = {
     const coins = Math.max(1, parseInt(document.getElementById('f-coins').value) || 5);
     const proof = document.getElementById('f-proof').value;
     if (taskId) {
-      const t = S.tasks.find(x => x.id === taskId);
+      const t = C().tasks.find(x => x.id === taskId);
       Object.assign(t, { title, cat, xp, coins, proof });
     } else {
-      S.tasks.push({ id: uid(), title, cat, xp, coins, proof });
+      C().tasks.push({ id: uid(), title, cat, xp, coins, proof });
     }
     save();
     this.closeModal();
@@ -815,7 +933,7 @@ const App = {
 
   deleteTask(taskId) {
     if (!confirm('حذف هذه المهمة؟')) return;
-    S.tasks = S.tasks.filter(t => t.id !== taskId);
+    C().tasks = C().tasks.filter(t => t.id !== taskId);
     save();
     this.renderPTasks();
   },
@@ -833,7 +951,7 @@ const App = {
   dropMystery() {
     const prize = document.getElementById('f-prize').value.trim();
     if (!prize) { this.toast('اكتب المفاجأة أولًا'); return; }
-    S.mysteryBox = { prize, coins: Math.max(0, parseInt(document.getElementById('f-mcoins').value) || 0) };
+    C().mysteryBox = { prize, coins: Math.max(0, parseInt(document.getElementById('f-mcoins').value) || 0) };
     save();
     this.closeModal();
     this.renderPTasks();
@@ -842,7 +960,7 @@ const App = {
 
   /* ── تبويب المكافآت ── */
   renderPRewards() {
-    const pending = S.redemptions.filter(r => r.status === 'pending');
+    const pending = C().redemptions.filter(r => r.status === 'pending');
     const pendingHtml = pending.length ? `
       <div class="card">
         <h3>⏳ طلبات بانتظار الموافقة</h3>
@@ -868,7 +986,7 @@ const App = {
       ${pendingHtml}
       <div class="card">
         <h3>خزنة مكافآت العائلة</h3>
-        <p class="muted" style="margin-bottom:8px">جوائز واقعية يشتريها ${esc(S.child.name)} بالجزر 🥕</p>
+        <p class="muted" style="margin-bottom:8px">جوائز واقعية يشتريها ${esc(C().name)} بالجزر 🥕</p>
         ${rows || '<p class="muted">أضف أول مكافأة!</p>'}
       </div>
       <div class="form-row">
@@ -910,7 +1028,7 @@ const App = {
   },
 
   approveRedemption(id) {
-    const r = S.redemptions.find(x => x.id === id);
+    const r = C().redemptions.find(x => x.id === id);
     if (r) r.status = 'approved';
     save();
     this.renderPRewards();
@@ -1007,7 +1125,7 @@ const App = {
     let bars = '', maxDone = 1;
     const days = [];
     for (let i = 6; i >= 0; i--) {
-      const n = (S.completions[dayKeyOffset(-i)] || []).length;
+      const n = (C().completions[dayKeyOffset(-i)] || []).length;
       days.push({ label: i === 0 ? 'اليوم' : dayNameOffset(-i), n });
       maxDone = Math.max(maxDone, n);
     }
@@ -1016,12 +1134,12 @@ const App = {
     }
 
     const catStats = Object.entries(CATEGORIES).map(([k, c]) =>
-      `<span class="pill">${c.emoji} ${c.name}: <b>${catCompletions(S, k)}</b></span>`).join('');
+      `<span class="pill">${c.emoji} ${c.name}: <b>${catCompletions(C(), k)}</b></span>`).join('');
 
     // مقارنة هذا الأسبوع بالأسبوع السابق
     let thisWeek = 0, prevWeek = 0;
-    for (let i = 0; i < 7; i++) thisWeek += (S.completions[dayKeyOffset(-i)] || []).length;
-    for (let i = 7; i < 14; i++) prevWeek += (S.completions[dayKeyOffset(-i)] || []).length;
+    for (let i = 0; i < 7; i++) thisWeek += (C().completions[dayKeyOffset(-i)] || []).length;
+    for (let i = 7; i < 14; i++) prevWeek += (C().completions[dayKeyOffset(-i)] || []).length;
     let trendHtml = '';
     if (prevWeek > 0) {
       const diff = Math.round((thisWeek - prevWeek) / prevWeek * 100);
@@ -1032,7 +1150,7 @@ const App = {
       trendHtml = `<p class="trend up">🌱 أول أسبوع نشط — ${thisWeek} مهمة منجزة</p>`;
     }
 
-    const lvl = levelOf(S.child.xp);
+    const lvl = levelOf(C().xp);
     document.getElementById('ptab-report').innerHTML = `
       <div class="card">
         <h3>📊 الإنجاز في آخر 7 أيام</h3>
@@ -1040,14 +1158,14 @@ const App = {
         ${trendHtml}
       </div>
       <div class="card">
-        <h3>نظرة عامة على ${esc(S.child.name)}</h3>
+        <h3>نظرة عامة على ${esc(C().name)}</h3>
         <div class="pill-list" style="margin-bottom:12px">
           <span class="pill">⭐ المستوى <b>${lvl}</b></span>
-          <span class="pill">✨ ${S.child.xp} XP</span>
-          <span class="pill">🥕 الرصيد <b>${S.child.coins}</b></span>
-          <span class="pill">🔥 السلسلة <b>${S.child.streak}</b> يوم</span>
-          <span class="pill">❤️ الصحة ${S.child.hp}%</span>
-          <span class="pill">✅ إجمالي المهام <b>${totalCompletions(S)}</b></span>
+          <span class="pill">✨ ${C().xp} XP</span>
+          <span class="pill">🥕 الرصيد <b>${C().coins}</b></span>
+          <span class="pill">🔥 السلسلة <b>${C().streak}</b> يوم</span>
+          <span class="pill">❤️ الصحة ${C().hp}%</span>
+          <span class="pill">✅ إجمالي المهام <b>${totalCompletions(C())}</b></span>
         </div>
         <h3 style="margin-top:6px">حسب المسار</h3>
         <div class="pill-list">${catStats}</div>
@@ -1060,46 +1178,172 @@ const App = {
     let week = 0;
     const dayLines = [];
     for (let i = 6; i >= 0; i--) {
-      const n = (S.completions[dayKeyOffset(-i)] || []).length;
+      const n = (C().completions[dayKeyOffset(-i)] || []).length;
       week += n;
       dayLines.push(`${i === 0 ? 'اليوم' : dayNameOffset(-i)}: ${n ? '✅'.repeat(Math.min(n, 8)) : '—'}`);
     }
     const catLines = Object.entries(CATEGORIES)
-      .map(([k, c]) => `${c.emoji} ${c.name}: ${catCompletions(S, k)}`).join('\n');
+      .map(([k, c]) => `${c.emoji} ${c.name}: ${catCompletions(C(), k)}`).join('\n');
     const lines = [
-      `🥕 تقرير ${S.child.name} الأسبوعي — جَزَرة`,
-      `⭐ المستوى ${levelOf(S.child.xp)} · ✨ ${S.child.xp} XP · 🥕 ${S.child.coins} · 🔥 سلسلة ${S.child.streak} يوم`,
+      `🥕 تقرير ${C().name} الأسبوعي — جَزَرة`,
+      `⭐ المستوى ${levelOf(C().xp)} · ✨ ${C().xp} XP · 🥕 ${C().coins} · 🔥 سلسلة ${C().streak} يوم`,
       '', `📅 آخر 7 أيام (${week} مهمة):`, ...dayLines,
       '', '📊 الإجمالي حسب المسار:', catLines,
     ];
-    if (S.pendingProofs.length) lines.push('', `🔔 ${S.pendingProofs.length} إثبات بانتظار المراجعة`);
+    if (C().pendingProofs.length) lines.push('', `🔔 ${C().pendingProofs.length} إثبات بانتظار المراجعة`);
     const text = lines.join('\n');
     if (navigator.share) navigator.share({ text }).catch(() => {});
     else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
   },
 
-  /* ── تبويب الإعدادات ── */
+  /* ── تبويب الإعدادات: إدارة حسابات الأطفال ── */
   renderPSettings() {
-    document.getElementById('ptab-settings').innerHTML = `
-      <div class="card">
-        <h3>⚙️ الإعدادات</h3>
-        <div class="form-grid">
-          <div><label>اسم البطل</label><input id="f-kidname" value="${esc(S.child.name)}" /></div>
-          <button class="btn-primary green" onclick="App.saveSettings()">حفظ</button>
+    // طلبات الانضمام المعلقة
+    const requestsHtml = S.joinRequests.length ? `
+      <div class="card" style="border:3px solid var(--gold)">
+        <h3>🙋 طلبات انضمام بانتظارك (${S.joinRequests.length})</h3>
+        ${S.joinRequests.map(r => `
+          <div class="task-row">
+            <span class="task-cat">🙋</span>
+            <div class="task-info"><div class="t-title">${esc(r.name)}</div><div class="t-meta">طلب إنشاء حساب · ${r.date}</div></div>
+            <div class="task-actions">
+              <button class="icon-btn" style="background:#e2f5ea" title="إنشاء الحساب" onclick="App.approveJoinRequest('${r.id}')">✅</button>
+              <button class="icon-btn" title="تجاهل" onclick="App.dismissJoinRequest('${r.id}')">✕</button>
+            </div>
+          </div>`).join('')}
+      </div>` : '';
+
+    const childrenHtml = S.children.map(c => `
+      <div class="task-row">
+        <span class="cs-avatar small" style="background:${heroBg(c)}">${heroFace(c)}</span>
+        <div class="task-info">
+          <div class="t-title">${esc(c.name)}</div>
+          <div class="t-meta" dir="ltr" style="text-align:right">@${esc(c.username)} · ⭐ ${levelOf(c.xp)} · 🥕 ${c.coins}</div>
         </div>
-      </div>
+        <div class="task-actions">
+          <button class="icon-btn" title="بطاقة البطل QR" onclick="App.childCard('${c.id}')">🪪</button>
+          <button class="icon-btn" title="تعديل" onclick="App.childForm('${c.id}')">✏️</button>
+          <button class="icon-btn" title="حذف" onclick="App.deleteChild('${c.id}')">🗑️</button>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('ptab-settings').innerHTML = `
+      ${requestsHtml}
       <div class="card">
+        <h3>👨‍👩‍👧‍👦 أبطال العائلة (${S.children.length})</h3>
+        <p class="muted" style="margin-bottom:8px">الحسابات تُنشأ من هنا فقط — الطفل لا يستطيع إنشاء حساب بنفسه</p>
+        ${childrenHtml || '<p class="muted">أضف أول بطل!</p>'}
+      </div>
+      <button class="btn-primary" onclick="App.childForm()">＋ إضافة بطل جديد</button>
+      <div class="card" style="margin-top:14px">
         <h3>البيانات</h3>
         <p class="muted" style="margin-bottom:10px">تُحفظ البيانات محليًا على هذا الجهاز فقط</p>
         <button class="btn-ghost" style="width:100%;color:#ff5d5d;border-color:#ffd0d0" onclick="App.resetAll()">🗑️ إعادة ضبط التطبيق بالكامل</button>
       </div>`;
   },
 
-  saveSettings() {
-    const name = document.getElementById('f-kidname').value.trim();
-    if (name) S.child.name = name;
+  /* إنشاء / تعديل حساب طفل — من لوحة الوالد فقط */
+  childForm(childId, prefillName) {
+    const c = childId ? S.children.find(x => x.id === childId) : null;
+    const curBase = c ? heroFace(c) : '🐣';
+    const curBg = c ? heroBg(c) : AVATAR_BGS[0];
+    const bases = AVATAR_BASES.filter(b => b.lvl <= (c ? levelOf(c.xp) : 1) || b.lvl === 1);
+    const baseGrid = bases.map(b =>
+      `<button class="av-pick ${b.e === curBase ? 'active' : ''}" data-base="${b.e}" onclick="App.pickAvBase(this)">${b.e}</button>`).join('');
+    const bgRow = AVATAR_BGS.map(bg =>
+      `<button class="bg-pick ${bg === curBg ? 'active' : ''}" data-bg="${bg}" style="background:${bg}" onclick="App.pickAvBg(this)"></button>`).join('');
+    this.openModal(`
+      <h3>${c ? 'تعديل حساب ' + esc(c.name) : '＋ بطل جديد'}</h3>
+      <div class="form-grid">
+        <div><label>الاسم</label><input id="f-cname" value="${c ? esc(c.name) : (prefillName ? esc(prefillName) : '')}" placeholder="اسم الطفل" /></div>
+        ${c ? `<div><label>اسم المستخدم</label><input id="f-cuser" value="${esc(c.username)}" dir="ltr" /></div>` : ''}
+        <div><label>الشخصية</label><div class="av-grid">${baseGrid}</div></div>
+        <div><label>لون الخلفية</label><div class="bg-row">${bgRow}</div></div>
+        <button class="btn-primary green" onclick="App.saveChild('${childId || ''}')">حفظ ✅</button>
+      </div>`);
+  },
+
+  pickAvBase(btn) {
+    document.querySelectorAll('.av-pick').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  },
+  pickAvBg(btn) {
+    document.querySelectorAll('.bg-pick').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  },
+
+  saveChild(childId) {
+    const name = document.getElementById('f-cname').value.trim();
+    if (!name) { this.toast('اكتب اسم الطفل أولًا'); return; }
+    const base = (document.querySelector('.av-pick.active') || {}).dataset ? document.querySelector('.av-pick.active').dataset.base : '🐣';
+    const bg = (document.querySelector('.bg-pick.active') || {}).dataset ? document.querySelector('.bg-pick.active').dataset.bg : AVATAR_BGS[0];
+    if (childId) {
+      const c = S.children.find(x => x.id === childId);
+      c.name = name;
+      const userEl = document.getElementById('f-cuser');
+      if (userEl && userEl.value.trim()) c.username = userEl.value.trim().replace(/\s+/g, '_');
+      c.avatar = { base, bg };
+    } else {
+      const c = defaultChild(name, base, bg);
+      S.children.push(c);
+      if (!S.activeChildId) S.activeChildId = c.id;
+    }
     save();
+    this.closeModal();
+    this.renderPSettings();
+    this.renderChildSwitcher();
     this.toast('تم الحفظ ✅');
+  },
+
+  deleteChild(childId) {
+    const c = S.children.find(x => x.id === childId);
+    if (!c) return;
+    if (S.children.length === 1) { this.toast('لا يمكن حذف آخر بطل — أضف غيره أولًا'); return; }
+    if (!confirm(`حذف حساب ${c.name} وكل تقدمه نهائيًا؟`)) return;
+    S.children = S.children.filter(x => x.id !== childId);
+    if (S.activeChildId === childId) S.activeChildId = S.children[0].id;
+    save();
+    this.renderPSettings();
+    this.renderChildSwitcher();
+    this.refreshParentSubtitle();
+  },
+
+  approveJoinRequest(reqId) {
+    const r = S.joinRequests.find(x => x.id === reqId);
+    if (!r) return;
+    S.joinRequests = S.joinRequests.filter(x => x.id !== reqId);
+    save();
+    this.childForm(null, r.name);   // نموذج الإنشاء معبأ باسم الطالب
+    this.renderPSettings();
+  },
+
+  dismissJoinRequest(reqId) {
+    S.joinRequests = S.joinRequests.filter(x => x.id !== reqId);
+    save();
+    this.renderPSettings();
+    this.refreshParentSubtitle();
+  },
+
+  /* بطاقة البطل: QR + اسم المستخدم — للتعريف وربط المدرسة والمزامنة مستقبلًا */
+  childCard(childId) {
+    const c = S.children.find(x => x.id === childId);
+    if (!c) return;
+    const payload = encodeShareCode({ v: 1, k: 'c', n: c.name, u: c.username, t: c.name });
+    let qrHtml = '';
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(payload);
+      qr.make();
+      qrHtml = qr.createSvgTag({ scalable: true, margin: 2 });
+    } catch (e) { qrHtml = ''; }
+    this.openModal(`
+      <div style="text-align:center">
+        <span class="cs-avatar" style="background:${heroBg(c)};margin:0 auto">${heroFace(c)}</span>
+        <h3 style="margin:8px 0 2px">🪪 بطاقة ${esc(c.name)}</h3>
+        <p class="muted" dir="ltr">@${esc(c.username)}</p>
+        <div class="qr-box">${qrHtml}</div>
+        <p class="muted" style="font-size:0.8rem">بطاقة تعريف البطل — تُستخدم لاحقًا لربط حساب المدرسة والمزامنة بين الأجهزة</p>
+      </div>`);
   },
 
   resetAll() {
@@ -1122,25 +1366,27 @@ const App = {
   },
 
   refreshKidHeader() {
-    const lvl = levelOf(S.child.xp);
-    document.getElementById('kid-avatar-mini').textContent = avatarFor(lvl);
-    document.getElementById('kid-name-mini').textContent = S.child.name;
-    document.getElementById('stat-coins').textContent = S.child.coins;
-    document.getElementById('stat-streak').textContent = S.child.streak;
+    const lvl = levelOf(C().xp);
+    const mini = document.getElementById('kid-avatar-mini');
+    mini.textContent = heroFace(C());
+    mini.style.background = heroBg(C());
+    document.getElementById('kid-name-mini').textContent = C().name;
+    document.getElementById('stat-coins').textContent = C().coins;
+    document.getElementById('stat-streak').textContent = C().streak;
   },
 
   /* ── خريطة المغامرة ── */
   renderKMap() {
     const today = todayKey();
-    const doneIds = new Set(S.completions[today] || []);
-    const allDone = S.tasks.length > 0 && S.tasks.every(t => doneIds.has(t.id));
+    const doneIds = new Set(C().completions[today] || []);
+    const allDone = C().tasks.length > 0 && C().tasks.every(t => doneIds.has(t.id));
 
     let html = `
       <h2 class="map-title">🗺️ مغامرة اليوم</h2>
       <p class="map-sub">${dayNameOffset(0)} — أكمل المراحل واجمع الكنوز!</p>`;
 
     // صندوق المفاجأة
-    if (S.mysteryBox) {
+    if (C().mysteryBox) {
       html += `
         <button class="mystery-node" onclick="App.openMystery()">
           <span class="m-emoji">📦</span>
@@ -1166,13 +1412,13 @@ const App = {
       html += `<div class="all-done-banner">🏆 أنهيت كل مهام اليوم! أنت بطل حقيقي 🎉</div>`;
     }
 
-    if (S.tasks.length === 0) {
+    if (C().tasks.length === 0) {
       html += `<div class="map-empty"><div class="big-emoji">🗺️</div><p class="muted">الخريطة فارغة… اطلب من والدك إضافة مهام المغامرة!</p></div>`;
     } else {
-      const pendingToday = new Set(S.pendingProofs.filter(p => p.date === today).map(p => p.taskId));
+      const pendingToday = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
       const goldenId = goldenTaskId(today);
       html += '<div class="map-path">';
-      S.tasks.forEach((t, i) => {
+      C().tasks.forEach((t, i) => {
         const done = doneIds.has(t.id);
         const pending = pendingToday.has(t.id);
         const et = effectiveTask(t, today);
@@ -1189,7 +1435,7 @@ const App = {
                 : `✨ ${et.xp} XP &nbsp; 🥕 ${et.coins}${et.golden ? ' &nbsp; <b style="color:#cf9a1d">مهمة اليوم الذهبية ×2</b>' : ''}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
             </div>
           </div>
-          ${i < S.tasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
+          ${i < C().tasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
       });
       html += '</div>';
     }
@@ -1205,14 +1451,14 @@ const App = {
   /* تقرير نصي يُشارك عبر واتساب أو أي تطبيق — للوالد خارج المنزل */
   shareDayReport() {
     const today = todayKey();
-    const doneIds = S.completions[today] || [];
-    const lines = [`🥕 تقرير ${S.child.name} — ${dayNameOffset(0)} ${today}`, ''];
-    for (const t of S.tasks) {
-      const pending = S.pendingProofs.some(p => p.taskId === t.id && p.date === today);
+    const doneIds = C().completions[today] || [];
+    const lines = [`🥕 تقرير ${C().name} — ${dayNameOffset(0)} ${today}`, ''];
+    for (const t of C().tasks) {
+      const pending = C().pendingProofs.some(p => p.taskId === t.id && p.date === today);
       lines.push(`${doneIds.includes(t.id) ? '✅' : (pending ? '⏳ (بانتظار تأكيدك)' : '⬜')} ${t.title}`);
     }
-    lines.push('', `⭐ المستوى ${levelOf(S.child.xp)} · 🥕 ${S.child.coins} · 🔥 سلسلة ${S.child.streak} يوم`);
-    if (S.pendingProofs.length) lines.push(`🔔 ${S.pendingProofs.length} إثبات بانتظار مراجعتك في التطبيق`);
+    lines.push('', `⭐ المستوى ${levelOf(C().xp)} · 🥕 ${C().coins} · 🔥 سلسلة ${C().streak} يوم`);
+    if (C().pendingProofs.length) lines.push(`🔔 ${C().pendingProofs.length} إثبات بانتظار مراجعتك في التطبيق`);
     const text = lines.join('\n');
     if (navigator.share) {
       navigator.share({ text }).catch(() => {});
@@ -1222,11 +1468,11 @@ const App = {
   },
 
   completeTask(taskId) {
-    const t = S.tasks.find(x => x.id === taskId);
+    const t = C().tasks.find(x => x.id === taskId);
     if (!t) return;
     const today = todayKey();
-    if ((S.completions[today] || []).includes(taskId)) return;
-    if (S.pendingProofs.some(p => p.taskId === taskId && p.date === today)) return;
+    if ((C().completions[today] || []).includes(taskId)) return;
+    if (C().pendingProofs.some(p => p.taskId === taskId && p.date === today)) return;
 
     const et = effectiveTask(t, today); // تضاعف القيم إن كانت المهمة الذهبية
     if (t.proof === 'photo') {
@@ -1248,7 +1494,7 @@ const App = {
 
   _queueProof(t, photo) {
     const now = new Date();
-    S.pendingProofs.push({
+    C().pendingProofs.push({
       id: uid(), taskId: t.id, title: t.title + (t.golden ? ' ✨' : ''), cat: t.cat, xp: t.xp, coins: t.coins,
       proof: t.proof, date: todayKey(),
       time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
@@ -1261,7 +1507,7 @@ const App = {
     let title = t.golden ? 'مهمة ذهبية! مكافأة مضاعفة ×2 ✨' : 'أحسنت يا بطل!', emoji = t.golden ? '✨' : '🎉', msg = esc(t.title);
     if (res.leveledUp) {
       title = `ترقّيت للمستوى ${res.newLevel}! 🆙`;
-      emoji = avatarFor(res.newLevel);
+      emoji = heroFace(C());
       msg = 'أفاتارك يزداد قوة!';
     } else if (res.allDone) {
       title = 'أنهيت كل مهام اليوم! 🏆';
@@ -1276,7 +1522,7 @@ const App = {
   _pendingPhotoData: null,
 
   photoProofForm(taskId) {
-    const t = S.tasks.find(x => x.id === taskId);
+    const t = C().tasks.find(x => x.id === taskId);
     if (!t) return;
     this._pendingPhotoTaskId = taskId;
     this._pendingPhotoData = null;
@@ -1313,7 +1559,7 @@ const App = {
   },
 
   submitPhotoProof() {
-    const t = S.tasks.find(x => x.id === this._pendingPhotoTaskId);
+    const t = C().tasks.find(x => x.id === this._pendingPhotoTaskId);
     if (!t || !this._pendingPhotoData) return;
     this._queueProof(effectiveTask(t, todayKey()), this._pendingPhotoData);
     this._pendingPhotoTaskId = null;
@@ -1334,11 +1580,11 @@ const App = {
   },
 
   openMystery() {
-    const box = S.mysteryBox;
+    const box = C().mysteryBox;
     if (!box) return;
-    S.child.coins += box.coins;
-    S.child.lifetimeCoins += box.coins;
-    S.mysteryBox = null;
+    C().coins += box.coins;
+    C().lifetimeCoins += box.coins;
+    C().mysteryBox = null;
     save();
     const gains = box.coins > 0 ? [`+${box.coins} 🥕`] : [];
     this.celebrate('صندوق المفاجأة! 📦', esc(box.prize), gains, '🎁');
@@ -1348,42 +1594,87 @@ const App = {
 
   /* ── صفحة البطل ── */
   renderKHero() {
-    const lvl = levelOf(S.child.xp);
-    const prog = levelProgress(S.child.xp);
-    const hearts = '❤️'.repeat(Math.max(1, Math.round(S.child.hp / 20))) + '🤍'.repeat(5 - Math.max(1, Math.round(S.child.hp / 20)));
-    const gearEmojis = S.child.equipped.map(id => (GEAR_ITEMS.find(g => g.id === id) || {}).emoji || '').join(' ');
+    const lvl = levelOf(C().xp);
+    const prog = levelProgress(C().xp);
+    const hearts = '❤️'.repeat(Math.max(1, Math.round(C().hp / 20))) + '🤍'.repeat(5 - Math.max(1, Math.round(C().hp / 20)));
+    const gearEmojis = C().equipped.map(id => (GEAR_ITEMS.find(g => g.id === id) || {}).emoji || '').join(' ');
 
     document.getElementById('ktab-hero').innerHTML = `
       <div class="hero-card">
-        <div class="hero-avatar">${avatarFor(lvl)}</div>
+        <div class="hero-avatar" style="background:${heroBg(C())}">${heroFace(C())}</div>
         <div class="hero-gear">${gearEmojis}</div>
-        <div class="hero-name">${esc(S.child.name)}</div>
+        <div class="hero-name">${esc(C().name)}</div>
         <div class="hero-title-tag">« ${heroTitle(lvl)} »</div>
+        <button class="btn-ghost" style="margin-top:8px" onclick="App.avatarStudio()">🎨 غيّر شكلي</button>
         <div class="hero-level-row"><span>المستوى ${lvl}</span><span>${prog} / 100 XP</span></div>
         <div class="progressbar"><i style="width:${prog}%"></i></div>
-        <div class="hp-hearts" title="صحة البطل">${hearts} <small style="font-size:0.75rem;color:#8a86a8">${S.child.hp}%</small></div>
+        <div class="hp-hearts" title="صحة البطل">${hearts} <small style="font-size:0.75rem;color:#8a86a8">${C().hp}%</small></div>
         <div class="hero-stats-grid">
-          <div class="hstat"><div class="h-num">${totalCompletions(S)}</div><div class="h-lbl">مهمة منجزة</div></div>
-          <div class="hstat"><div class="h-num">${S.child.bestStreak}</div><div class="h-lbl">أطول سلسلة 🔥</div></div>
-          <div class="hstat"><div class="h-num">${S.child.lifetimeCoins}</div><div class="h-lbl">جزر مجموع 🥕</div></div>
+          <div class="hstat"><div class="h-num">${totalCompletions(C())}</div><div class="h-lbl">مهمة منجزة</div></div>
+          <div class="hstat"><div class="h-num">${C().bestStreak}</div><div class="h-lbl">أطول سلسلة 🔥</div></div>
+          <div class="hstat"><div class="h-num">${C().lifetimeCoins}</div><div class="h-lbl">جزر مجموع 🥕</div></div>
         </div>
       </div>
       <div class="card">
         <h3>🧢 عتادي</h3>
-        ${S.child.gear.length === 0
+        ${C().gear.length === 0
           ? '<p class="muted">اشترِ عتادًا من المتجر ليظهر على بطلك!</p>'
-          : `<div class="pill-list">${S.child.gear.map(id => {
+          : `<div class="pill-list">${C().gear.map(id => {
               const g = GEAR_ITEMS.find(x => x.id === id);
-              const on = S.child.equipped.includes(id);
+              const on = C().equipped.includes(id);
               return `<button class="pill" style="${on ? 'background:#e2f5ea' : ''}" onclick="App.toggleGear('${id}')">${g.emoji} ${g.name} ${on ? '✔' : ''}</button>`;
             }).join('')}</div><p class="muted" style="margin-top:8px">اضغط على القطعة لارتدائها أو خلعها</p>`}
       </div>`;
   },
 
+  /* استوديو الأفاتار — الطفل يبدل شخصيته من المكتبة المفتوحة بمستواه */
+  avatarStudio() {
+    const c = C();
+    const lvl = levelOf(c.xp);
+    const baseGrid = AVATAR_BASES.map(b => {
+      const open = lvl >= b.lvl;
+      return open
+        ? `<button class="av-pick ${b.e === heroFace(c) ? 'active' : ''}" data-base="${b.e}" onclick="App.pickAvBase(this)">${b.e}</button>`
+        : `<span class="av-pick locked" title="يفتح في المستوى ${b.lvl}">🔒<small>م${b.lvl}</small></span>`;
+    }).join('');
+    const bgRow = AVATAR_BGS.map(bg =>
+      `<button class="bg-pick ${bg === heroBg(c) ? 'active' : ''}" data-bg="${bg}" style="background:${bg}" onclick="App.pickAvBg(this)"></button>`).join('');
+    const gearRow = c.gear.length
+      ? c.gear.map(id => {
+          const g = GEAR_ITEMS.find(x => x.id === id);
+          const on = c.equipped.includes(id);
+          return `<button class="pill" style="${on ? 'background:#e2f5ea' : ''}" onclick="App.toggleGear('${id}');App.avatarStudio()">${g.emoji} ${on ? '✔' : ''}</button>`;
+        }).join('')
+      : '<p class="muted">اشترِ أزياء من المتجر لتلبسها هنا!</p>';
+    this.openModal(`
+      <h3>🎨 استوديو البطل</h3>
+      <p class="muted" style="margin-bottom:10px">كل مستوى جديد يفتح شخصيات أكثر — أنت الآن مستوى ${lvl}</p>
+      <div class="form-grid">
+        <div><label>شخصيتي</label><div class="av-grid">${baseGrid}</div></div>
+        <div><label>لون خلفيتي</label><div class="bg-row">${bgRow}</div></div>
+        <div><label>أزيائي 🧢</label><div class="pill-list">${gearRow}</div></div>
+        <button class="btn-primary" onclick="App.saveAvatar()">هذا أنا! ✨</button>
+      </div>`);
+  },
+
+  saveAvatar() {
+    const baseEl = document.querySelector('.av-pick.active');
+    const bgEl = document.querySelector('.bg-pick.active');
+    C().avatar = {
+      base: baseEl ? baseEl.dataset.base : heroFace(C()),
+      bg: bgEl ? bgEl.dataset.bg : heroBg(C()),
+    };
+    save();
+    this.closeModal();
+    this.celebrate('شكل جديد رهيب! 🎨', 'هذا هو بطلك الجديد', [], heroFace(C()));
+    this.renderKHero();
+    this.refreshKidHeader();
+  },
+
   toggleGear(id) {
-    const i = S.child.equipped.indexOf(id);
-    if (i >= 0) S.child.equipped.splice(i, 1);
-    else S.child.equipped.push(id);
+    const i = C().equipped.indexOf(id);
+    if (i >= 0) C().equipped.splice(i, 1);
+    else C().equipped.push(id);
     save();
     this.renderKHero();
   },
@@ -1395,25 +1686,25 @@ const App = {
         <span class="s-emoji">${r.emoji}</span>
         <span class="s-name">${esc(r.title)}</span>
         ${r.teacher ? `<small style="color:#8a86a8;font-weight:700">🏫 من ${esc(r.teacher)}</small>` : ''}
-        <button class="buy-btn" ${S.child.coins < r.cost ? 'disabled' : ''} onclick="App.redeemReward('${r.id}')">${r.cost} 🥕</button>
+        <button class="buy-btn" ${C().coins < r.cost ? 'disabled' : ''} onclick="App.redeemReward('${r.id}')">${r.cost} 🥕</button>
       </div>`).join('');
 
     const gearShop = GEAR_ITEMS.map(g => {
-      const owned = S.child.gear.includes(g.id);
+      const owned = C().gear.includes(g.id);
       return `
       <div class="shop-item">
         <span class="s-emoji">${g.emoji}</span>
         <span class="s-name">${g.name}</span>
         ${owned
           ? '<button class="buy-btn owned" disabled>تم الشراء ✔</button>'
-          : `<button class="buy-btn" ${S.child.coins < g.cost ? 'disabled' : ''} onclick="App.buyGear('${g.id}')">${g.cost} 🥕</button>`}
+          : `<button class="buy-btn" ${C().coins < g.cost ? 'disabled' : ''} onclick="App.buyGear('${g.id}')">${g.cost} 🥕</button>`}
       </div>`;
     }).join('');
 
-    const pending = S.redemptions.filter(r => r.status === 'pending');
+    const pending = C().redemptions.filter(r => r.status === 'pending');
 
     document.getElementById('ktab-shop').innerHTML = `
-      <div class="all-done-banner" style="background:linear-gradient(120deg,#ffe0b8,#ffd0a0)">رصيدك: ${S.child.coins} 🥕</div>
+      <div class="all-done-banner" style="background:linear-gradient(120deg,#ffe0b8,#ffd0a0)">رصيدك: ${C().coins} 🥕</div>
       ${pending.length ? `<div class="card"><h3>⏳ بانتظار موافقة الوالدين</h3>${pending.map(p => `<p class="pill" style="margin-bottom:6px">🎁 ${esc(p.title)}</p>`).join('')}</div>` : ''}
       <h3 class="shop-section-title">🎁 جوائز حقيقية من العائلة</h3>
       <div class="shop-grid">${realRewards || '<p class="muted">لا توجد جوائز بعد</p>'}</div>
@@ -1423,10 +1714,10 @@ const App = {
 
   redeemReward(rewardId) {
     const r = S.rewards.find(x => x.id === rewardId);
-    if (!r || S.child.coins < r.cost) return;
+    if (!r || C().coins < r.cost) return;
     if (!confirm(`شراء "${r.title}" مقابل ${r.cost} 🥕؟`)) return;
-    S.child.coins -= r.cost;
-    S.redemptions.push({ id: uid(), rewardId: r.id, title: r.title, cost: r.cost, date: todayKey(), status: 'pending' });
+    C().coins -= r.cost;
+    C().redemptions.push({ id: uid(), rewardId: r.id, title: r.title, cost: r.cost, date: todayKey(), status: 'pending' });
     save();
     this.celebrate('طلب رائع! 🎁', `أرسلنا "${esc(r.title)}" للوالدين للموافقة`, [`-${r.cost} 🥕`], '📨');
     this.renderKShop();
@@ -1435,10 +1726,10 @@ const App = {
 
   buyGear(gearId) {
     const g = GEAR_ITEMS.find(x => x.id === gearId);
-    if (!g || S.child.coins < g.cost || S.child.gear.includes(gearId)) return;
-    S.child.coins -= g.cost;
-    S.child.gear.push(gearId);
-    S.child.equipped.push(gearId);
+    if (!g || C().coins < g.cost || C().gear.includes(gearId)) return;
+    C().coins -= g.cost;
+    C().gear.push(gearId);
+    C().equipped.push(gearId);
     save();
     this.celebrate('عتاد جديد! ' + g.emoji, `${g.name} أصبح لك — يظهر الآن على بطلك!`, [`-${g.cost} 🥕`], g.emoji);
     this.renderKShop();
@@ -1589,10 +1880,10 @@ const App = {
       this.closeModal();
       this.toast(`أُضيفت مكافأة موثقة من ${obj.n} 🏫`);
     } else {
-      if (S.tasks.some(t => t.title === obj.t && t.teacher === obj.n)) { this.toast('هذه المهمة مضافة من قبل'); this.closeModal(); return; }
+      if (C().tasks.some(t => t.title === obj.t && t.teacher === obj.n)) { this.toast('هذه المهمة مضافة من قبل'); this.closeModal(); return; }
       const cat = CATEGORIES[obj.c] ? obj.c : 'study';
       const proof = PROOF_MODES[obj.p] ? obj.p : 'photo';
-      S.tasks.push({ id: uid(), title: obj.t, cat, xp: Math.min(100, obj.x || 25), coins: Math.min(50, obj.o || 10), proof, teacher: obj.n });
+      C().tasks.push({ id: uid(), title: obj.t, cat, xp: Math.min(100, obj.x || 25), coins: Math.min(50, obj.o || 10), proof, teacher: obj.n });
       save();
       this.closeModal();
       this.toast(`أُضيفت مهمة موثقة من ${obj.n} 🏫`);

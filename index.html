@@ -46,6 +46,19 @@
     </div>
   </section>
 
+  <!-- ═══════════ شاشة اختيار البطل (تسجيل دخول الأطفال) ═══════════ -->
+  <section id="screen-childselect" class="screen">
+    <div class="childselect-wrap">
+      <button class="btn-back" onclick="App.showScreen('screen-role')">→ رجوع</button>
+      <h2 class="cs-title">من البطل الذي سيلعب؟ 🦸</h2>
+      <div id="childselect-grid" class="cs-grid"></div>
+      <div class="cs-join">
+        <p class="muted">ما لك حساب؟ الحسابات ينشئها الوالد فقط 🔐</p>
+        <button class="btn-ghost" onclick="App.joinRequestForm()">🙋 اطلب من والدك إضافتك</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══════════ شاشة الرقم السري ═══════════ -->
   <section id="screen-pin" class="screen">
     <div class="pin-wrap">
@@ -68,6 +81,8 @@
       </div>
       <button class="btn-ghost" onclick="App.showScreen('screen-role')">خروج</button>
     </header>
+
+    <div id="child-switcher" class="child-switcher"></div>
 
     <nav class="parent-tabs">
       <button class="ptab active" data-ptab="tasks" onclick="App.parentTab('tasks')">📋 المهام</button>
