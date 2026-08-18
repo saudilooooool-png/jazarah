@@ -64,13 +64,15 @@ function defaultState() {
       equipped: [],        // العتاد الظاهر على الأفاتار
     },
     tasks: [
-      { id: uid(), title: 'إنهاء الواجبات المدرسية', cat: 'study',  xp: 30, coins: 10 },
-      { id: uid(), title: 'قراءة 20 دقيقة',          cat: 'study',  xp: 20, coins: 8 },
-      { id: uid(), title: 'حركة ونشاط 30 دقيقة',     cat: 'sport',  xp: 25, coins: 8 },
-      { id: uid(), title: 'ترتيب الغرفة',            cat: 'health', xp: 15, coins: 5 },
-      { id: uid(), title: 'شرب 6 أكواب ماء',         cat: 'health', xp: 10, coins: 4 },
-      { id: uid(), title: 'النوم مبكرًا 😴',          cat: 'health', xp: 20, coins: 6 },
+      { id: uid(), title: 'إنهاء الواجبات المدرسية', cat: 'study',  xp: 30, coins: 10, proof: 'photo'  },
+      { id: uid(), title: 'قراءة 20 دقيقة',          cat: 'study',  xp: 20, coins: 8,  proof: 'parent' },
+      { id: uid(), title: 'حركة ونشاط 30 دقيقة',     cat: 'sport',  xp: 25, coins: 8,  proof: 'parent' },
+      { id: uid(), title: 'ترتيب الغرفة',            cat: 'health', xp: 15, coins: 5,  proof: 'photo'  },
+      { id: uid(), title: 'شرب 6 أكواب ماء',         cat: 'health', xp: 10, coins: 4,  proof: 'self'   },
+      { id: uid(), title: 'النوم مبكرًا 😴',          cat: 'health', xp: 20, coins: 6,  proof: 'self'   },
     ],
+    pendingProofs: [],     // { id, taskId, title, cat, xp, coins, proof, date, time, photo|null }
+    unseenApprovals: [],   // إنجازات وافق عليها الوالد ولم يرها الطفل بعد
     completions: {},       // { 'YYYY-MM-DD': [taskId, ...] }
     rewards: [
       { id: uid(), emoji: '🎮', title: 'نصف ساعة لعب إضافية', cost: 25 },
@@ -134,11 +136,32 @@ let S = load();
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return Object.assign(defaultState(), JSON.parse(raw));
+    if (raw) {
+      const s = Object.assign(defaultState(), JSON.parse(raw));
+      // ترحيل بيانات النسخ السابقة
+      s.tasks.forEach(t => { if (!t.proof) t.proof = 'self'; });
+      s.pendingProofs = s.pendingProofs || [];
+      s.unseenApprovals = s.unseenApprovals || [];
+      return s;
+    }
   } catch (e) { /* بيانات تالفة → نبدأ من جديد */ }
   return defaultState();
 }
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); }
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+  } catch (e) {
+    // امتلأت مساحة التخزين (غالبًا بسبب صور الإثبات) → نحذف أقدم الصور ونعيد المحاولة
+    for (const p of S.pendingProofs) { if (p.photo) { p.photo = null; break; } }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e2) { /* تجاهل */ }
+  }
+}
+
+const PROOF_MODES = {
+  self:   { emoji: '🤝', name: 'ثقة — يؤكد البطل بنفسه',   short: 'ثقة' },
+  parent: { emoji: '👀', name: 'تأكيد الوالد قبل الصرف',    short: 'تأكيد الوالد' },
+  photo:  { emoji: '📸', name: 'إثبات بصورة يراجعها الوالد', short: 'صورة إثبات' },
+};
 
 /* عند بداية كل يوم: خصم نقاط الصحة عن الأيام الفائتة بلا عادات صحية، وتصفير السلسلة عند الانقطاع */
 function dailyUpkeep() {
@@ -164,6 +187,39 @@ function dailyUpkeep() {
   save();
 }
 
+/* منح مكافآت إنجاز مهمة وتسجيلها — يُستدعى فورًا (مهام الثقة) أو عند موافقة الوالد */
+function grantCompletion(t, dateKey) {
+  S.completions[dateKey] = S.completions[dateKey] || [];
+  if (S.completions[dateKey].includes(t.id)) return { bonus: 0, allDone: false, leveledUp: false, newLevel: levelOf(S.child.xp) };
+  S.completions[dateKey].push(t.id);
+
+  const prevLevel = levelOf(S.child.xp);
+  S.child.xp += t.xp;
+  S.child.coins += t.coins;
+  S.child.lifetimeCoins += t.coins;
+  if (t.cat === 'health') S.child.hp = Math.min(100, S.child.hp + 10);
+
+  // السلسلة: أول إنجاز في يومه يمددها
+  if (S.child.lastFullDay !== dateKey) {
+    const dayBefore = new Date(dateKey + 'T00:00:00');
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    S.child.streak = (S.child.lastFullDay === todayKey(dayBefore)) ? S.child.streak + 1 : 1;
+    S.child.bestStreak = Math.max(S.child.bestStreak, S.child.streak);
+    S.child.lastFullDay = dateKey;
+  }
+
+  // مكافأة إتمام كل مهام اليوم (لليوم الحالي فقط)
+  let bonus = 0, allDone = false;
+  if (dateKey === todayKey()) {
+    allDone = S.tasks.length > 0 && S.tasks.every(x => (S.completions[dateKey] || []).includes(x.id));
+    if (allDone) { bonus = 10; S.child.coins += bonus; S.child.lifetimeCoins += bonus; }
+  }
+
+  save();
+  const newLevel = levelOf(S.child.xp);
+  return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel };
+}
+
 /* ═══════════════════════════════════════════════════
    التطبيق
    ═══════════════════════════════════════════════════ */
@@ -182,6 +238,18 @@ const App = {
     this.showScreen('screen-kid');
     this.kidTab('map');
     this.refreshKidHeader();
+    // موافقات وصلت أثناء غياب الطفل عن الشاشة
+    if (S.unseenApprovals.length) {
+      const items = S.unseenApprovals;
+      const totalCoins = items.reduce((a, x) => a + x.coins, 0);
+      const totalXp = items.reduce((a, x) => a + x.xp, 0);
+      const list = items.map(x => `⭐ ${esc(x.title)}`).join('<br />');
+      S.unseenApprovals = [];
+      save();
+      this.celebrate('والدك اعتمد إنجازك! 🎊', list, [`+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '👏');
+      this.refreshKidHeader();
+      this.renderKMap();
+    }
   },
 
   /* ─────── الرقم السري ─────── */
@@ -248,8 +316,10 @@ const App = {
     this.parentTab('tasks');
     const today = todayKey();
     const done = (S.completions[today] || []).length;
+    const pending = S.pendingProofs.length;
     document.getElementById('parent-subtitle').textContent =
-      `${esc(S.child.name)} أنجز اليوم ${done} من ${S.tasks.length} مهام`;
+      `${S.child.name} أنجز اليوم ${done} من ${S.tasks.length} مهام` +
+      (pending ? ` · 🔔 ${pending} إثبات بانتظارك` : '');
   },
 
   /* ═══════════ لوحة الوالدين ═══════════ */
@@ -266,20 +336,47 @@ const App = {
   renderPTasks() {
     const today = todayKey();
     const doneIds = new Set(S.completions[today] || []);
-    const rows = S.tasks.map(t => `
+    const pendingIds = new Set(S.pendingProofs.map(p => p.taskId + '|' + p.date));
+
+    // قائمة مراجعة الإثباتات المعلقة
+    const reviewHtml = S.pendingProofs.length ? `
+      <div class="card" style="border:3px solid var(--gold)">
+        <h3>🔔 إثباتات بانتظار مراجعتك (${S.pendingProofs.length})</h3>
+        ${S.pendingProofs.map(p => `
+          <div class="proof-row">
+            <div class="task-row" style="border-bottom:none">
+              <span class="task-cat">${CATEGORIES[p.cat].emoji}</span>
+              <div class="task-info">
+                <div class="t-title">${esc(p.title)}</div>
+                <div class="t-meta">${p.date === today ? 'اليوم' : p.date} · ${p.time} · ${p.xp} XP · ${p.coins} 🥕 · ${PROOF_MODES[p.proof].emoji} ${PROOF_MODES[p.proof].short}</div>
+              </div>
+            </div>
+            ${p.photo ? `<img class="proof-photo" src="${p.photo}" alt="صورة الإثبات" onclick="App.zoomPhoto('${p.id}')" />` : ''}
+            <div class="proof-actions">
+              <button class="btn-primary green" style="flex:2" onclick="App.approveProof('${p.id}')">✅ اعتماد وصرف الجزر</button>
+              <button class="btn-ghost" style="flex:1;color:#ff5d5d;border-color:#ffd0d0" onclick="App.rejectProof('${p.id}')">رفض</button>
+            </div>
+          </div>`).join('')}
+      </div>` : '';
+
+    const rows = S.tasks.map(t => {
+      const state = doneIds.has(t.id) ? '✅ ' : (pendingIds.has(t.id + '|' + today) ? '⏳ ' : '');
+      return `
       <div class="task-row">
         <span class="task-cat">${CATEGORIES[t.cat].emoji}</span>
         <div class="task-info">
-          <div class="t-title">${doneIds.has(t.id) ? '✅ ' : ''}${esc(t.title)}</div>
-          <div class="t-meta">${CATEGORIES[t.cat].name} · ${t.xp} XP · ${t.coins} 🥕</div>
+          <div class="t-title">${state}${esc(t.title)}</div>
+          <div class="t-meta">${CATEGORIES[t.cat].name} · ${t.xp} XP · ${t.coins} 🥕 · ${PROOF_MODES[t.proof].emoji} ${PROOF_MODES[t.proof].short}</div>
         </div>
         <div class="task-actions">
           <button class="icon-btn" title="تعديل" onclick="App.taskForm('${t.id}')">✏️</button>
           <button class="icon-btn" title="حذف" onclick="App.deleteTask('${t.id}')">🗑️</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     document.getElementById('ptab-tasks').innerHTML = `
+      ${reviewHtml}
       <div class="card">
         <h3>مهام اليوم (${S.tasks.length})</h3>
         ${rows || '<p class="muted">لا توجد مهام بعد — أضف أول مهمة!</p>'}
@@ -294,10 +391,47 @@ const App = {
       </div>`;
   },
 
+  approveProof(id) {
+    const p = S.pendingProofs.find(x => x.id === id);
+    if (!p) return;
+    S.pendingProofs = S.pendingProofs.filter(x => x.id !== id);
+    // نمنح المكافآت بهوية المهمة الأصلية وتاريخ الإنجاز الأصلي
+    const taskLike = { id: p.taskId, cat: p.cat, xp: p.xp, coins: p.coins };
+    grantCompletion(taskLike, p.date);
+    S.unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins });
+    save();
+    this.renderPTasks();
+    this.toast(`تم الاعتماد — وصل ${p.coins} 🥕 إلى ${S.child.name} ✅`);
+  },
+
+  rejectProof(id) {
+    const p = S.pendingProofs.find(x => x.id === id);
+    if (!p) return;
+    if (!confirm(`رفض إثبات "${p.title}"؟ ستعود المهمة متاحة في خريطة ${S.child.name}`)) return;
+    S.pendingProofs = S.pendingProofs.filter(x => x.id !== id);
+    save();
+    this.renderPTasks();
+    this.toast('تم الرفض — عادت المهمة إلى الخريطة');
+  },
+
+  zoomPhoto(proofId) {
+    const p = S.pendingProofs.find(x => x.id === proofId);
+    if (!p || !p.photo) return;
+    this.openModal(`
+      <h3>📸 ${esc(p.title)}</h3>
+      <img src="${p.photo}" style="width:100%;border-radius:14px" alt="صورة الإثبات" />
+      <div class="proof-actions" style="margin-top:14px">
+        <button class="btn-primary green" style="flex:2" onclick="App.closeModal();App.approveProof('${p.id}')">✅ اعتماد</button>
+        <button class="btn-ghost" style="flex:1;color:#ff5d5d;border-color:#ffd0d0" onclick="App.closeModal();App.rejectProof('${p.id}')">رفض</button>
+      </div>`);
+  },
+
   taskForm(taskId) {
     const t = taskId ? S.tasks.find(x => x.id === taskId) : null;
     const catOptions = Object.entries(CATEGORIES)
       .map(([k, c]) => `<option value="${k}" ${t && t.cat === k ? 'selected' : ''}>${c.emoji} ${c.name}</option>`).join('');
+    const proofOptions = Object.entries(PROOF_MODES)
+      .map(([k, m]) => `<option value="${k}" ${(t ? t.proof : 'self') === k ? 'selected' : ''}>${m.emoji} ${m.name}</option>`).join('');
     this.openModal(`
       <h3>${t ? 'تعديل المهمة' : 'مهمة جديدة'}</h3>
       <div class="form-grid">
@@ -307,6 +441,7 @@ const App = {
           <div><label>نقاط الخبرة XP</label><input id="f-xp" type="number" min="5" max="100" value="${t ? t.xp : 20}" /></div>
           <div><label>الجزر 🥕</label><input id="f-coins" type="number" min="1" max="50" value="${t ? t.coins : 5}" /></div>
         </div>
+        <div><label>طريقة تأكيد الإنجاز</label><select id="f-proof">${proofOptions}</select></div>
         <button class="btn-primary green" onclick="App.saveTask('${taskId || ''}')">حفظ</button>
       </div>`);
   },
@@ -317,11 +452,12 @@ const App = {
     const cat = document.getElementById('f-cat').value;
     const xp = Math.max(5, parseInt(document.getElementById('f-xp').value) || 20);
     const coins = Math.max(1, parseInt(document.getElementById('f-coins').value) || 5);
+    const proof = document.getElementById('f-proof').value;
     if (taskId) {
       const t = S.tasks.find(x => x.id === taskId);
-      Object.assign(t, { title, cat, xp, coins });
+      Object.assign(t, { title, cat, xp, coins, proof });
     } else {
-      S.tasks.push({ id: uid(), title, cat, xp, coins });
+      S.tasks.push({ id: uid(), title, cat, xp, coins, proof });
     }
     save();
     this.closeModal();
@@ -643,18 +779,20 @@ const App = {
     if (S.tasks.length === 0) {
       html += `<div class="map-empty"><div class="big-emoji">🗺️</div><p class="muted">الخريطة فارغة… اطلب من والدك إضافة مهام المغامرة!</p></div>`;
     } else {
+      const pendingToday = new Set(S.pendingProofs.filter(p => p.date === today).map(p => p.taskId));
       html += '<div class="map-path">';
       S.tasks.forEach((t, i) => {
         const done = doneIds.has(t.id);
+        const pending = pendingToday.has(t.id);
         const side = i % 2 === 0 ? 'side-left' : 'side-right';
         html += `
-          <div class="map-node ${side} ${done ? 'done' : ''}">
-            <button class="node-circle" onclick="App.completeTask('${t.id}')" ${done ? 'disabled' : ''}>
-              ${done ? '⭐' : CATEGORIES[t.cat].emoji}
+          <div class="map-node ${side} ${done ? 'done' : ''} ${pending ? 'pending' : ''}">
+            <button class="node-circle" onclick="App.completeTask('${t.id}')" ${done || pending ? 'disabled' : ''}>
+              ${done ? '⭐' : (pending ? '⏳' : CATEGORIES[t.cat].emoji)}
             </button>
             <div class="node-card">
               <div class="n-title">${esc(t.title)}</div>
-              <div class="n-reward">✨ ${t.xp} XP &nbsp; 🥕 ${t.coins}</div>
+              <div class="n-reward">${pending ? '👀 بانتظار تأكيد والدك…' : `✨ ${t.xp} XP &nbsp; 🥕 ${t.coins}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
             </div>
           </div>
           ${i < S.tasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
@@ -662,51 +800,130 @@ const App = {
       html += '</div>';
     }
 
+    // مشاركة إنجاز اليوم مع الوالد البعيد
+    html += `<button class="btn-primary purple" style="margin-top:6px" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>`;
+
     document.getElementById('ktab-map').innerHTML = html;
   },
 
-  completeTask(taskId) {
+  /* تقرير نصي يُشارك عبر واتساب أو أي تطبيق — للوالد خارج المنزل */
+  shareDayReport() {
     const today = todayKey();
+    const doneIds = S.completions[today] || [];
+    const lines = [`🥕 تقرير ${S.child.name} — ${dayNameOffset(0)} ${today}`, ''];
+    for (const t of S.tasks) {
+      const pending = S.pendingProofs.some(p => p.taskId === t.id && p.date === today);
+      lines.push(`${doneIds.includes(t.id) ? '✅' : (pending ? '⏳ (بانتظار تأكيدك)' : '⬜')} ${t.title}`);
+    }
+    lines.push('', `⭐ المستوى ${levelOf(S.child.xp)} · 🥕 ${S.child.coins} · 🔥 سلسلة ${S.child.streak} يوم`);
+    if (S.pendingProofs.length) lines.push(`🔔 ${S.pendingProofs.length} إثبات بانتظار مراجعتك في التطبيق`);
+    const text = lines.join('\n');
+    if (navigator.share) {
+      navigator.share({ text }).catch(() => {});
+    } else {
+      window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    }
+  },
+
+  completeTask(taskId) {
     const t = S.tasks.find(x => x.id === taskId);
     if (!t) return;
-    S.completions[today] = S.completions[today] || [];
-    if (S.completions[today].includes(taskId)) return;
-    S.completions[today].push(taskId);
+    const today = todayKey();
+    if ((S.completions[today] || []).includes(taskId)) return;
+    if (S.pendingProofs.some(p => p.taskId === taskId && p.date === today)) return;
 
-    const prevLevel = levelOf(S.child.xp);
-    S.child.xp += t.xp;
-    S.child.coins += t.coins;
-    S.child.lifetimeCoins += t.coins;
-    if (t.cat === 'health') S.child.hp = Math.min(100, S.child.hp + 10);
-
-    // السلسلة: أول إنجاز في اليوم يمددها
-    if (S.child.lastFullDay !== today) {
-      S.child.streak = (S.child.lastFullDay === dayKeyOffset(-1)) ? S.child.streak + 1 : 1;
-      S.child.bestStreak = Math.max(S.child.bestStreak, S.child.streak);
-      S.child.lastFullDay = today;
+    if (t.proof === 'photo') {
+      this.photoProofForm(taskId);
+      return;
     }
-
-    // مكافأة إتمام كل مهام اليوم
-    const allDone = S.tasks.every(x => S.completions[today].includes(x.id));
-    let bonus = 0;
-    if (allDone) { bonus = 10; S.child.coins += bonus; S.child.lifetimeCoins += bonus; }
-
-    save();
-
-    const newLevel = levelOf(S.child.xp);
-    let title = 'أحسنت يا بطل!', emoji = '🎉', msg = esc(t.title);
-    if (newLevel > prevLevel) {
-      title = `ترقّيت للمستوى ${newLevel}! 🆙`;
-      emoji = avatarFor(newLevel);
-      msg = 'أفاتارك يزداد قوة!';
-    } else if (allDone) {
-      title = 'أنهيت كل مهام اليوم! 🏆';
-      emoji = '🏆';
-      msg = `مكافأة اليوم الكامل: +${bonus} 🥕`;
+    if (t.proof === 'parent') {
+      this._queueProof(t, null);
+      this.celebrate('أرسلنا إنجازك! 📨', `${esc(t.title)}<br /><small>سيصلك الجزر بعد تأكيد والدك 👀</small>`, ['⏳ بانتظار التأكيد'], '📨');
+      this.renderKMap();
+      return;
     }
-    this.celebrate(title, msg, [`+${t.xp} ✨ XP`, `+${t.coins + bonus} 🥕`], emoji);
+    // مهمة ثقة: صرف فوري
+    const res = grantCompletion(t, today);
+    this._celebrateGrant(t, res);
     this.renderKMap();
     this.refreshKidHeader();
+  },
+
+  _queueProof(t, photo) {
+    const now = new Date();
+    S.pendingProofs.push({
+      id: uid(), taskId: t.id, title: t.title, cat: t.cat, xp: t.xp, coins: t.coins,
+      proof: t.proof, date: todayKey(),
+      time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
+      photo: photo || null,
+    });
+    save();
+  },
+
+  _celebrateGrant(t, res) {
+    let title = 'أحسنت يا بطل!', emoji = '🎉', msg = esc(t.title);
+    if (res.leveledUp) {
+      title = `ترقّيت للمستوى ${res.newLevel}! 🆙`;
+      emoji = avatarFor(res.newLevel);
+      msg = 'أفاتارك يزداد قوة!';
+    } else if (res.allDone) {
+      title = 'أنهيت كل مهام اليوم! 🏆';
+      emoji = '🏆';
+      msg = `مكافأة اليوم الكامل: +${res.bonus} 🥕`;
+    }
+    this.celebrate(title, msg, [`+${t.xp} ✨ XP`, `+${t.coins + res.bonus} 🥕`], emoji);
+  },
+
+  /* ── إثبات بالصورة ── */
+  _pendingPhotoTaskId: null,
+  _pendingPhotoData: null,
+
+  photoProofForm(taskId) {
+    const t = S.tasks.find(x => x.id === taskId);
+    if (!t) return;
+    this._pendingPhotoTaskId = taskId;
+    this._pendingPhotoData = null;
+    this.openModal(`
+      <h3>📸 إثبات المهمة</h3>
+      <p style="font-weight:700;margin-bottom:4px">${esc(t.title)}</p>
+      <p class="muted" style="margin-bottom:14px">التقط صورة تُثبت إنجازك (غرفتك المرتبة، دفتر الواجب…) وسيراجعها والدك</p>
+      <input type="file" id="f-photo" accept="image/*" capture="environment" style="display:none" onchange="App.photoChosen(this)" />
+      <div id="photo-preview" style="margin-bottom:12px"></div>
+      <button class="btn-primary" onclick="document.getElementById('f-photo').click()">📷 التقط / اختر صورة</button>
+      <button class="btn-primary green" id="photo-submit" style="margin-top:10px;display:none" onclick="App.submitPhotoProof()">إرسال الإثبات للوالد 📨</button>`);
+  },
+
+  photoChosen(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    // ضغط الصورة لتناسب مساحة التخزين المحلي
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 480;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      this._pendingPhotoData = canvas.toDataURL('image/jpeg', 0.55);
+      URL.revokeObjectURL(url);
+      document.getElementById('photo-preview').innerHTML =
+        `<img src="${this._pendingPhotoData}" style="width:100%;border-radius:14px;border:3px solid var(--green)" alt="صورة الإثبات" />`;
+      document.getElementById('photo-submit').style.display = 'block';
+    };
+    img.src = url;
+  },
+
+  submitPhotoProof() {
+    const t = S.tasks.find(x => x.id === this._pendingPhotoTaskId);
+    if (!t || !this._pendingPhotoData) return;
+    this._queueProof(t, this._pendingPhotoData);
+    this._pendingPhotoTaskId = null;
+    this._pendingPhotoData = null;
+    this.closeModal();
+    this.celebrate('أرسلنا صورتك! 📸', `${esc(t.title)}<br /><small>سيصلك الجزر بعد مراجعة والدك 👀</small>`, ['⏳ بانتظار المراجعة'], '📨');
+    this.renderKMap();
   },
 
   kidBossHit() {
