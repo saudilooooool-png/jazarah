@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>جزرة | مغامرة العائلة</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════ شاشة اختيار الدور ═══════════ -->
+  <section id="screen-role" class="screen active">
+    <div class="role-wrap">
+      <div class="logo-bounce">🥕</div>
+      <h1 class="app-title">جَزَرة</h1>
+      <p class="app-tagline">حوّلوا يومكم إلى مغامرة عائلية!</p>
+      <div class="role-cards">
+        <button class="role-card role-kid" onclick="App.enterKid()">
+          <span class="role-emoji">🦸</span>
+          <span class="role-name">أنا البطل</span>
+          <span class="role-desc">ابدأ مغامرة اليوم</span>
+        </button>
+        <button class="role-card role-parent" onclick="App.enterParent()">
+          <span class="role-emoji">🧭</span>
+          <span class="role-name">أنا الوالد</span>
+          <span class="role-desc">غرفة قيادة المهام</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ شاشة الرقم السري ═══════════ -->
+  <section id="screen-pin" class="screen">
+    <div class="pin-wrap">
+      <button class="btn-back" onclick="App.showScreen('screen-role')">→ رجوع</button>
+      <div class="pin-icon">🔐</div>
+      <h2 id="pin-title">أدخل الرقم السري</h2>
+      <p id="pin-hint" class="pin-hint"></p>
+      <div class="pin-dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
+      <div class="pin-pad" id="pin-pad"></div>
+      <p id="pin-error" class="pin-error"></p>
+    </div>
+  </section>
+
+  <!-- ═══════════ لوحة تحكم الوالدين ═══════════ -->
+  <section id="screen-parent" class="screen">
+    <header class="parent-header">
+      <div>
+        <h2>🧭 غرفة القيادة</h2>
+        <p id="parent-subtitle" class="muted"></p>
+      </div>
+      <button class="btn-ghost" onclick="App.showScreen('screen-role')">خروج</button>
+    </header>
+
+    <nav class="parent-tabs">
+      <button class="ptab active" data-ptab="tasks" onclick="App.parentTab('tasks')">📋 المهام</button>
+      <button class="ptab" data-ptab="rewards" onclick="App.parentTab('rewards')">🎁 المكافآت</button>
+      <button class="ptab" data-ptab="boss" onclick="App.parentTab('boss')">👾 الزعيم</button>
+      <button class="ptab" data-ptab="report" onclick="App.parentTab('report')">📊 التقارير</button>
+      <button class="ptab" data-ptab="settings" onclick="App.parentTab('settings')">⚙️</button>
+    </nav>
+
+    <div id="ptab-tasks" class="ptab-panel active"></div>
+    <div id="ptab-rewards" class="ptab-panel"></div>
+    <div id="ptab-boss" class="ptab-panel"></div>
+    <div id="ptab-report" class="ptab-panel"></div>
+    <div id="ptab-settings" class="ptab-panel"></div>
+  </section>
+
+  <!-- ═══════════ عالم الطفل ═══════════ -->
+  <section id="screen-kid" class="screen">
+    <header class="kid-header">
+      <button class="kid-avatar-chip" onclick="App.kidTab('hero')">
+        <span id="kid-avatar-mini">🦸</span>
+        <span id="kid-name-mini">البطل</span>
+      </button>
+      <div class="kid-stats">
+        <span class="stat-chip stat-coins">🥕 <b id="stat-coins">0</b></span>
+        <span class="stat-chip stat-streak">🔥 <b id="stat-streak">0</b></span>
+        <button class="btn-ghost small" onclick="App.showScreen('screen-role')">✕</button>
+      </div>
+    </header>
+
+    <div id="ktab-map" class="ktab-panel active"></div>
+    <div id="ktab-hero" class="ktab-panel"></div>
+    <div id="ktab-shop" class="ktab-panel"></div>
+    <div id="ktab-badges" class="ktab-panel"></div>
+
+    <nav class="kid-nav">
+      <button class="knav active" data-ktab="map" onclick="App.kidTab('map')"><span>🗺️</span>المغامرة</button>
+      <button class="knav" data-ktab="hero" onclick="App.kidTab('hero')"><span>🦸</span>بطلي</button>
+      <button class="knav" data-ktab="shop" onclick="App.kidTab('shop')"><span>🏪</span>المتجر</button>
+      <button class="knav" data-ktab="badges" onclick="App.kidTab('badges')"><span>🏅</span>أوسمتي</button>
+    </nav>
+  </section>
+
+  <!-- ═══════════ نافذة الاحتفال ═══════════ -->
+  <div id="celebrate" class="overlay">
+    <div class="confetti-layer" id="confetti-layer"></div>
+    <div class="celebrate-card">
+      <div class="celebrate-emoji" id="celebrate-emoji">🎉</div>
+      <h2 id="celebrate-title">أحسنت يا بطل!</h2>
+      <p id="celebrate-msg"></p>
+      <div class="celebrate-gains" id="celebrate-gains"></div>
+      <button class="btn-primary big" onclick="App.closeCelebrate()">واصل المغامرة! 🚀</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ نافذة عامة (Modal) ═══════════ -->
+  <div id="modal" class="overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="App.closeModal()">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

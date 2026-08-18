@@ -1,0 +1,388 @@
+/* ═══════════ أساسيات ═══════════ */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --carrot: #ff8c42;
+  --carrot-dark: #e5732a;
+  --green: #4caf7d;
+  --green-dark: #3a8f63;
+  --sky: #6ec6ff;
+  --purple: #9b6dff;
+  --gold: #ffc93c;
+  --red: #ff5d5d;
+  --ink: #2d2a4a;
+  --paper: #fffaf3;
+  --card: #ffffff;
+  --shadow: 0 6px 0 rgba(45, 42, 74, 0.12);
+  --radius: 20px;
+}
+
+html, body { height: 100%; }
+
+body {
+  font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  overflow-x: hidden;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font-family: inherit; font-size: 1rem; }
+b { font-weight: 700; }
+.muted { color: #8a86a8; font-size: 0.85rem; }
+
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: block; }
+
+/* ═══════════ شاشة اختيار الدور ═══════════ */
+#screen-role {
+  background: linear-gradient(160deg, #ffedd5 0%, #ffd8b8 45%, #ffc49a 100%);
+}
+.role-wrap {
+  max-width: 480px; margin: 0 auto; padding: 8vh 24px 40px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.logo-bounce { font-size: 5rem; animation: bounce 2s ease-in-out infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-14px) rotate(8deg); } }
+.app-title { font-size: 3rem; font-weight: 900; color: var(--carrot-dark); letter-spacing: 1px; }
+.app-tagline { font-size: 1.1rem; color: #7a5230; margin-bottom: 36px; }
+
+.role-cards { display: flex; flex-direction: column; gap: 18px; width: 100%; }
+.role-card {
+  background: var(--card); border-radius: var(--radius); padding: 22px;
+  box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: transform 0.15s;
+  border: 3px solid transparent;
+}
+.role-card:active { transform: scale(0.97); }
+.role-kid { border-color: var(--sky); }
+.role-parent { border-color: var(--green); }
+.role-emoji { font-size: 3rem; }
+.role-name { font-size: 1.4rem; font-weight: 900; }
+.role-desc { color: #8a86a8; font-size: 0.9rem; }
+
+/* ═══════════ شاشة الرقم السري ═══════════ */
+#screen-pin { background: linear-gradient(160deg, #e8f6ef, #d3ecdd); }
+.pin-wrap { max-width: 380px; margin: 0 auto; padding: 6vh 24px; text-align: center; }
+.btn-back { display: block; text-align: right; color: var(--green-dark); font-weight: 700; margin-bottom: 24px; font-size: 1rem; }
+.pin-icon { font-size: 3.4rem; margin-bottom: 8px; }
+.pin-hint { color: #6b8f7c; margin: 6px 0 18px; min-height: 1.4em; }
+.pin-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 26px; }
+.pin-dots i {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 3px solid var(--green-dark); background: transparent; transition: background 0.15s;
+}
+.pin-dots i.filled { background: var(--green-dark); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 280px; margin: 0 auto; }
+.pin-pad button {
+  background: #fff; border-radius: 16px; font-size: 1.5rem; font-weight: 700;
+  padding: 16px 0; box-shadow: 0 4px 0 rgba(45,42,74,0.1);
+}
+.pin-pad button:active { transform: translateY(2px); box-shadow: none; }
+.pin-error { color: var(--red); font-weight: 700; margin-top: 16px; min-height: 1.4em; }
+
+/* ═══════════ لوحة الوالدين ═══════════ */
+#screen-parent { background: #f4f2fb; padding-bottom: 60px; }
+.parent-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 20px 12px; max-width: 640px; margin: 0 auto;
+}
+.parent-header h2 { font-size: 1.4rem; font-weight: 900; }
+.btn-ghost {
+  color: #8a86a8; font-weight: 700; border: 2px solid #d9d5ec;
+  border-radius: 12px; padding: 6px 14px; font-size: 0.9rem; background: #fff;
+}
+.btn-ghost.small { padding: 2px 10px; }
+
+.parent-tabs {
+  display: flex; gap: 6px; padding: 8px 20px; max-width: 640px; margin: 0 auto;
+  overflow-x: auto;
+}
+.ptab {
+  background: #fff; border-radius: 14px; padding: 8px 14px; font-weight: 700;
+  font-size: 0.9rem; color: #8a86a8; white-space: nowrap; border: 2px solid transparent;
+}
+.ptab.active { color: var(--purple); border-color: var(--purple); }
+
+.ptab-panel { display: none; max-width: 640px; margin: 0 auto; padding: 12px 20px 40px; }
+.ptab-panel.active { display: block; }
+
+.card {
+  background: var(--card); border-radius: var(--radius); padding: 18px;
+  box-shadow: 0 3px 10px rgba(45,42,74,0.07); margin-bottom: 14px;
+}
+.card h3 { font-size: 1.05rem; font-weight: 900; margin-bottom: 10px; }
+
+.task-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px dashed #eee9dc;
+}
+.task-row:last-child { border-bottom: none; }
+.task-cat { font-size: 1.6rem; }
+.task-info { flex: 1; }
+.task-info .t-title { font-weight: 700; }
+.task-info .t-meta { font-size: 0.8rem; color: #8a86a8; }
+.task-actions { display: flex; gap: 6px; }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 10px; background: #f4f2fb;
+  font-size: 0.95rem; display: grid; place-items: center;
+}
+
+.btn-primary {
+  background: var(--carrot); color: #fff; font-weight: 900; font-size: 1rem;
+  border-radius: 16px; padding: 12px 24px; box-shadow: 0 4px 0 var(--carrot-dark);
+  width: 100%;
+}
+.btn-primary:active { transform: translateY(2px); box-shadow: none; }
+.btn-primary.big { font-size: 1.15rem; padding: 14px 28px; }
+.btn-primary.green { background: var(--green); box-shadow: 0 4px 0 var(--green-dark); }
+.btn-primary.purple { background: var(--purple); box-shadow: 0 4px 0 #7b4fe0; }
+
+.form-grid { display: flex; flex-direction: column; gap: 12px; }
+.form-grid label { font-weight: 700; font-size: 0.9rem; display: block; margin-bottom: 4px; }
+.form-grid input, .form-grid select {
+  width: 100%; border: 2px solid #e5e1f5; border-radius: 12px; padding: 10px 12px;
+  background: #fbfaff;
+}
+.form-row { display: flex; gap: 10px; }
+.form-row > div { flex: 1; }
+
+/* شريط التقدم */
+.progressbar { background: #efeaf8; border-radius: 99px; height: 14px; overflow: hidden; }
+.progressbar > i {
+  display: block; height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--green), var(--sky));
+  transition: width 0.4s ease;
+}
+
+/* الرسم البياني الأسبوعي */
+.chart { display: flex; align-items: flex-end; gap: 8px; height: 130px; padding-top: 10px; }
+.chart .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+.chart .bar {
+  width: 70%; border-radius: 8px 8px 4px 4px; min-height: 4px;
+  background: linear-gradient(180deg, var(--purple), var(--sky));
+  transition: height 0.5s ease;
+}
+.chart .bar-label { font-size: 0.7rem; color: #8a86a8; font-weight: 700; }
+
+.pill-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { background: #f4f2fb; border-radius: 99px; padding: 6px 14px; font-size: 0.85rem; font-weight: 700; }
+
+/* ═══════════ عالم الطفل ═══════════ */
+#screen-kid {
+  background: linear-gradient(180deg, #bde8ff 0%, #e0f5ff 30%, #fff6e5 100%);
+  padding-bottom: 90px;
+}
+.kid-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px; max-width: 560px; margin: 0 auto;
+  position: sticky; top: 0; z-index: 5;
+  background: rgba(189, 232, 255, 0.85); backdrop-filter: blur(6px);
+}
+.kid-avatar-chip {
+  display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 99px;
+  padding: 6px 14px 6px 16px; font-weight: 900; box-shadow: var(--shadow); font-size: 1rem;
+}
+.kid-avatar-chip span:first-child { font-size: 1.5rem; }
+.kid-stats { display: flex; gap: 8px; align-items: center; }
+.stat-chip {
+  background: #fff; border-radius: 99px; padding: 6px 12px; font-weight: 700;
+  box-shadow: var(--shadow); font-size: 0.95rem;
+}
+
+.ktab-panel { display: none; max-width: 560px; margin: 0 auto; padding: 10px 18px 30px; }
+.ktab-panel.active { display: block; }
+
+.kid-nav {
+  position: fixed; bottom: 0; right: 0; left: 0; z-index: 10;
+  display: flex; justify-content: space-around; padding: 8px 10px 14px;
+  background: #fff; border-radius: 24px 24px 0 0; box-shadow: 0 -4px 20px rgba(45,42,74,0.12);
+  max-width: 560px; margin: 0 auto;
+}
+.knav {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 0.75rem; font-weight: 900; color: #b6b2cc; padding: 4px 10px;
+  border-radius: 14px;
+}
+.knav span { font-size: 1.5rem; filter: grayscale(1); opacity: 0.6; }
+.knav.active { color: var(--carrot-dark); background: #fff3e6; }
+.knav.active span { filter: none; opacity: 1; }
+
+/* خريطة المغامرة */
+.map-title { text-align: center; font-weight: 900; font-size: 1.25rem; margin: 8px 0 2px; }
+.map-sub { text-align: center; color: #6a92ad; font-size: 0.9rem; margin-bottom: 14px; font-weight: 700; }
+
+.map-path { position: relative; padding: 10px 0 20px; }
+.map-node {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 10px;
+  position: relative;
+}
+.map-node.side-left { flex-direction: row; }
+.map-node.side-right { flex-direction: row-reverse; }
+.node-circle {
+  width: 74px; height: 74px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 2rem;
+  background: #fff; border: 4px solid var(--sky);
+  box-shadow: 0 5px 0 rgba(45,42,74,0.12);
+  transition: transform 0.15s;
+  position: relative;
+}
+.map-node button.node-circle:active { transform: scale(0.94); }
+.map-node.done .node-circle { background: var(--green); border-color: var(--green-dark); }
+.map-node.done .node-circle::after {
+  content: '✔'; position: absolute; bottom: -6px; left: -6px;
+  background: var(--gold); color: #7a5230; font-size: 0.8rem; font-weight: 900;
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  border: 2px solid #fff;
+}
+.node-card {
+  background: #fff; border-radius: 16px; padding: 10px 14px; flex: 1;
+  box-shadow: 0 3px 8px rgba(45,42,74,0.08);
+}
+.node-card .n-title { font-weight: 900; font-size: 0.95rem; }
+.node-card .n-reward { font-size: 0.8rem; color: #8a86a8; font-weight: 700; }
+.map-node.done .node-card { opacity: 0.65; }
+.map-node.done .n-title { text-decoration: line-through; }
+
+.path-connector {
+  width: 6px; height: 26px; border-radius: 3px; background: #ffdba8;
+  margin: 0 auto 10px; margin-right: 44px;
+}
+.map-node.side-right + .path-connector { margin-right: auto; margin-left: 44px; }
+
+.map-empty { text-align: center; padding: 40px 20px; }
+.map-empty .big-emoji { font-size: 4rem; }
+
+.all-done-banner {
+  background: linear-gradient(120deg, var(--gold), #ffb63c); border-radius: var(--radius);
+  padding: 18px; text-align: center; font-weight: 900; color: #7a5230;
+  margin-bottom: 14px; font-size: 1.05rem; box-shadow: var(--shadow);
+}
+
+/* بطاقة الزعيم في الخريطة */
+.boss-card {
+  background: linear-gradient(135deg, #4a3f7a, #6d5bb8); color: #fff;
+  border-radius: var(--radius); padding: 18px; margin-bottom: 16px;
+  box-shadow: 0 6px 0 #362e5c;
+}
+.boss-card h3 { font-size: 1.05rem; margin-bottom: 6px; }
+.boss-card .boss-emoji { font-size: 2.6rem; float: left; margin-left: 6px; animation: wiggle 2.5s ease-in-out infinite; }
+@keyframes wiggle { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+.boss-card .progressbar { background: rgba(255,255,255,0.25); margin: 10px 0 6px; }
+.boss-card .progressbar > i { background: linear-gradient(90deg, var(--gold), #ff9b3c); }
+.boss-card .boss-reward { font-size: 0.85rem; opacity: 0.9; }
+.boss-hit-btn {
+  margin-top: 10px; background: var(--gold); color: #6b4a12; font-weight: 900;
+  border-radius: 12px; padding: 8px 18px; box-shadow: 0 3px 0 #cf9a1d;
+}
+.boss-hit-btn:active { transform: translateY(2px); box-shadow: none; }
+
+/* صندوق المفاجأة */
+.mystery-node {
+  background: linear-gradient(135deg, #ff5da2, #9b6dff); color: #fff;
+  border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 14px; box-shadow: 0 5px 0 #b43d77;
+  width: 100%; text-align: right;
+}
+.mystery-node .m-emoji { font-size: 2.6rem; animation: shake 1.2s ease-in-out infinite; }
+@keyframes shake { 0%,100% { transform: rotate(0); } 20% { transform: rotate(-10deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(6deg); } }
+
+/* صفحة البطل */
+.hero-card {
+  background: #fff; border-radius: 24px; padding: 24px; text-align: center;
+  box-shadow: var(--shadow); margin-bottom: 14px;
+}
+.hero-avatar { font-size: 5rem; line-height: 1; }
+.hero-gear { font-size: 1.6rem; min-height: 1.8rem; margin-top: 4px; }
+.hero-name { font-size: 1.5rem; font-weight: 900; margin-top: 6px; }
+.hero-title-tag { color: var(--purple); font-weight: 900; font-size: 0.95rem; }
+.hero-level-row { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.85rem; margin: 14px 0 6px; color: #8a86a8; }
+.hp-hearts { font-size: 1.3rem; letter-spacing: 3px; margin-top: 12px; }
+.hero-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
+.hstat { background: #f8f6ff; border-radius: 16px; padding: 12px 6px; text-align: center; }
+.hstat .h-num { font-size: 1.3rem; font-weight: 900; color: var(--purple); }
+.hstat .h-lbl { font-size: 0.75rem; color: #8a86a8; font-weight: 700; }
+
+/* المتجر */
+.shop-section-title { font-weight: 900; font-size: 1.1rem; margin: 16px 0 10px; }
+.shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.shop-item {
+  background: #fff; border-radius: 18px; padding: 14px; text-align: center;
+  box-shadow: 0 3px 8px rgba(45,42,74,0.08); display: flex; flex-direction: column; gap: 6px;
+}
+.shop-item .s-emoji { font-size: 2.4rem; }
+.shop-item .s-name { font-weight: 900; font-size: 0.9rem; }
+.buy-btn {
+  background: var(--carrot); color: #fff; font-weight: 900; border-radius: 12px;
+  padding: 7px 0; box-shadow: 0 3px 0 var(--carrot-dark); font-size: 0.9rem;
+}
+.buy-btn:active { transform: translateY(2px); box-shadow: none; }
+.buy-btn:disabled { background: #d9d5ec; box-shadow: none; color: #fff; cursor: not-allowed; }
+.buy-btn.owned { background: var(--green); box-shadow: 0 3px 0 var(--green-dark); }
+
+/* الأوسمة */
+.badges-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.badge-card {
+  background: #fff; border-radius: 18px; padding: 16px; text-align: center;
+  box-shadow: 0 3px 8px rgba(45,42,74,0.08);
+}
+.badge-card.locked { opacity: 0.45; filter: grayscale(1); }
+.badge-card .b-emoji { font-size: 2.6rem; }
+.badge-card .b-name { font-weight: 900; font-size: 0.9rem; margin-top: 4px; }
+.badge-card .b-desc { font-size: 0.75rem; color: #8a86a8; }
+
+/* ═══════════ الاحتفال ═══════════ */
+.overlay {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(45, 42, 74, 0.55); backdrop-filter: blur(3px);
+  align-items: center; justify-content: center; padding: 24px;
+}
+.overlay.active { display: flex; }
+.celebrate-card {
+  background: #fff; border-radius: 28px; padding: 32px 26px; text-align: center;
+  max-width: 380px; width: 100%; position: relative; z-index: 2;
+  animation: pop-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes pop-in { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.celebrate-emoji { font-size: 4.5rem; animation: bounce 1s ease-in-out infinite; }
+.celebrate-card h2 { font-size: 1.5rem; font-weight: 900; margin: 8px 0 4px; }
+.celebrate-gains { display: flex; justify-content: center; gap: 12px; margin: 16px 0 20px; flex-wrap: wrap; }
+.gain-chip {
+  background: #fff3e6; border-radius: 99px; padding: 8px 18px; font-weight: 900;
+  font-size: 1.05rem; color: var(--carrot-dark);
+}
+.gain-chip.xp { background: #f0e9ff; color: var(--purple); }
+
+.confetti-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.confetti {
+  position: absolute; top: -20px; width: 12px; height: 12px; border-radius: 3px;
+  animation: confetti-fall linear forwards;
+}
+@keyframes confetti-fall {
+  to { transform: translateY(110vh) rotate(720deg); opacity: 0.6; }
+}
+
+/* ═══════════ Modal ═══════════ */
+.modal-card {
+  background: #fff; border-radius: 24px; padding: 26px 22px; max-width: 420px; width: 100%;
+  position: relative; max-height: 85vh; overflow-y: auto;
+  animation: pop-in 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.modal-close {
+  position: absolute; top: 12px; left: 12px; width: 32px; height: 32px;
+  border-radius: 50%; background: #f4f2fb; font-weight: 900; color: #8a86a8;
+}
+#modal-body h3 { font-weight: 900; font-size: 1.15rem; margin-bottom: 14px; }
+
+/* ═══════════ Toast ═══════════ */
+.toast {
+  position: fixed; bottom: 100px; right: 50%; transform: translateX(50%) translateY(20px);
+  background: var(--ink); color: #fff; font-weight: 700; padding: 10px 22px;
+  border-radius: 99px; opacity: 0; transition: all 0.3s; z-index: 200; pointer-events: none;
+  font-size: 0.9rem; max-width: 90vw; text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(50%) translateY(0); }
+
+@media (min-width: 560px) {
+  .kid-nav { right: 50%; transform: translateX(50%); left: auto; width: 560px; }
+}
