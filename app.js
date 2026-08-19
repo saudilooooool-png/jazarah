@@ -100,29 +100,210 @@ const PARENT_TIPS = [
   'إن تعثرت السلسلة فذكّره بأفضل رقم وصله وشجعه على كسره',
 ];
 
+/* ─────────────── المراحل الدراسية (KG → سادس ابتدائي) ─────────────── */
+const GRADES = {
+  kg1: { name: 'روضة أولى KG1',    tier: 1 },
+  kg2: { name: 'روضة ثانية KG2',   tier: 1 },
+  g1:  { name: 'أول ابتدائي',      tier: 2 },
+  g2:  { name: 'ثاني ابتدائي',     tier: 2 },
+  g3:  { name: 'ثالث ابتدائي',     tier: 3 },
+  g4:  { name: 'رابع ابتدائي',     tier: 3 },
+  g5:  { name: 'خامس ابتدائي',     tier: 4 },
+  g6:  { name: 'سادس ابتدائي',     tier: 4 },
+};
+function gradeTier(grade) { return (GRADES[grade] || GRADES.g1).tier; }
+function gradeName(grade) { return (GRADES[grade] || GRADES.g1).name; }
+
+/* اقتراح الصف من العمر (تقريب النظام السعودي) */
+function suggestGrade(age) {
+  if (age <= 4) return 'kg1';
+  if (age === 5) return 'kg2';
+  return ['g1', 'g2', 'g3', 'g4', 'g5', 'g6'][Math.min(5, Math.max(0, age - 6))];
+}
+function ageOf(birthdate) {
+  if (!birthdate) return null;
+  const b = new Date(birthdate + 'T00:00:00');
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  if (now.getMonth() < b.getMonth() || (now.getMonth() === b.getMonth() && now.getDate() < b.getDate())) age--;
+  return age;
+}
+function daysToBirthday(birthdate) {
+  if (!birthdate) return null;
+  const b = new Date(birthdate + 'T00:00:00');
+  const now = new Date();
+  const next = new Date(now.getFullYear(), b.getMonth(), b.getDate());
+  if (next < new Date(now.getFullYear(), now.getMonth(), now.getDate())) next.setFullYear(next.getFullYear() + 1);
+  return Math.round((next - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+}
+
+/* ─────────────── مكتبة مهام دائمة لكل صف ───────────────
+   مهام بصياغة عامة مكملة لمواد مقررات وزارة التعليم — ليست نصوصًا من الكتب */
+const CURRICULUM = {
+  kg1: [
+    { title: 'تلوين حرف اليوم وتسميته',              cat: 'study', xp: 15, coins: 5, proof: 'photo'  },
+    { title: 'العد من 1 إلى 10 بصوت عالٍ',           cat: 'study', xp: 10, coins: 4, proof: 'parent' },
+    { title: 'ترديد سورة الفاتحة',                   cat: 'faith', xp: 15, coins: 5, proof: 'parent' },
+    { title: 'تسمية 5 ألوان حولك',                   cat: 'study', xp: 10, coins: 4, proof: 'parent' },
+    { title: 'تسمية 5 حيوانات من الصور',             cat: 'study', xp: 10, coins: 4, proof: 'parent' },
+    { title: 'مسك القلم ورسم خطوط وأشكال',           cat: 'study', xp: 10, coins: 4, proof: 'photo'  },
+  ],
+  kg2: [
+    { title: 'كتابة 3 حروف تعلمتها اليوم',           cat: 'study', xp: 15, coins: 5, proof: 'photo'  },
+    { title: 'العد من 1 إلى 20',                     cat: 'study', xp: 10, coins: 4, proof: 'parent' },
+    { title: 'حفظ سورة قصيرة من جزء عم',             cat: 'faith', xp: 20, coins: 7, proof: 'parent' },
+    { title: 'قراءة قصة مصورة مع ماما أو بابا',      cat: 'study', xp: 15, coins: 5, proof: 'parent' },
+    { title: 'كتابة اسمي بنفسي',                     cat: 'study', xp: 15, coins: 5, proof: 'photo'  },
+    { title: 'تسمية أيام الأسبوع',                   cat: 'study', xp: 10, coins: 4, proof: 'parent' },
+  ],
+  g1: [
+    { title: 'قراءة درس من كتاب لغتي بصوت عالٍ',     cat: 'study', xp: 25, coins: 8, proof: 'parent' },
+    { title: 'كتابة سطر إملاء من لغتي',              cat: 'study', xp: 20, coins: 7, proof: 'photo'  },
+    { title: 'حل 10 مسائل جمع ضمن 20',               cat: 'study', xp: 20, coins: 7, proof: 'photo'  },
+    { title: 'مراجعة حفظ سورة من جزء عم',            cat: 'faith', xp: 20, coins: 7, proof: 'parent' },
+    { title: 'تسمية 5 كلمات إنجليزية بالصور',        cat: 'study', xp: 15, coins: 5, proof: 'parent' },
+    { title: 'ترتيب أحداث قصة قصيرة',                cat: 'study', xp: 15, coins: 5, proof: 'parent' },
+  ],
+  g2: [
+    { title: 'قراءة نص من لغتي وتلخيصه شفهيًا',      cat: 'study', xp: 25, coins: 8, proof: 'parent' },
+    { title: 'حل صفحة جمع وطرح ضمن 100',             cat: 'study', xp: 25, coins: 8, proof: 'photo'  },
+    { title: 'كتابة 3 جمل من إنشائي',                cat: 'study', xp: 20, coins: 7, proof: 'photo'  },
+    { title: 'حفظ آيات جديدة من جزء عم',             cat: 'faith', xp: 20, coins: 7, proof: 'parent' },
+    { title: 'قراءة كلمات درس English اليوم',        cat: 'study', xp: 15, coins: 5, proof: 'parent' },
+    { title: 'قياس أطوال 3 أشياء بالمسطرة',          cat: 'study', xp: 15, coins: 5, proof: 'photo'  },
+  ],
+  g3: [
+    { title: 'حفظ جدول ضرب عدد جديد',                cat: 'study', xp: 30, coins: 10, proof: 'parent' },
+    { title: 'قراءة درس لغتي وإجابة أسئلة الفهم',    cat: 'study', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'كتابة فقرة قصيرة بخط جميل',            cat: 'study', xp: 20, coins: 7,  proof: 'photo'  },
+    { title: 'تجربة علمية بسيطة من كتاب العلوم',     cat: 'study', xp: 25, coins: 8,  proof: 'photo'  },
+    { title: 'مراجعة مقرر الحفظ من القرآن',          cat: 'faith', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'حفظ 5 كلمات English مع إملائها',       cat: 'study', xp: 20, coins: 7,  proof: 'parent' },
+  ],
+  g4: [
+    { title: 'تسميع جداول الضرب كاملة',              cat: 'study', xp: 30, coins: 10, proof: 'parent' },
+    { title: 'حل مسائل قسمة من كتاب الرياضيات',      cat: 'study', xp: 25, coins: 8,  proof: 'photo'  },
+    { title: 'قراءة 10 صفحات من قصة وتلخيصها',       cat: 'study', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'رسم دورة حياة كائن حي من العلوم',      cat: 'study', xp: 20, coins: 7,  proof: 'photo'  },
+    { title: 'حفظ ومراجعة وردي من القرآن',           cat: 'faith', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'كتابة 5 جمل English صحيحة',            cat: 'study', xp: 20, coins: 7,  proof: 'photo'  },
+  ],
+  g5: [
+    { title: 'حل تمارين الكسور من الرياضيات',        cat: 'study', xp: 30, coins: 10, proof: 'photo'  },
+    { title: 'قراءة درس لغتي واستخراج الأفكار',      cat: 'study', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'كتابة موضوع تعبير قصير',               cat: 'study', xp: 30, coins: 10, proof: 'photo'  },
+    { title: 'تلخيص درس من الدراسات الاجتماعية',     cat: 'study', xp: 20, coins: 7,  proof: 'parent' },
+    { title: 'مراجعة الحفظ مع أحكام التلاوة',        cat: 'faith', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'قراءة نص English وترجمة كلماته',       cat: 'study', xp: 25, coins: 8,  proof: 'parent' },
+  ],
+  g6: [
+    { title: 'حل مسائل النسبة المئوية والكسور',      cat: 'study', xp: 30, coins: 10, proof: 'photo'  },
+    { title: 'قراءة فصل من كتاب وكتابة رأيي فيه',    cat: 'study', xp: 30, coins: 10, proof: 'parent' },
+    { title: 'إعداد خريطة ذهنية لدرس العلوم',        cat: 'study', xp: 25, coins: 8,  proof: 'photo'  },
+    { title: 'بحث قصير عن شخصية أو مكان',            cat: 'study', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'مراجعة الحفظ وتثبيته',                 cat: 'faith', xp: 25, coins: 8,  proof: 'parent' },
+    { title: 'كتابة فقرة English من 5 أسطر',         cat: 'study', xp: 25, coins: 8,  proof: 'photo'  },
+  ],
+};
+
+/* ─────────────── مولد أسئلة الحساب حسب الصف ─────────────── */
+function mathQuestionFor(grade, i) {
+  const day = todayKey();
+  const h = (n) => strHash(day + 'math' + grade + i + n);
+  const tier = gradeTier(grade);
+  let text, answer, emoji = '🧮';
+
+  if (tier === 1) {                       // روضة: عدّ الرموز
+    const count = 1 + h(1) % 9;
+    const items = ['🍎', '⭐', '🐟', '🎈', '🚗'][h(2) % 5];
+    text = `كم ${items} ترى؟<div class="math-emojis">${items.repeat(count)}</div>`;
+    answer = count; emoji = items;
+  } else if (grade === 'g1') {            // جمع ضمن 20
+    const a = 1 + h(1) % 10, b = 1 + h(2) % 10;
+    text = `${a} + ${b} = ؟`; answer = a + b;
+  } else if (grade === 'g2') {            // جمع وطرح ضمن 100
+    const a = 10 + h(1) % 80, b = 1 + h(2) % Math.min(a, 30);
+    if (h(3) % 2) { text = `${a} + ${b} = ؟`; answer = a + b; }
+    else { text = `${a} − ${b} = ؟`; answer = a - b; }
+  } else if (grade === 'g3') {            // جدول الضرب
+    const a = 2 + h(1) % 9, b = 2 + h(2) % 9;
+    text = `${a} × ${b} = ؟`; answer = a * b;
+  } else if (grade === 'g4') {            // ضرب وقسمة بلا باقٍ
+    if (h(3) % 2) {
+      const a = 3 + h(1) % 10, b = 3 + h(2) % 10;
+      text = `${a} × ${b} = ؟`; answer = a * b;
+    } else {
+      const b = 2 + h(1) % 8, q = 2 + h(2) % 10;
+      text = `${b * q} ÷ ${b} = ؟`; answer = q;
+    }
+  } else if (grade === 'g5') {            // نصف وربع وعمليات أكبر
+    const kind = h(3) % 3;
+    if (kind === 0) { const n = (2 + h(1) % 40) * 2; text = `نصف العدد ${n} = ؟`; answer = n / 2; }
+    else if (kind === 1) { const n = (1 + h(1) % 20) * 4; text = `ربع العدد ${n} = ؟`; answer = n / 4; }
+    else { const a = 11 + h(1) % 80, b = 11 + h(2) % 80; text = `${a} + ${b} = ؟`; answer = a + b; }
+  } else {                                // سادس: نسب مئوية وعمليات مختلطة
+    const kind = h(3) % 3;
+    if (kind === 0) { const n = (1 + h(1) % 15) * 10; const p = [10, 25, 50][h(2) % 3]; text = `${p}٪ من ${n} = ؟`; answer = n * p / 100; }
+    else if (kind === 1) { const a = 2 + h(1) % 9, b = 2 + h(2) % 9, c = 1 + h(4) % 20; text = `${a} × ${b} + ${c} = ؟`; answer = a * b + c; }
+    else { const b = 3 + h(1) % 9, q = 4 + h(2) % 15; text = `${b * q} ÷ ${b} = ؟`; answer = q; }
+  }
+
+  // خيارات: الإجابة + 3 مشتتات قريبة، بخلط ثابت طوال اليوم
+  const opts = [answer];
+  let k = h(9);
+  while (opts.length < 4) {
+    const delta = 1 + k % 5;
+    const cand = (k % 2 ? answer + delta : Math.max(0, answer - delta));
+    k = (k * 31 + 11) % 1000003;
+    if (!opts.includes(cand)) opts.push(cand);
+  }
+  opts.sort((a, b) => strHash(day + a) - strHash(day + b));
+  return { text, answer, opts, emoji };
+}
+
 /* ─────────────── بنك كلمات تعلم اللغة ─────────────── */
+/* كل كلمة لها مستوى t (1 روضة → 4 صفوف عليا) — تُختار حسب صف الطفل */
 const WORDS_AR = [
-  { w: 'تفاحة', e: '🍎' }, { w: 'موزة', e: '🍌' }, { w: 'برتقال', e: '🍊' }, { w: 'عنب', e: '🍇' },
-  { w: 'فراولة', e: '🍓' }, { w: 'بطيخ', e: '🍉' }, { w: 'جزرة', e: '🥕' }, { w: 'خبز', e: '🍞' },
-  { w: 'حليب', e: '🥛' }, { w: 'عسل', e: '🍯' }, { w: 'قمر', e: '🌙' }, { w: 'شمس', e: '☀️' },
-  { w: 'نجمة', e: '⭐' }, { w: 'سحابة', e: '☁️' }, { w: 'مطر', e: '🌧️' }, { w: 'بحر', e: '🌊' },
-  { w: 'جبل', e: '⛰️' }, { w: 'شجرة', e: '🌳' }, { w: 'وردة', e: '🌹' }, { w: 'أسد', e: '🦁' },
-  { w: 'فيل', e: '🐘' }, { w: 'قطة', e: '🐱' }, { w: 'كلب', e: '🐶' }, { w: 'أرنب', e: '🐰' },
-  { w: 'حصان', e: '🐴' }, { w: 'جمل', e: '🐫' }, { w: 'دجاجة', e: '🐔' }, { w: 'سمكة', e: '🐟' },
-  { w: 'فراشة', e: '🦋' }, { w: 'نحلة', e: '🐝' }, { w: 'بيت', e: '🏠' }, { w: 'مدرسة', e: '🏫' },
-  { w: 'كتاب', e: '📖' }, { w: 'قلم', e: '✏️' }, { w: 'كرة', e: '⚽' }, { w: 'سيارة', e: '🚗' },
-  { w: 'طائرة', e: '✈️' }, { w: 'قطار', e: '🚆' }, { w: 'مفتاح', e: '🔑' }, { w: 'ساعة', e: '⌚' },
+  // مستوى 1: كلمات قصيرة بسيطة (روضة)
+  { w: 'قمر', e: '🌙', t: 1 }, { w: 'شمس', e: '☀️', t: 1 }, { w: 'بحر', e: '🌊', t: 1 },
+  { w: 'أسد', e: '🦁', t: 1 }, { w: 'فيل', e: '🐘', t: 1 }, { w: 'قطة', e: '🐱', t: 1 },
+  { w: 'كلب', e: '🐶', t: 1 }, { w: 'بيت', e: '🏠', t: 1 }, { w: 'قلم', e: '✏️', t: 1 },
+  { w: 'كرة', e: '⚽', t: 1 }, { w: 'جمل', e: '🐫', t: 1 }, { w: 'عنب', e: '🍇', t: 1 },
+  { w: 'خبز', e: '🍞', t: 1 }, { w: 'عسل', e: '🍯', t: 1 }, { w: 'مطر', e: '🌧️', t: 1 }, { w: 'جبل', e: '⛰️', t: 1 },
+  // مستوى 2: أول وثاني ابتدائي
+  { w: 'موزة', e: '🍌', t: 2 }, { w: 'جزرة', e: '🥕', t: 2 }, { w: 'حليب', e: '🥛', t: 2 },
+  { w: 'نجمة', e: '⭐', t: 2 }, { w: 'وردة', e: '🌹', t: 2 }, { w: 'أرنب', e: '🐰', t: 2 },
+  { w: 'حصان', e: '🐴', t: 2 }, { w: 'سمكة', e: '🐟', t: 2 }, { w: 'نحلة', e: '🐝', t: 2 },
+  { w: 'كتاب', e: '📖', t: 2 }, { w: 'ساعة', e: '⌚', t: 2 }, { w: 'بطيخ', e: '🍉', t: 2 },
+  // مستوى 3: ثالث ورابع
+  { w: 'تفاحة', e: '🍎', t: 3 }, { w: 'برتقال', e: '🍊', t: 3 }, { w: 'فراولة', e: '🍓', t: 3 },
+  { w: 'سحابة', e: '☁️', t: 3 }, { w: 'شجرة', e: '🌳', t: 3 }, { w: 'دجاجة', e: '🐔', t: 3 },
+  { w: 'فراشة', e: '🦋', t: 3 }, { w: 'مدرسة', e: '🏫', t: 3 }, { w: 'سيارة', e: '🚗', t: 3 },
+  { w: 'طائرة', e: '✈️', t: 3 }, { w: 'قطار', e: '🚆', t: 3 }, { w: 'مفتاح', e: '🔑', t: 3 },
+  // مستوى 4: خامس وسادس
+  { w: 'مستشفى', e: '🏥', t: 4 }, { w: 'مكتبة', e: '📚', t: 4 }, { w: 'حاسوب', e: '💻', t: 4 },
+  { w: 'مهندس', e: '👷', t: 4 }, { w: 'طبيبة', e: '🩺', t: 4 }, { w: 'مزرعة', e: '🚜', t: 4 },
+  { w: 'صحراء', e: '🏜️', t: 4 }, { w: 'نافذة', e: '🪟', t: 4 }, { w: 'حديقة', e: '🌷', t: 4 },
+  { w: 'مغامرة', e: '🗺️', t: 4 }, { w: 'عاصفة', e: '🌪️', t: 4 }, { w: 'مسجد', e: '🕌', t: 4 },
 ];
 const WORDS_EN = [
-  { w: 'APPLE', e: '🍎' }, { w: 'BANANA', e: '🍌' }, { w: 'ORANGE', e: '🍊' }, { w: 'GRAPE', e: '🍇' },
-  { w: 'MILK', e: '🥛' }, { w: 'BREAD', e: '🍞' }, { w: 'CARROT', e: '🥕' }, { w: 'SUN', e: '☀️' },
-  { w: 'MOON', e: '🌙' }, { w: 'STAR', e: '⭐' }, { w: 'RAIN', e: '🌧️' }, { w: 'SEA', e: '🌊' },
-  { w: 'TREE', e: '🌳' }, { w: 'ROSE', e: '🌹' }, { w: 'LION', e: '🦁' }, { w: 'CAT', e: '🐱' },
-  { w: 'DOG', e: '🐶' }, { w: 'RABBIT', e: '🐰' }, { w: 'HORSE', e: '🐴' }, { w: 'CAMEL', e: '🐫' },
-  { w: 'FISH', e: '🐟' }, { w: 'BIRD', e: '🐦' }, { w: 'BEE', e: '🐝' }, { w: 'HOUSE', e: '🏠' },
-  { w: 'SCHOOL', e: '🏫' }, { w: 'BOOK', e: '📖' }, { w: 'PEN', e: '🖊️' }, { w: 'BALL', e: '⚽' },
-  { w: 'CAR', e: '🚗' }, { w: 'PLANE', e: '✈️' }, { w: 'TRAIN', e: '🚆' }, { w: 'KEY', e: '🔑' },
-  { w: 'CLOCK', e: '⌚' }, { w: 'WATER', e: '💧' }, { w: 'FIRE', e: '🔥' }, { w: 'HAND', e: '✋' },
+  // مستوى 1: ثلاثة حروف
+  { w: 'SUN', e: '☀️', t: 1 }, { w: 'CAT', e: '🐱', t: 1 }, { w: 'DOG', e: '🐶', t: 1 },
+  { w: 'BEE', e: '🐝', t: 1 }, { w: 'SEA', e: '🌊', t: 1 }, { w: 'KEY', e: '🔑', t: 1 },
+  { w: 'CAR', e: '🚗', t: 1 }, { w: 'PEN', e: '🖊️', t: 1 }, { w: 'EGG', e: '🥚', t: 1 }, { w: 'BUS', e: '🚌', t: 1 },
+  // مستوى 2: أربعة حروف
+  { w: 'MOON', e: '🌙', t: 2 }, { w: 'STAR', e: '⭐', t: 2 }, { w: 'TREE', e: '🌳', t: 2 },
+  { w: 'ROSE', e: '🌹', t: 2 }, { w: 'LION', e: '🦁', t: 2 }, { w: 'FISH', e: '🐟', t: 2 },
+  { w: 'BIRD', e: '🐦', t: 2 }, { w: 'BOOK', e: '📖', t: 2 }, { w: 'BALL', e: '⚽', t: 2 },
+  { w: 'MILK', e: '🥛', t: 2 }, { w: 'RAIN', e: '🌧️', t: 2 }, { w: 'HAND', e: '✋', t: 2 }, { w: 'FIRE', e: '🔥', t: 2 },
+  // مستوى 3: خمسة حروف
+  { w: 'APPLE', e: '🍎', t: 3 }, { w: 'BREAD', e: '🍞', t: 3 }, { w: 'HORSE', e: '🐴', t: 3 },
+  { w: 'CAMEL', e: '🐫', t: 3 }, { w: 'HOUSE', e: '🏠', t: 3 }, { w: 'PLANE', e: '✈️', t: 3 },
+  { w: 'TRAIN', e: '🚆', t: 3 }, { w: 'CLOCK', e: '⌚', t: 3 }, { w: 'WATER', e: '💧', t: 3 }, { w: 'GRAPE', e: '🍇', t: 3 },
+  // مستوى 4: ستة حروف
+  { w: 'BANANA', e: '🍌', t: 4 }, { w: 'ORANGE', e: '🍊', t: 4 }, { w: 'CARROT', e: '🥕', t: 4 },
+  { w: 'RABBIT', e: '🐰', t: 4 }, { w: 'SCHOOL', e: '🏫', t: 4 }, { w: 'GARDEN', e: '🌷', t: 4 },
+  { w: 'WINDOW', e: '🪟', t: 4 }, { w: 'DOCTOR', e: '🩺', t: 4 }, { w: 'FLOWER', e: '🌸', t: 4 }, { w: 'MONKEY', e: '🐒', t: 4 },
 ];
 const AR_LETTERS = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوية';
 const EN_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -189,6 +370,7 @@ const BADGES = [
   { id: 'boss_slayer',  emoji: '⚔️', name: 'قاهر الوحوش',   desc: 'هزمتم زعيمًا عائليًا',          check: () => S.bossesDefeated >= 1 },
   { id: 'rich',         emoji: '💰', name: 'كنز الجزر',     desc: 'جمعت 100 جزرة',                 check: c => c.lifetimeCoins >= 100 },
   { id: 'wordsmith',    emoji: '🔤', name: 'صائد الكلمات',  desc: 'حللت 30 كلمة',                  check: c => (c.wordGame && c.wordGame.totalSolved || 0) >= 30 },
+  { id: 'mathwiz',      emoji: '🧮', name: 'عبقري الحساب',  desc: 'حللت 30 مسألة',                 check: c => (c.mathGame && c.mathGame.totalSolved || 0) >= 30 },
 ];
 
 /* ─────────────── الحالة الافتراضية ─────────────── */
@@ -225,6 +407,10 @@ function defaultChild(name, avatarBase, avatarBg) {
     autopilot: { enabled: false, goals: ['study', 'sport', 'health'], count: 4, lastGen: null },
     taskArchive: {},
     wordGame: { date: null, arDone: 0, enDone: 0, totalSolved: 0 },
+    mathGame: { date: null, done: 0, totalSolved: 0 },
+    birthdate: null,        // YYYY-MM-DD — للاحتفال بعيد الميلاد
+    grade: 'g1',            // المرحلة الدراسية kg1..g6
+    lastBirthdayYear: null, // آخر سنة احتفلنا فيها بميلاده
   };
 }
 
@@ -551,6 +737,23 @@ const App = {
     this.showScreen('screen-kid');
     this.kidTab('map');
     this.refreshKidHeader();
+    // عيد ميلاد البطل؟ 🎂 — الاحتفال الأهم يتقدم الجميع
+    const c = C();
+    const thisYear = new Date().getFullYear();
+    if (c.birthdate && daysToBirthday(c.birthdate) === 0 && c.lastBirthdayYear !== thisYear) {
+      c.lastBirthdayYear = thisYear;
+      const gift = 20;
+      c.coins += gift;
+      c.lifetimeCoins += gift;
+      save();
+      const age = ageOf(c.birthdate);
+      this.celebrate(`عيد ميلاد سعيد يا ${esc(c.name)}! 🎂`,
+        `${age ? `أتممت ${age} سنة اليوم — ` : ''}كل عام وأنت بطل! هديتك من جَزَرة 🎁`,
+        [`+${gift} 🥕 هدية العيد`], '🎂');
+      speak(`عيد ميلاد سعيد يا ${c.name}! كل عام وأنت بخير`, 'ar-SA');
+      this.refreshKidHeader();
+      return;
+    }
     // موافقات وصلت أثناء غياب الطفل عن الشاشة
     if (C().unseenApprovals.length) {
       const items = C().unseenApprovals;
@@ -890,13 +1093,21 @@ const App = {
   taskLibrary(filter) {
     this._libFilter = filter || this._libFilter || 'all';
     const f = this._libFilter;
-    const chips = [`<button class="lib-chip ${f === 'all' ? 'active' : ''}" onclick="App.taskLibrary('all')">الكل</button>`]
-      .concat(Object.entries(CATEGORIES).map(([k, c]) =>
+    const grade = C().grade;
+    const chips = [
+      `<button class="lib-chip grade ${f === 'grade' ? 'active' : ''}" onclick="App.taskLibrary('grade')">🎓 مكتبة ${gradeName(grade)}</button>`,
+      `<button class="lib-chip ${f === 'all' ? 'active' : ''}" onclick="App.taskLibrary('all')">الكل</button>`,
+    ].concat(Object.entries(CATEGORIES).map(([k, c]) =>
         `<button class="lib-chip ${f === k ? 'active' : ''}" onclick="App.taskLibrary('${k}')">${c.emoji} ${c.name}</button>`)).join('');
+
     const existing = new Set(C().tasks.map(t => t.title));
-    const items = TASK_LIBRARY.filter(t => f === 'all' || t.cat === f).map((t, i) => {
-      const idx = TASK_LIBRARY.indexOf(t);
+    // مصدر القائمة: مكتبة الصف الدراسي الدائمة أو المكتبة العامة
+    const source = f === 'grade' ? (CURRICULUM[grade] || []) : TASK_LIBRARY.filter(t => f === 'all' || t.cat === f);
+    const items = source.map(t => {
       const added = existing.has(t.title);
+      const ref = f === 'grade'
+        ? `'grade',${(CURRICULUM[grade] || []).indexOf(t)}`
+        : `'lib',${TASK_LIBRARY.indexOf(t)}`;
       return `
       <div class="task-row">
         <span class="task-cat">${CATEGORIES[t.cat].emoji}</span>
@@ -906,17 +1117,18 @@ const App = {
         </div>
         ${added
           ? '<span class="pill" style="background:#e2f5ea">✔ مضافة</span>'
-          : `<button class="icon-btn" style="background:#fff3e6;font-weight:900;color:var(--carrot-dark)" onclick="App.addFromLibrary(${idx})">＋</button>`}
+          : `<button class="icon-btn" style="background:#fff3e6;font-weight:900;color:var(--carrot-dark)" onclick="App.addFromLibrary(${ref})">＋</button>`}
       </div>`;
     }).join('');
     this.openModal(`
       <h3>📚 مكتبة المهام</h3>
+      ${f === 'grade' ? `<p class="muted" style="margin-bottom:8px">مهام مكملة لمواد مقررات ${gradeName(grade)} — تتبدل تلقائيًا مع تغيير صف الطفل</p>` : ''}
       <div class="lib-chips">${chips}</div>
       <div class="lib-list">${items || '<p class="muted">لا مهام في هذا المسار</p>'}</div>`);
   },
 
-  addFromLibrary(idx) {
-    const t = TASK_LIBRARY[idx];
+  addFromLibrary(src, idx) {
+    const t = src === 'grade' ? (CURRICULUM[C().grade] || [])[idx] : TASK_LIBRARY[idx];
     if (!t || C().tasks.some(x => x.title === t.title)) return;
     C().tasks.push({ id: uid(), ...t });
     save();
@@ -1319,6 +1531,7 @@ const App = {
         <div class="task-info">
           <div class="t-title">${esc(c.name)}</div>
           <div class="t-meta" dir="ltr" style="text-align:right">@${esc(c.username)} · ⭐ ${levelOf(c.xp)} · 🥕 ${c.coins}</div>
+          <div class="t-meta">🎓 ${gradeName(c.grade)}${c.birthdate ? ` · 🎂 ${daysToBirthday(c.birthdate) === 0 ? 'عيد ميلاده اليوم! 🎉' : 'بعد ' + daysToBirthday(c.birthdate) + ' يوم'}` : ''}</div>
         </div>
         <div class="task-actions">
           <button class="icon-btn" title="بطاقة البطل QR" onclick="App.childCard('${c.id}')">🪪</button>
@@ -1389,15 +1602,33 @@ const App = {
       `<button class="av-pick ${b.e === curBase ? 'active' : ''}" data-base="${b.e}" onclick="App.pickAvBase(this)">${b.e}</button>`).join('');
     const bgRow = AVATAR_BGS.map(bg =>
       `<button class="bg-pick ${bg === curBg ? 'active' : ''}" data-bg="${bg}" style="background:${bg}" onclick="App.pickAvBg(this)"></button>`).join('');
+    const gradeOptions = Object.entries(GRADES).map(([k, g]) =>
+      `<option value="${k}" ${(c ? c.grade : 'g1') === k ? 'selected' : ''}>${g.name}</option>`).join('');
     this.openModal(`
       <h3>${c ? 'تعديل حساب ' + esc(c.name) : '＋ بطل جديد'}</h3>
       <div class="form-grid">
         <div><label>الاسم</label><input id="f-cname" value="${c ? esc(c.name) : (prefillName ? esc(prefillName) : '')}" placeholder="اسم الطفل" /></div>
         ${c ? `<div><label>اسم المستخدم</label><input id="f-cuser" value="${esc(c.username)}" dir="ltr" /></div>` : ''}
+        <div class="form-row">
+          <div><label>تاريخ الميلاد 🎂</label><input id="f-cbirth" type="date" value="${c && c.birthdate ? c.birthdate : ''}" onchange="App.birthdateChanged()" /></div>
+          <div><label>الصف الدراسي 🎓</label><select id="f-cgrade">${gradeOptions}</select></div>
+        </div>
+        <p id="grade-hint" class="muted" style="min-height:1.2em">${c && c.birthdate ? `العمر: ${ageOf(c.birthdate)} سنة` : 'العمر يخصص الأسئلة والألعاب المناسبة'}</p>
         <div><label>الشخصية</label><div class="av-grid">${baseGrid}</div></div>
         <div><label>لون الخلفية</label><div class="bg-row">${bgRow}</div></div>
         <button class="btn-primary green" onclick="App.saveChild('${childId || ''}')">حفظ ✅</button>
       </div>`);
+  },
+
+  /* عند اختيار الميلاد: نقترح الصف تلقائيًا */
+  birthdateChanged() {
+    const b = document.getElementById('f-cbirth').value;
+    if (!b) return;
+    const age = ageOf(b);
+    if (age === null || age < 3 || age > 15) return;
+    const g = suggestGrade(age);
+    document.getElementById('f-cgrade').value = g;
+    document.getElementById('grade-hint').textContent = `العمر ${age} سنة — اقترحنا ${gradeName(g)} (عدّله إن لزم)`;
   },
 
   pickAvBase(btn) {
@@ -1414,14 +1645,20 @@ const App = {
     if (!name) { this.toast('اكتب اسم الطفل أولًا'); return; }
     const base = (document.querySelector('.av-pick.active') || {}).dataset ? document.querySelector('.av-pick.active').dataset.base : '🐣';
     const bg = (document.querySelector('.bg-pick.active') || {}).dataset ? document.querySelector('.bg-pick.active').dataset.bg : AVATAR_BGS[0];
+    const birthdate = document.getElementById('f-cbirth').value || null;
+    const grade = document.getElementById('f-cgrade').value || 'g1';
     if (childId) {
       const c = S.children.find(x => x.id === childId);
       c.name = name;
       const userEl = document.getElementById('f-cuser');
       if (userEl && userEl.value.trim()) c.username = userEl.value.trim().replace(/\s+/g, '_');
       c.avatar = { base, bg };
+      c.birthdate = birthdate;
+      c.grade = grade;
     } else {
       const c = defaultChild(name, base, bg);
+      c.birthdate = birthdate;
+      c.grade = grade;
       S.children.push(c);
       if (!S.activeChildId) S.activeChildId = c.id;
     }
@@ -1670,6 +1907,18 @@ const App = {
         <span class="wg-reward">🥕 +${WORD_COINS} لكل كلمة</span>
       </button>`;
 
+    // تحدي حساب اليوم — مولد حسب الصف
+    const mg = this._mathGameState();
+    html += `
+      <button class="wordgame-card math" onclick="App.openMathGame()">
+        <span class="wg-emoji">🧮</span>
+        <span class="wg-info">
+          <b>تحدي حساب اليوم</b>
+          <small>${mg.done >= WORDS_PER_DAY ? 'أتممت حساب اليوم! عد غدًا 🌟' : `أسئلة ${gradeName(C().grade)} (${mg.done}/${WORDS_PER_DAY})`}</small>
+        </span>
+        <span class="wg-reward">🥕 +${WORD_COINS} لكل سؤال</span>
+      </button>`;
+
     // مكتبة الفيديو التعليمية
     if (S.videos.length) {
       html += `
@@ -1741,9 +1990,11 @@ const App = {
     return c.wordGame;
   },
 
-  /* اختيار حتمي لكلمة اليوم رقم i بلغة معينة */
+  /* اختيار حتمي لكلمة اليوم رقم i بلغة معينة — من مستوى صف الطفل */
   _dailyWord(lang, i) {
-    const bank = lang === 'ar' ? WORDS_AR : WORDS_EN;
+    const tier = gradeTier(C().grade);
+    const all = lang === 'ar' ? WORDS_AR : WORDS_EN;
+    const bank = all.filter(x => x.t === tier);
     const item = bank[strHash(todayKey() + lang + i) % bank.length];
     const letters = Array.from(item.w);
     // موضع الحرف الناقص وخيارات الإجابة — ثابتة طوال اليوم
@@ -1843,6 +2094,68 @@ const App = {
     } else {
       this.toast(`✅ ${q.word} — +${WORD_COINS} 🥕`);
       this.openWordGame(l);   // الكلمة التالية
+    }
+  },
+
+  /* ── تحدي الحساب اليومي (حسب الصف) ── */
+  _mathGameState() {
+    const c = C();
+    if (!c.mathGame) c.mathGame = { date: null, done: 0, totalSolved: 0 };
+    if (c.mathGame.date !== todayKey()) {
+      c.mathGame.date = todayKey();
+      c.mathGame.done = 0;
+      save();
+    }
+    return c.mathGame;
+  },
+
+  openMathGame() {
+    const mg = this._mathGameState();
+    let body;
+    if (mg.done >= WORDS_PER_DAY) {
+      body = `<div style="text-align:center;padding:20px 0">
+        <div style="font-size:3rem">🌟</div>
+        <p style="font-weight:900">أتممت أسئلة اليوم!</p>
+        <p class="muted">عد غدًا لأسئلة جديدة</p>
+      </div>`;
+    } else {
+      const q = mathQuestionFor(C().grade, mg.done);
+      body = `
+        <div class="wg-progress">${mg.done + 1} / ${WORDS_PER_DAY} · 🎓 ${gradeName(C().grade)}</div>
+        <div class="math-question">${q.text}</div>
+        <div class="wg-choices">${q.opts.map(o => `<button class="wg-choice" onclick="App.mathGuess(${o})">${o}</button>`).join('')}</div>
+        <p id="mg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
+    }
+    this.openModal(`<h3 style="text-align:center">🧮 تحدي حساب اليوم</h3><div style="text-align:center">${body}</div>`);
+  },
+
+  mathGuess(val) {
+    const mg = this._mathGameState();
+    if (mg.done >= WORDS_PER_DAY) return;
+    const q = mathQuestionFor(C().grade, mg.done);
+    const msg = document.getElementById('mg-msg');
+    if (val !== q.answer) {
+      if (msg) msg.textContent = 'قريب! جرّب مرة أخرى 💪';
+      return;
+    }
+    const c = C();
+    mg.done++;
+    mg.totalSolved = (mg.totalSolved || 0) + 1;
+    c.xp += WORD_XP;
+    c.coins += WORD_COINS;
+    c.lifetimeCoins += WORD_COINS;
+    let bonus = 0;
+    if (mg.done >= WORDS_PER_DAY) { bonus = 5; c.coins += bonus; c.lifetimeCoins += bonus; }
+    save();
+    this.refreshKidHeader();
+    if (mg.done >= WORDS_PER_DAY) {
+      this.closeModal();
+      this.celebrate('أتممت حساب اليوم! 🧮', `الإجابة الأخيرة: <b>${q.answer}</b> ✅`,
+        [`+${WORD_XP} ✨ XP`, `+${WORD_COINS + bonus} 🥕`], '🌟');
+      this.renderKMap();
+    } else {
+      this.toast(`✅ صحيح! ${q.answer} — +${WORD_COINS} 🥕`);
+      this.openMathGame();
     }
   },
 

@@ -423,6 +423,17 @@ b { font-weight: 700; }
 }
 .wg-choice:active { transform: translateY(2px); box-shadow: none; }
 
+/* بطاقة تحدي الحساب */
+.wordgame-card.math { background: linear-gradient(135deg, #4caf7d, #2e9e8f); box-shadow: 0 5px 0 #2b7d64; }
+
+/* سؤال الحساب */
+.math-question { font-size: 1.7rem; font-weight: 900; margin: 14px 0 18px; direction: ltr; }
+.math-emojis { font-size: 1.9rem; letter-spacing: 4px; margin-top: 10px; direction: rtl; }
+
+/* شارة مكتبة الصف */
+.lib-chip.grade { background: #eef9f2; }
+.lib-chip.grade.active { color: var(--green-dark); border-color: var(--green); background: #e2f5ea; }
+
 /* بطاقة الفيديوهات في الخريطة */
 .videos-card {
   background: #fff; border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
