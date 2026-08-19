@@ -186,6 +186,16 @@ b { font-weight: 700; }
   font-size: 0.72rem; word-break: break-all; text-align: left; color: #5a5680;
 }
 
+/* بطاقة المزامنة السحابية */
+.cloud-card { background: linear-gradient(120deg, #eef7ff, #e0f0ff); border: 2px dashed #a9d3f5; }
+.cloud-card.on { border-style: solid; border-color: var(--sky); }
+.family-code-box { text-align: center; margin-top: 10px; }
+.family-code {
+  font-family: monospace; font-size: 1.6rem; font-weight: 900; letter-spacing: 4px;
+  background: #fff; border-radius: 14px; padding: 10px; margin-top: 6px;
+  color: #2b6ca3; border: 2px solid #a9d3f5;
+}
+
 /* بطاقة المساعد الآلي */
 .autopilot-card { background: linear-gradient(120deg, #f5f0ff, #ece2ff); border: 2px dashed #c9b2ff; }
 .autopilot-card.on { border-style: solid; border-color: var(--purple); }

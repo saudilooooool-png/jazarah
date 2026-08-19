@@ -351,6 +351,8 @@ function save() {
     for (const p of C().pendingProofs) { if (p.photo) { p.photo = null; break; } }
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e2) { /* تجاهل */ }
   }
+  // رفع التغيير للسحابة إن كانت المزامنة مفعلة
+  if (typeof Sync !== 'undefined' && Sync.isConfigured()) Sync.pushSoon();
 }
 
 const PROOF_MODES = {
@@ -1227,8 +1229,45 @@ const App = {
         </div>
       </div>`).join('');
 
+    // بطاقة المزامنة السحابية
+    let cloudHtml;
+    if (typeof Sync !== 'undefined' && Sync.isConfigured()) {
+      cloudHtml = `
+      <div class="card cloud-card on">
+        <h3>☁️ المزامنة السحابية تعمل</h3>
+        <p class="muted">${Sync.statusText()}${Sync.lastError ? ' · ⚠️ ' + esc(Sync.lastError) : ''}</p>
+        ${Sync.cfg.familyCode ? `
+          <div class="family-code-box">
+            <span class="muted">رمز العائلة — تدخله أجهزة الأطفال</span>
+            <div class="family-code" dir="ltr">${esc(Sync.cfg.familyCode)}</div>
+          </div>
+          <div class="form-row" style="margin-top:10px">
+            <div><button class="btn-primary" onclick="App.shareFamilyCode()">💬 أرسل الرمز واتساب</button></div>
+            <div><button class="btn-primary green" onclick="App.syncNow()">🔄 مزامنة الآن</button></div>
+          </div>` : ''}
+        <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="App.cloudLogout()">تسجيل الخروج من السحابة</button>
+      </div>`;
+    } else {
+      cloudHtml = `
+      <div class="card cloud-card">
+        <h3>☁️ فعّل المزامنة السحابية</h3>
+        <p class="muted" style="margin-bottom:10px">تابع من جوالك أينما كنت، وامنح كل طفل جهازه — البيانات تتزامن لحظيًا بين الأجهزة</p>
+        <div class="form-grid">
+          <div><label>البريد الإلكتروني</label><input id="f-cloudemail" type="email" dir="ltr" placeholder="you@example.com" /></div>
+          <div><label>كلمة المرور (6 أحرف فأكثر)</label><input id="f-cloudpass" type="password" dir="ltr" /></div>
+          <div class="form-row">
+            <div><button class="btn-primary purple" onclick="App.cloudSignup()">إنشاء حساب</button></div>
+            <div><button class="btn-primary green" onclick="App.cloudLogin()">دخول</button></div>
+          </div>
+          <button class="btn-ghost" onclick="App.cloudCheck()">🔌 فحص الاتصال بالخادم</button>
+          <p id="cloud-msg" class="muted" style="min-height:1.2em"></p>
+        </div>
+      </div>`;
+    }
+
     document.getElementById('ptab-settings').innerHTML = `
       ${requestsHtml}
+      ${cloudHtml}
       <div class="card">
         <h3>👨‍👩‍👧‍👦 أبطال العائلة (${S.children.length})</h3>
         <p class="muted" style="margin-bottom:8px">الحسابات تُنشأ من هنا فقط — الطفل لا يستطيع إنشاء حساب بنفسه</p>
@@ -1322,6 +1361,113 @@ const App = {
     save();
     this.renderPSettings();
     this.refreshParentSubtitle();
+  },
+
+  /* ── إجراءات المزامنة السحابية ── */
+  _cloudMsg(msg) {
+    const el = document.getElementById('cloud-msg');
+    if (el) el.textContent = msg;
+    else this.toast(msg);
+  },
+
+  async cloudCheck() {
+    this._cloudMsg('جارٍ الفحص…');
+    try {
+      const r = await Sync.checkSetup();
+      this._cloudMsg(r.ok ? '✅ الخادم جاهز والجداول مضبوطة' : '⚠️ ' + r.reason);
+    } catch (e) { this._cloudMsg('⚠️ لا يوجد اتصال بالإنترنت أو الخادم'); }
+  },
+
+  async cloudSignup() {
+    const email = document.getElementById('f-cloudemail').value.trim();
+    const pass = document.getElementById('f-cloudpass').value;
+    if (!email || pass.length < 6) { this._cloudMsg('أدخل بريدًا صحيحًا وكلمة مرور 6 أحرف فأكثر'); return; }
+    this._cloudMsg('جارٍ إنشاء الحساب…');
+    try {
+      const r = await Sync.signup(email, pass);
+      if (r.needsConfirm) {
+        this._cloudMsg('📧 أرسلنا رسالة تفعيل لبريدك — أكدها ثم اضغط "دخول"');
+      } else {
+        this.toast('تم تفعيل المزامنة ☁️✅');
+        this.renderPSettings();
+      }
+    } catch (e) { this._cloudMsg('⚠️ ' + e.message); }
+  },
+
+  async cloudLogin() {
+    const email = document.getElementById('f-cloudemail').value.trim();
+    const pass = document.getElementById('f-cloudpass').value;
+    if (!email || !pass) { this._cloudMsg('أدخل البريد وكلمة المرور'); return; }
+    this._cloudMsg('جارٍ الدخول…');
+    try {
+      await Sync.login(email, pass);
+      this.toast('تم تفعيل المزامنة ☁️✅');
+      this.renderPSettings();
+      this.renderChildSwitcher();
+      this.refreshParentSubtitle();
+    } catch (e) { this._cloudMsg('⚠️ ' + e.message); }
+  },
+
+  cloudLogout() {
+    if (!confirm('إيقاف المزامنة على هذا الجهاز؟ البيانات المحلية تبقى كما هي')) return;
+    Sync.logout();
+    this.renderPSettings();
+  },
+
+  async syncNow() {
+    this.toast('جارٍ المزامنة…');
+    try {
+      // السحب أولًا كي لا ندهس تغييرات وصلت من أجهزة أخرى، ثم الرفع
+      await Sync.pullNow();
+      await Sync.push();
+      this.toast('تمت المزامنة ☁️✅');
+      this.renderPSettings();
+    } catch (e) { this.toast('⚠️ ' + e.message); }
+  },
+
+  shareFamilyCode() {
+    const code = Sync.cfg.familyCode;
+    const msg = `🥕 انضم لعائلتنا في تطبيق جَزَرة!\n\nافتح التطبيق ← "أنا البطل" ← "الانضمام برمز العائلة" وأدخل:\n\n${code}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  },
+
+  /* انضمام جهاز طفل برمز العائلة */
+  familyJoinForm() {
+    this.openModal(`
+      <h3>☁️ الانضمام برمز العائلة</h3>
+      <p class="muted" style="margin-bottom:12px">اطلب الرمز من والدك (يجده في الإعدادات ← المزامنة السحابية)</p>
+      <div class="form-grid">
+        <div><label>رمز العائلة</label><input id="f-famcode" dir="ltr" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-weight:900" placeholder="JZXXXXXX" /></div>
+        <button class="btn-primary purple" onclick="App.familyJoin()">انضم الآن ☁️</button>
+        <p id="join-msg" class="muted" style="min-height:1.2em"></p>
+      </div>`);
+  },
+
+  async familyJoin() {
+    const code = document.getElementById('f-famcode').value;
+    const msgEl = document.getElementById('join-msg');
+    msgEl.textContent = 'جارٍ الاتصال…';
+    try {
+      await Sync.joinWithCode(code);
+      this.closeModal();
+      this.renderChildSelect();
+      this.celebrate('انضم جهازك للعائلة! ☁️', 'كل الأبطال والمهام وصلت لهذا الجهاز', ['✅ مزامنة تلقائية'], '👨‍👩‍👧‍👦');
+    } catch (e) { msgEl.textContent = '⚠️ ' + e.message; }
+  },
+
+  /* تحديث الشاشة الظاهرة بعد وصول بيانات من السحابة */
+  refreshAfterSync() {
+    if (document.getElementById('screen-parent').classList.contains('active')) {
+      this.renderChildSwitcher();
+      const active = document.querySelector('.ptab.active');
+      if (active) this.parentTab(active.dataset.ptab);
+      this.refreshParentSubtitle();
+    } else if (document.getElementById('screen-kid').classList.contains('active')) {
+      const active = document.querySelector('.knav.active');
+      if (active) this.kidTab(active.dataset.ktab);
+    } else if (document.getElementById('screen-childselect').classList.contains('active')) {
+      this.renderChildSelect();
+    }
   },
 
   /* بطاقة البطل: QR + اسم المستخدم — للتعريف وربط المدرسة والمزامنة مستقبلًا */
