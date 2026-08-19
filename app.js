@@ -445,6 +445,7 @@ function defaultChild(name, avatarBase, avatarBg) {
     myVouchers: [],         // قسائم الشركاء المشتراة
     quran: { date: null, seconds: 0, claimed: false, streak: 0, best: 0, lastDay: null, totalSeconds: 0 },
     quranDaily: 5,          // ورد القراءة اليومي بالدقائق (يحدده الوالد)
+    journey: { stage: 0, date: null, xpToday: 0, advanced: 0, lastXP: null },   // رحلة العوالم
     birthdate: null,        // YYYY-MM-DD — للاحتفال بعيد الميلاد
     grade: 'g1',            // المرحلة الدراسية kg1..g6
     lastBirthdayYear: null, // آخر سنة احتفلنا فيها بميلاده
@@ -562,6 +563,59 @@ function goldenTaskId(dateKey) {
 function effectiveTask(t, dateKey) {
   if (t.id === goldenTaskId(dateKey)) return { ...t, xp: t.xp * 2, coins: t.coins * 2, golden: true };
   return { ...t, golden: false };
+}
+
+/* ─────────────── رحلة العوالم: التقدم الأساسي ───────────────
+   8 عوالم × 10 مراحل. المرحلة = جهد يوم جيد (60 XP)، بحد أقصى مرحلة
+   واحدة يوميًا — الطريق الوحيد للتقدم هو العمل المنتظم. المرحلة
+   العاشرة من كل عالم "بوابة زعيم" تحتاج جهدًا مضاعفًا (120 XP) */
+const WORLDS = [
+  { name: 'وادي الجزر',      emoji: '🥕', color: '#e5732a', grad: ['#ffedd5', '#ffd8b8'] },
+  { name: 'الغابة المسحورة', emoji: '🌲', color: '#2e7d4f', grad: ['#d9f2e0', '#b8e6c8'] },
+  { name: 'الصحراء الذهبية', emoji: '🏜️', color: '#b8860b', grad: ['#fdf3d8', '#f5e3ae'] },
+  { name: 'أعماق البحر',     emoji: '🌊', color: '#1f6fa8', grad: ['#d6ecfb', '#b4dcf5'] },
+  { name: 'القمم الثلجية',   emoji: '🏔️', color: '#5f8fb0', grad: ['#eaf4fb', '#d3e7f5'] },
+  { name: 'مدينة البراكين',  emoji: '🌋', color: '#b03a2e', grad: ['#fde3dc', '#f9c8bc'] },
+  { name: 'الفضاء',          emoji: '🚀', color: '#4636b8', grad: ['#e4e0fb', '#cdc6f5'] },
+  { name: 'مملكة التنانين',  emoji: '🐉', color: '#7a1fa2', grad: ['#f2e0fb', '#e3c4f5'] },
+];
+const STAGES_PER_WORLD = 10;
+const TOTAL_STAGES = WORLDS.length * STAGES_PER_WORLD;
+const STAGE_XP = 60;
+const BOSS_XP = 120;
+
+function worldOf(stage) { return WORLDS[Math.min(WORLDS.length - 1, Math.floor(stage / STAGES_PER_WORLD))]; }
+function worldIndexOf(stage) { return Math.min(WORLDS.length - 1, Math.floor(stage / STAGES_PER_WORLD)); }
+function stageInWorld(stage) { return (stage % STAGES_PER_WORLD) + 1; }
+function isBossStage(stage) { return stage % STAGES_PER_WORLD === STAGES_PER_WORLD - 1; }
+function stageNeedXP(stage) { return isBossStage(stage) ? BOSS_XP : STAGE_XP; }
+
+/* تُستدعى بعد كل كسب نقاط: تحسب جهد اليوم من فرق XP وتتقدم في الرحلة
+   (تلتقط كل مصادر النقاط تلقائيًا دون لمس كل موضع كسب) */
+function journeyUpdate(c) {
+  if (!c.journey) c.journey = { stage: 0, date: null, xpToday: 0, advanced: 0, lastXP: c.xp };
+  const j = c.journey;
+  const today = todayKey();
+  if (j.date !== today) { j.date = today; j.xpToday = 0; j.advanced = 0; }
+  if (j.lastXP === undefined || j.lastXP === null) j.lastXP = c.xp;
+  const delta = c.xp - j.lastXP;
+  if (delta > 0) j.xpToday += delta;
+  j.lastXP = c.xp;
+
+  const events = [];
+  // مرحلة واحدة يوميًا كحد أقصى — الانتظام لا السباق
+  if (j.advanced < 1 && j.stage < TOTAL_STAGES && j.xpToday >= stageNeedXP(j.stage)) {
+    const wasBoss = isBossStage(j.stage);
+    const prevWorld = worldIndexOf(j.stage);
+    j.stage++;
+    j.advanced++;
+    const newWorld = worldIndexOf(j.stage);
+    if (wasBoss && newWorld > prevWorld) events.push({ type: 'world', world: newWorld });
+    else if (j.stage >= TOTAL_STAGES) events.push({ type: 'finish' });
+    else events.push({ type: 'stage', stage: j.stage });
+  }
+  if (events.length) save();
+  return events;
 }
 
 /* عضوية الولاء: خصم في المتجر بحسب إجمالي الجزر المجموع مدى الحياة */
@@ -790,6 +844,7 @@ const App = {
     S.activeChildId = childId;
     save();
     this.showScreen('screen-kid');
+    this._applyWorldTheme();
     this.kidTab('map');
     this.refreshKidHeader();
     // عيد ميلاد البطل؟ 🎂 — الاحتفال الأهم يتقدم الجميع
@@ -1610,6 +1665,7 @@ const App = {
       <div class="card">
         <h3>نظرة عامة على ${esc(C().name)}</h3>
         <div class="pill-list" style="margin-bottom:12px">
+          <span class="pill">${worldOf(C().journey.stage).emoji} ${worldOf(C().journey.stage).name} — مرحلة <b>${Math.min(C().journey.stage + 1, TOTAL_STAGES)}</b></span>
           <span class="pill">⭐ المستوى <b>${lvl}</b></span>
           <span class="pill">✨ ${C().xp} XP</span>
           <span class="pill">🥕 الرصيد <b>${C().coins}</b></span>
@@ -1988,6 +2044,26 @@ const App = {
   },
 
   refreshKidHeader() {
+    // رحلة العوالم: افحص التقدم بعد كل كسب (يلتقط كل مصادر النقاط)
+    const jEvents = journeyUpdate(C());
+    for (const ev of jEvents) {
+      if (ev.type === 'world') {
+        const w = WORLDS[ev.world];
+        this.celebrate(`عالم جديد! ${w.emoji}`,
+          `هزمت زعيم ${esc(WORLDS[ev.world - 1].name)} ودخلت <b>${esc(w.name)}</b>!<br /><small>فُتحت خلفية ${esc(WORLDS[ev.world - 1].name)} في استوديو البطل 🎨</small>`,
+          ['🏆 إنجاز ملحمي'], w.emoji);
+        speak(`مبروك! وصلت إلى ${w.name}`, 'ar-SA');
+      } else if (ev.type === 'finish') {
+        this.celebrate('أسطورة جَزَرة! 🐉👑', 'أكملت رحلة العوالم الثمانية كاملة!<br />أنت من أبطال التاريخ', ['👑 المجد الخالد'], '🏰');
+      } else {
+        const j = C().journey;
+        this.celebrate(`المرحلة ${j.stage + 0} ✨`,
+          `تقدمت في ${esc(worldOf(j.stage).name)} ${worldOf(j.stage).emoji}<br /><small>${isBossStage(j.stage) ? 'التالية بوابة الزعيم! تحتاج جهدًا مضاعفًا 👾' : 'واصل غدًا لمرحلة جديدة'}</small>`,
+          [`🗺️ ${j.stage} / ${TOTAL_STAGES}`], '🚩');
+      }
+      this._applyWorldTheme();
+      if (document.getElementById('ktab-map').classList.contains('active')) this.renderKMap();
+    }
     const lvl = levelOf(C().xp);
     const mini = document.getElementById('kid-avatar-mini');
     mini.innerHTML = heroFace(C());
@@ -2033,6 +2109,27 @@ const App = {
     if (allDone) {
       html += `<div class="all-done-banner">🏆 أنهيت كل مهام اليوم! أنت بطل حقيقي 🎉</div>`;
     }
+
+    // لافتة رحلة العوالم — هوية التقدم الأساسية
+    journeyUpdate(C());
+    const j = C().journey;
+    const jw = worldOf(j.stage);
+    const jNeed = stageNeedXP(j.stage);
+    const jDone = j.advanced >= 1 || j.stage >= TOTAL_STAGES;
+    const jPct = Math.min(100, Math.round(j.xpToday / jNeed * 100));
+    html += `
+      <button class="journey-banner" style="--wc:${jw.color}" onclick="App.openJourneyMap()">
+        <span class="jb-emoji">${jw.emoji}</span>
+        <span class="jb-info">
+          <b>${esc(jw.name)} — المرحلة ${Math.min(j.stage + 1, TOTAL_STAGES)} من ${TOTAL_STAGES}</b>
+          <small>${j.stage >= TOTAL_STAGES ? 'أكملت الرحلة كلها! 👑'
+            : jDone ? 'أنجزت مرحلة اليوم ✅ — عد غدًا لمواصلة الرحلة'
+            : isBossStage(j.stage) ? `بوابة الزعيم! 👾 اجمع ${jNeed} XP اليوم (${j.xpToday}/${jNeed})`
+            : `اجمع ${jNeed} XP اليوم لتتقدم (${j.xpToday}/${jNeed})`}</small>
+          <span class="quran-bar"><i style="width:${jDone ? 100 : jPct}%"></i></span>
+        </span>
+        <span class="jb-map">🗺️</span>
+      </button>`;
 
     // ركن القرآن — الورد اليومي (أهم الأهداف: يتصدر الخريطة)
     const qr = this._quranState();
@@ -2259,6 +2356,53 @@ const App = {
       this.toast(`✅ ${q.word} — +${WORD_COINS} 🥕`);
       this.openWordGame(l);   // الكلمة التالية
     }
+  },
+
+  /* ═══════════ رحلة العوالم: الخريطة الكبرى ═══════════ */
+  openJourneyMap() {
+    const j = C().journey;
+    const worlds = WORLDS.map((w, wi) => {
+      const start = wi * STAGES_PER_WORLD;
+      const state = j.stage >= start + STAGES_PER_WORLD ? 'done' : (j.stage >= start ? 'current' : 'locked');
+      const dots = Array.from({ length: STAGES_PER_WORLD }, (_, si) => {
+        const g = start + si;
+        const boss = si === STAGES_PER_WORLD - 1;
+        if (g < j.stage) return `<span class="jdot done">${boss ? '👾' : '★'}</span>`;
+        if (g === j.stage && state !== 'locked') return `<span class="jdot here">${faceHTML(heroBase(C()))}</span>`;
+        return `<span class="jdot">${boss ? '👾' : '·'}</span>`;
+      }).join('');
+      return `
+        <div class="jworld ${state}" style="--wc:${w.color}">
+          <div class="jw-head">
+            <span class="jw-emoji">${state === 'locked' ? '🔒' : w.emoji}</span>
+            <b>${esc(w.name)}</b>
+            ${state === 'done' ? '<span class="jw-done">✔ مكتمل</span>' : ''}
+          </div>
+          <div class="jdots">${dots}</div>
+        </div>`;
+    }).join('');
+    this.openModal(`
+      <h3 style="text-align:center">🗺️ رحلة العوالم</h3>
+      <p class="muted" style="text-align:center;margin-bottom:10px">كل يوم مجتهد = مرحلة · بوابة الزعيم 👾 تحتاج جهدًا مضاعفًا</p>
+      <div class="jworlds">${worlds}</div>
+      <button class="btn-primary purple" style="margin-top:12px" onclick="App.shareJourney()">📤 شارك موقعي مع أصدقائي</button>`);
+  },
+
+  shareJourney() {
+    const j = C().journey;
+    const w = worldOf(j.stage);
+    const text = `🥕 أنا ${C().name} في تطبيق جَزَرة!\n${w.emoji} وصلت ${w.name} — المرحلة ${Math.min(j.stage + 1, TOTAL_STAGES)} من ${TOTAL_STAGES}\n⭐ المستوى ${levelOf(C().xp)} · 🔥 سلسلة ${C().streak} يوم\nأنت وين وصلت؟ 😎`;
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  },
+
+  /* تلوين عالم الطفل بألوان عالمه الحالي */
+  _applyWorldTheme() {
+    const w = worldOf(C().journey ? C().journey.stage : 0);
+    const scr = document.getElementById('screen-kid');
+    scr.style.background = `linear-gradient(180deg, ${w.grad[0]} 0%, ${w.grad[1]} 30%, #fff6e5 100%)`;
+    const head = document.querySelector('.kid-header');
+    if (head) head.style.background = w.grad[0] + 'd9';
   },
 
   /* ═══════════ ركن القرآن الكريم ═══════════
@@ -2910,6 +3054,7 @@ const App = {
         <div class="hero-gear">${gearEmojis}</div>
         <div class="hero-name">${esc(C().name)}</div>
         <div class="hero-title-tag">« ${heroTitle(lvl)} »</div>
+        <div class="hero-world" style="color:${worldOf(C().journey.stage).color}">${worldOf(C().journey.stage).emoji} ${esc(worldOf(C().journey.stage).name)} — المرحلة ${Math.min(C().journey.stage + 1, TOTAL_STAGES)}/${TOTAL_STAGES}</div>
         <button class="btn-ghost" style="margin-top:8px" onclick="App.avatarStudio()">🎨 غيّر شكلي</button>
         <div class="hero-level-row"><span>المستوى ${lvl}</span><span>${prog} / 100 XP</span></div>
         <div class="progressbar"><i style="width:${prog}%"></i></div>
@@ -2942,8 +3087,12 @@ const App = {
         ? `<button class="av-pick ${b.id === heroBase(c) ? 'active' : ''}" data-base="${b.id}" title="${b.name}" onclick="App.pickAvBase(this)">${faceHTML(b.id)}</button>`
         : `<span class="av-pick locked" title="يفتح في المستوى ${b.lvl}">🔒<small>م${b.lvl}</small></span>`;
     }).join('');
+    const worldsDone = Math.floor((c.journey ? c.journey.stage : 0) / STAGES_PER_WORLD);
     const bgRow = AVATAR_BGS.map(bg =>
-      `<button class="bg-pick ${bg === heroBg(c) ? 'active' : ''}" data-bg="${bg}" style="background:${bg}" onclick="App.pickAvBg(this)"></button>`).join('');
+      `<button class="bg-pick ${bg === heroBg(c) ? 'active' : ''}" data-bg="${bg}" style="background:${bg}" onclick="App.pickAvBg(this)"></button>`).join('')
+      + WORLDS.map((w, wi) => wi < worldsDone
+        ? `<button class="bg-pick ${w.grad[1] === heroBg(c) ? 'active' : ''}" data-bg="${w.grad[1]}" style="background:linear-gradient(135deg,${w.grad[0]},${w.grad[1]})" title="${w.name}" onclick="App.pickAvBg(this)"></button>`
+        : `<span class="bg-pick locked" title="أكمل ${w.name} لفتحها">🔒</span>`).join('');
     const gearRow = c.gear.length
       ? c.gear.map(id => {
           const g = GEAR_ITEMS.find(x => x.id === id);
@@ -3388,7 +3537,14 @@ const App = {
 
   /* ═══════════ الاحتفال والنوافذ ═══════════ */
 
+  _cQueue: [],
+
   celebrate(title, msg, gains, emoji = '🎉') {
+    // إن كان احتفال معروضًا الآن، ينتظر هذا دوره
+    if (document.getElementById('celebrate').classList.contains('active')) {
+      this._cQueue.push([title, msg, gains, emoji]);
+      return;
+    }
     document.getElementById('celebrate-title').textContent = title;
     document.getElementById('celebrate-msg').innerHTML = msg;
     document.getElementById('celebrate-emoji').innerHTML = emoji;
@@ -3401,6 +3557,11 @@ const App = {
   closeCelebrate() {
     document.getElementById('celebrate').classList.remove('active');
     document.getElementById('confetti-layer').innerHTML = '';
+    // اعرض الاحتفال التالي في الطابور إن وُجد (تقدم الرحلة مثلًا)
+    if (this._cQueue.length) {
+      const next = this._cQueue.shift();
+      setTimeout(() => this.celebrate(...next), 250);
+    }
   },
 
   spawnConfetti() {
