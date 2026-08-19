@@ -31,8 +31,8 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p www
-          cp index.html styles.css app.js sync.js qrcode.js manifest.webmanifest sw.js www/
-          cp -r icons www/
+          cp index.html styles.css app.js sync.js qrcode.js quran.js manifest.webmanifest sw.js www/
+          cp -r icons avatars www/
 
       - name: Create Capacitor Android project
         run: |

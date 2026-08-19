@@ -62,7 +62,7 @@ const REWARD_LIBRARY = [
     { emoji: '📺', title: 'ساعة مشاهدة إضافية',        cost: 35 },
     { emoji: '🎬', title: 'اختيار فيلم العائلة',       cost: 40 },
   ]},
-  { group: '🚗 مشاوير', items: [
+  { group: '🚗 مشاوير', kind: 'out', items: [
     { emoji: '🌳', title: 'مشوار إلى الحديقة',         cost: 60 },
     { emoji: '📚', title: 'مشوار للمكتبة وشراء قصة',   cost: 80 },
     { emoji: '🍔', title: 'مطعمي المفضل',              cost: 100 },
@@ -79,7 +79,7 @@ const REWARD_LIBRARY = [
     { emoji: '🗓️', title: 'اختيار نشاط نهاية الأسبوع', cost: 90 },
     { emoji: '🏖️', title: 'يوم بدون مهام',             cost: 120 },
   ]},
-  { group: '🎁 هدايا', items: [
+  { group: '🎁 هدايا', kind: 'budget', items: [
     { emoji: '💵', title: 'مصروف إضافي',               cost: 150 },
     { emoji: '🧸', title: 'لعبة صغيرة',                cost: 200 },
     { emoji: '🎁', title: 'هدية مفاجأة كبيرة',         cost: 500 },
@@ -348,13 +348,26 @@ function youtubeEmbed(url) {
   return null;
 }
 
-/* مكتبة شخصيات الأفاتار — تُفتح بالمستويات */
+/* مكتبة شخصيات الأفاتار — جزر مرسومة بأوضاع مختلفة، تُفتح بالمستويات */
 const AVATAR_BASES = [
-  { e: '🐣', lvl: 1 }, { e: '🐱', lvl: 1 }, { e: '🐰', lvl: 1 }, { e: '🐹', lvl: 1 },
-  { e: '🦊', lvl: 2 }, { e: '🐸', lvl: 2 }, { e: '🐼', lvl: 3 }, { e: '🐨', lvl: 3 },
-  { e: '🦁', lvl: 4 }, { e: '🐯', lvl: 4 }, { e: '🦖', lvl: 5 }, { e: '🦄', lvl: 6 },
-  { e: '🦅', lvl: 7 }, { e: '🦸', lvl: 8 }, { e: '🧙', lvl: 10 }, { e: '🐉', lvl: 12 },
+  { id: 'c1',  name: 'الجزرة المبتسمة', lvl: 1 },
+  { id: 'c2',  name: 'جزرة النشاط',     lvl: 1 },
+  { id: 'c3',  name: 'جزرة النجمة',     lvl: 1 },
+  { id: 'c9',  name: 'الجزرة النعسانة', lvl: 1 },
+  { id: 'c4',  name: 'الجزرة القارئة',  lvl: 2 },
+  { id: 'c5',  name: 'جزرة الرياضة',    lvl: 3 },
+  { id: 'c6',  name: 'جزرة الطاهي',     lvl: 4 },
+  { id: 'c10', name: 'الجزرة المحققة',  lvl: 5 },
+  { id: 'c8',  name: 'جزرة الفضاء',     lvl: 6 },
+  { id: 'c7',  name: 'الجزرة الملكية',  lvl: 8 },
+  { id: 'c11', name: 'الجزرة الخارقة',  lvl: 10 },
+  { id: 'c12', name: 'الجزرة الذهبية',  lvl: 12 },
 ];
+/* يحول معرف الشخصية إلى صورة — ويدعم رموز الحسابات القديمة */
+function faceHTML(base) {
+  if (/^c\d+$/.test(String(base))) return `<img class="carrot-av" src="avatars/${base}.svg" alt="" />`;
+  return base || '🥕';
+}
 const AVATAR_BGS = ['#ffe3c4', '#d6ecff', '#dff5e4', '#f3e3ff', '#ffe0ec', '#fff6c9'];
 
 const HERO_TITLES = [
@@ -387,6 +400,7 @@ const BADGES = [
   { id: 'rich',         emoji: '💰', name: 'كنز الجزر',     desc: 'جمعت 100 جزرة',                 check: c => c.lifetimeCoins >= 100 },
   { id: 'wordsmith',    emoji: '🔤', name: 'صائد الكلمات',  desc: 'حللت 30 كلمة',                  check: c => (c.wordGame && c.wordGame.totalSolved || 0) >= 30 },
   { id: 'mathwiz',      emoji: '🧮', name: 'عبقري الحساب',  desc: 'حللت 30 مسألة',                 check: c => (c.mathGame && c.mathGame.totalSolved || 0) >= 30 },
+  { id: 'quran7',       emoji: '📖', name: 'رفيق القرآن',   desc: '7 أيام وِرد متتالية',           check: c => (c.quran && c.quran.best || 0) >= 7 },
 ];
 
 /* ─────────────── الحالة الافتراضية ─────────────── */
@@ -408,7 +422,7 @@ function defaultChild(name, avatarBase, avatarBg) {
     id: uid(),
     name: name || 'البطل',
     username: 'hero_' + uid().slice(0, 5),   // اسم مستخدم فريد — لبطاقة QR والمزامنة مستقبلًا
-    avatar: { base: avatarBase || '🐣', bg: avatarBg || AVATAR_BGS[0] },
+    avatar: { base: avatarBase || 'c1', bg: avatarBg || AVATAR_BGS[0] },
     xp: 0, coins: 0, lifetimeCoins: 0, hp: 100,
     streak: 0, bestStreak: 0, lastFullDay: null,
     gear: [], equipped: [],
@@ -427,6 +441,10 @@ function defaultChild(name, avatarBase, avatarBg) {
     blurGame: { date: null, done: 0, totalSolved: 0 },
     shadowGame: { date: null, done: 0, totalSolved: 0 },
     quizzesDone: {},        // { quizId: score } اختبارات المعلم المنجزة
+    videosWatched: {},      // { videoId: true } لمكافأة أول مشاهدة
+    myVouchers: [],         // قسائم الشركاء المشتراة
+    quran: { date: null, seconds: 0, claimed: false, streak: 0, best: 0, lastDay: null, totalSeconds: 0 },
+    quranDaily: 5,          // ورد القراءة اليومي بالدقائق (يحدده الوالد)
     birthdate: null,        // YYYY-MM-DD — للاحتفال بعيد الميلاد
     grade: 'g1',            // المرحلة الدراسية kg1..g6
     lastBirthdayYear: null, // آخر سنة احتفلنا فيها بميلاده
@@ -443,6 +461,7 @@ function defaultState() {
     joinRequests: [],      // طلبات انضمام أرسلها أطفال بانتظار موافقة الوالد
     videos: [],            // مكتبة فيديوهات تعليمية يضيفها الوالد { id, title, url }
     quizzes: [],           // اختبارات المعلمين التفاعلية { id, title, teacher, questions }
+    vouchers: [],          // قسائم شركاء بخصم مقابل كود { id, partner, title, cost, code, emoji, used }
     rewards: [
       { id: uid(), emoji: '🎮', title: 'نصف ساعة لعب إضافية', cost: 25 },
       { id: uid(), emoji: '🌳', title: 'مشوار إلى الحديقة',    cost: 60 },
@@ -458,7 +477,8 @@ function defaultState() {
 function C() {
   return S.children.find(c => c.id === S.activeChildId) || S.children[0];
 }
-function heroFace(c) { return (c && c.avatar && c.avatar.base) || '🐣'; }
+function heroBase(c) { return (c && c.avatar && c.avatar.base) || 'c1'; }
+function heroFace(c) { return faceHTML(heroBase(c)); }
 function heroBg(c) { return (c && c.avatar && c.avatar.bg) || AVATAR_BGS[0]; }
 
 /* ─────────────── أدوات مساعدة ─────────────── */
@@ -544,6 +564,19 @@ function effectiveTask(t, dateKey) {
   return { ...t, golden: false };
 }
 
+/* عضوية الولاء: خصم في المتجر بحسب إجمالي الجزر المجموع مدى الحياة */
+function loyaltyTier(c) {
+  const t = c.lifetimeCoins || 0;
+  if (t >= 600) return { name: 'ذهبية', emoji: '🥇', off: 15 };
+  if (t >= 300) return { name: 'فضية', emoji: '🥈', off: 10 };
+  if (t >= 100) return { name: 'برونزية', emoji: '🥉', off: 5 };
+  return { name: '', emoji: '', off: 0 };
+}
+function discountedCost(cost, tier) {
+  if (!tier.off) return cost;
+  return Math.max(1, Math.ceil(cost * (100 - tier.off) / 100));
+}
+
 function levelOf(xp) { return Math.floor(xp / 100) + 1; }
 function levelProgress(xp) { return xp % 100; }
 function heroTitle(level) {
@@ -575,6 +608,7 @@ function load() {
         s.joinRequests = s.joinRequests || [];
         s.videos = s.videos || [];
         s.quizzes = s.quizzes || [];
+        s.vouchers = s.vouchers || [];
         return s;
       }
       // ترحيل النسخة القديمة (طفل واحد) → v2
@@ -899,7 +933,8 @@ const App = {
     document.getElementById('parent-subtitle').textContent =
       `${C().name} أنجز اليوم ${done} من ${C().tasks.length} مهام` +
       (pending ? ` · 🔔 ${pending} إثبات بانتظارك` : '') +
-      (requests ? ` · 🙋 ${requests} طلب انضمام` : '');
+      (requests ? ` · 🙋 ${requests} طلب انضمام` : '') +
+      (S.children.some(ch => (ch.redemptions || []).some(r => r.status === 'pending' && (r.kind === 'out' || r.kind === 'budget'))) ? ' · 🚨 طلب مكافأة يحتاج موافقتك الخاصة' : '');
   },
 
   /* شريط تبديل الأطفال — يحدد أي طفل تديره اللوحة الآن */
@@ -1201,9 +1236,10 @@ const App = {
   },
 
   addRewardFromLibrary(gi, ri) {
-    const r = REWARD_LIBRARY[gi].items[ri];
+    const g = REWARD_LIBRARY[gi];
+    const r = g.items[ri];
     if (!r || S.rewards.some(x => x.title === r.title)) return;
-    S.rewards.push({ id: uid(), ...r });
+    S.rewards.push({ id: uid(), ...r, kind: g.kind || 'home' });
     save();
     this.toast(`أُضيفت «${r.title}» إلى الخزنة ✅`);
     this.rewardLibrary();
@@ -1320,7 +1356,7 @@ const App = {
         ${pending.map(r => `
           <div class="task-row">
             <span class="task-cat">🎁</span>
-            <div class="task-info"><div class="t-title">${esc(r.title)}</div><div class="t-meta">${r.cost} 🥕 · ${r.date}</div></div>
+            <div class="task-info"><div class="t-title">${r.kind === 'out' ? '🚗 ' : r.kind === 'budget' ? '💰 ' : ''}${esc(r.title)}</div><div class="t-meta">${r.cost} 🥕 · ${r.date}${r.kind === 'out' ? ' · <b style="color:#c94444">مشوار خارج المنزل — يحتاج تخطيطك</b>' : ''}${r.kind === 'budget' ? ' · <b style="color:#c94444">يحتاج ميزانية</b>' : ''}</div></div>
             <button class="icon-btn" style="background:#e2f5ea" onclick="App.approveRedemption('${r.id}')">✅</button>
           </div>`).join('')}
       </div>` : '';
@@ -1345,17 +1381,77 @@ const App = {
       <div class="form-row">
         <div><button class="btn-primary" onclick="App.rewardLibrary()">🎁 أفكار جاهزة</button></div>
         <div><button class="btn-primary green" onclick="App.rewardForm()">✏️ مكافأة مخصصة</button></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>🎟️ قسائم الشركاء</h3>
+        <p class="muted" style="margin-bottom:8px">خصومات من متاجر وترفيه مقابل كود — يشتريها البطل بالجزر ويظهر له الكود (مثال: خصم مدينة الملاهي)</p>
+        ${S.vouchers.map(v => `
+          <div class="task-row">
+            <span class="task-cat">${v.emoji || '🎟️'}</span>
+            <div class="task-info">
+              <div class="t-title">${esc(v.title)} — ${esc(v.partner)}</div>
+              <div class="t-meta">${v.cost} 🥕 · الكود: <span dir="ltr">${esc(v.code)}</span> · استُخدمت ${v.used || 0} مرة</div>
+            </div>
+            <button class="icon-btn" title="حذف" onclick="App.deleteVoucher('${v.id}')">🗑️</button>
+          </div>`).join('') || ''}
+        <button class="btn-primary purple" style="margin-top:8px" onclick="App.voucherForm()">＋ إضافة قسيمة شريك</button>
       </div>`;
+  },
+
+  /* ── إدارة قسائم الشركاء ── */
+  voucherForm() {
+    this.openModal(`
+      <h3>🎟️ قسيمة شريك جديدة</h3>
+      <div class="form-grid">
+        <div><label>اسم الشريك</label><input id="f-vpartner" placeholder="مثال: مدينة الملاهي" /></div>
+        <div><label>وصف الخصم</label><input id="f-vdesc" placeholder="مثال: خصم 20٪ على التذاكر" /></div>
+        <div class="form-row">
+          <div><label>السعر بالجزر 🥕</label><input id="f-vcost" type="number" min="10" max="1000" value="80" /></div>
+          <div><label>الرمز</label><input id="f-vemoji" value="🎡" maxlength="4" /></div>
+        </div>
+        <div><label>كود الخصم (يُكشف للطفل عند الشراء)</label><input id="f-vcode" dir="ltr" placeholder="JAZARAH20" /></div>
+        <button class="btn-primary purple" onclick="App.saveVoucher()">حفظ ✅</button>
+      </div>`);
+  },
+
+  saveVoucher() {
+    const partner = document.getElementById('f-vpartner').value.trim();
+    const title = document.getElementById('f-vdesc').value.trim();
+    const code = document.getElementById('f-vcode').value.trim();
+    if (!partner || !title || !code) { this.toast('أكمل بيانات القسيمة'); return; }
+    S.vouchers.push({
+      id: uid(), partner, title, code,
+      emoji: document.getElementById('f-vemoji').value.trim() || '🎟️',
+      cost: Math.max(10, parseInt(document.getElementById('f-vcost').value) || 80),
+      used: 0,
+    });
+    save();
+    this.closeModal();
+    this.renderPRewards();
+    this.toast('أُضيفت القسيمة — ستظهر في متجر الأبطال 🎟️');
+  },
+
+  deleteVoucher(voucherId) {
+    if (!confirm('حذف هذه القسيمة؟ (القسائم المشتراة تبقى عند الأبطال)')) return;
+    S.vouchers = S.vouchers.filter(v => v.id !== voucherId);
+    save();
+    this.renderPRewards();
   },
 
   rewardForm(rewardId) {
     const r = rewardId ? S.rewards.find(x => x.id === rewardId) : null;
+    const kinds = [
+      ['home', '🏠 داخل المنزل — تكفي موافقتك المعتادة'],
+      ['out', '🚗 مشوار خارج المنزل — تنبيه خاص لك'],
+      ['budget', '💰 يحتاج ميزانية/شراء — تنبيه خاص لك'],
+    ].map(([k, l]) => `<option value="${k}" ${(r ? r.kind : 'home') === k ? 'selected' : ''}>${l}</option>`).join('');
     this.openModal(`
       <h3>${r ? 'تعديل المكافأة' : 'مكافأة جديدة'}</h3>
       <div class="form-grid">
         <div><label>الرمز</label><input id="f-remoji" value="${r ? r.emoji : '🎁'}" maxlength="4" /></div>
         <div><label>المكافأة</label><input id="f-rtitle" value="${r ? esc(r.title) : ''}" placeholder="مثال: مشوار إلى الحديقة" /></div>
         <div><label>السعر بالجزر 🥕</label><input id="f-rcost" type="number" min="5" max="500" value="${r ? r.cost : 30}" /></div>
+        <div><label>نوع المكافأة</label><select id="f-rkind">${kinds}</select></div>
         <button class="btn-primary green" onclick="App.saveReward('${rewardId || ''}')">حفظ</button>
       </div>`);
   },
@@ -1365,8 +1461,9 @@ const App = {
     if (!title) { this.toast('اكتب اسم المكافأة أولًا'); return; }
     const emoji = document.getElementById('f-remoji').value.trim() || '🎁';
     const cost = Math.max(5, parseInt(document.getElementById('f-rcost').value) || 30);
-    if (rewardId) Object.assign(S.rewards.find(x => x.id === rewardId), { title, emoji, cost });
-    else S.rewards.push({ id: uid(), title, emoji, cost });
+    const kind = document.getElementById('f-rkind').value || 'home';
+    if (rewardId) Object.assign(S.rewards.find(x => x.id === rewardId), { title, emoji, cost, kind });
+    else S.rewards.push({ id: uid(), title, emoji, cost, kind });
     save();
     this.closeModal();
     this.renderPRewards();
@@ -1636,11 +1733,11 @@ const App = {
   /* إنشاء / تعديل حساب طفل — من لوحة الوالد فقط */
   childForm(childId, prefillName) {
     const c = childId ? S.children.find(x => x.id === childId) : null;
-    const curBase = c ? heroFace(c) : '🐣';
+    const curBase = c ? heroBase(c) : 'c1';
     const curBg = c ? heroBg(c) : AVATAR_BGS[0];
     const bases = AVATAR_BASES.filter(b => b.lvl <= (c ? levelOf(c.xp) : 1) || b.lvl === 1);
     const baseGrid = bases.map(b =>
-      `<button class="av-pick ${b.e === curBase ? 'active' : ''}" data-base="${b.e}" onclick="App.pickAvBase(this)">${b.e}</button>`).join('');
+      `<button class="av-pick ${b.id === curBase ? 'active' : ''}" data-base="${b.id}" title="${b.name}" onclick="App.pickAvBase(this)">${faceHTML(b.id)}</button>`).join('');
     const bgRow = AVATAR_BGS.map(bg =>
       `<button class="bg-pick ${bg === curBg ? 'active' : ''}" data-bg="${bg}" style="background:${bg}" onclick="App.pickAvBg(this)"></button>`).join('');
     const gradeOptions = Object.entries(GRADES).map(([k, g]) =>
@@ -1654,6 +1751,7 @@ const App = {
           <div><label>تاريخ الميلاد 🎂</label><input id="f-cbirth" type="date" value="${c && c.birthdate ? c.birthdate : ''}" onchange="App.birthdateChanged()" /></div>
           <div><label>الصف الدراسي 🎓</label><select id="f-cgrade">${gradeOptions}</select></div>
         </div>
+        <div><label>وِرد القرآن اليومي (دقائق) 📖</label><input id="f-cquran" type="number" min="1" max="60" value="${c ? (c.quranDaily || 5) : 5}" /></div>
         <p id="grade-hint" class="muted" style="min-height:1.2em">${c && c.birthdate ? `العمر: ${ageOf(c.birthdate)} سنة` : 'العمر يخصص الأسئلة والألعاب المناسبة'}</p>
         <div><label>الشخصية</label><div class="av-grid">${baseGrid}</div></div>
         <div><label>لون الخلفية</label><div class="bg-row">${bgRow}</div></div>
@@ -1684,7 +1782,7 @@ const App = {
   saveChild(childId) {
     const name = document.getElementById('f-cname').value.trim();
     if (!name) { this.toast('اكتب اسم الطفل أولًا'); return; }
-    const base = (document.querySelector('.av-pick.active') || {}).dataset ? document.querySelector('.av-pick.active').dataset.base : '🐣';
+    const base = (document.querySelector('.av-pick.active') || {}).dataset ? document.querySelector('.av-pick.active').dataset.base : 'c1';
     const bg = (document.querySelector('.bg-pick.active') || {}).dataset ? document.querySelector('.bg-pick.active').dataset.bg : AVATAR_BGS[0];
     const birthdate = document.getElementById('f-cbirth').value || null;
     const grade = document.getElementById('f-cgrade').value || 'g1';
@@ -1696,10 +1794,12 @@ const App = {
       c.avatar = { base, bg };
       c.birthdate = birthdate;
       c.grade = grade;
+      c.quranDaily = Math.max(1, parseInt(document.getElementById('f-cquran').value) || 5);
     } else {
       const c = defaultChild(name, base, bg);
       c.birthdate = birthdate;
       c.grade = grade;
+      c.quranDaily = Math.max(1, parseInt(document.getElementById('f-cquran').value) || 5);
       S.children.push(c);
       if (!S.activeChildId) S.activeChildId = c.id;
     }
@@ -1890,7 +1990,7 @@ const App = {
   refreshKidHeader() {
     const lvl = levelOf(C().xp);
     const mini = document.getElementById('kid-avatar-mini');
-    mini.textContent = heroFace(C());
+    mini.innerHTML = heroFace(C());
     mini.style.background = heroBg(C());
     document.getElementById('kid-name-mini').textContent = C().name;
     document.getElementById('stat-coins').textContent = C().coins;
@@ -1933,6 +2033,21 @@ const App = {
     if (allDone) {
       html += `<div class="all-done-banner">🏆 أنهيت كل مهام اليوم! أنت بطل حقيقي 🎉</div>`;
     }
+
+    // ركن القرآن — الورد اليومي (أهم الأهداف: يتصدر الخريطة)
+    const qr = this._quranState();
+    const qTarget = (C().quranDaily || 5) * 60;
+    const qPct = Math.min(100, Math.round(qr.seconds / qTarget * 100));
+    html += `
+      <button class="quran-card" onclick="App.openQuran()">
+        <span class="wg-emoji">📖</span>
+        <span class="wg-info">
+          <b>وِردي من القرآن</b>
+          <small>${qr.claimed ? `أتممت وردك اليوم 🌟 · سلسلة ${qr.streak} يوم 🔥` : `اقرأ ${C().quranDaily || 5} دقائق داخل التطبيق — ${qPct}%`}</small>
+          <span class="quran-bar"><i style="width:${qPct}%"></i></span>
+        </span>
+        <span class="wg-reward">${qr.claimed ? '✅' : '🥕 +8'}</span>
+      </button>`;
 
     // ركن الألعاب — كل ألعاب اليوم في مكان واحد
     const wg = this._wordGameState();
@@ -2010,6 +2125,11 @@ const App = {
       <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="App.importCodeForm()">🏫 عندي رمز من معلمي</button>`;
 
     document.getElementById('ktab-map').innerHTML = html;
+  },
+
+  /* نطق أي نص من زر (يقرأ data-say لتفادي مشاكل علامات الاقتباس) */
+  sayText(btn) {
+    speak(btn.dataset.say, btn.dataset.lang || 'ar-SA');
   },
 
   /* ── القراءة الصوتية للمهام ── */
@@ -2141,6 +2261,124 @@ const App = {
     }
   },
 
+  /* ═══════════ ركن القرآن الكريم ═══════════
+     القراءة داخل التطبيق فقط: عداد الوقت يعمل ما دام القارئ مفتوحًا */
+  _quranTimer: null,
+  _quranSurah: 0,
+
+  _quranState() {
+    const c = C();
+    if (!c.quran) c.quran = { date: null, seconds: 0, claimed: false, streak: 0, best: 0, lastDay: null, totalSeconds: 0 };
+    const today = todayKey();
+    if (c.quran.date !== today) {
+      c.quran.date = today;
+      c.quran.seconds = 0;
+      c.quran.claimed = false;
+      // كسر سلسلة القرآن عند الانقطاع يومًا كاملًا
+      if (c.quran.lastDay && c.quran.lastDay !== dayKeyOffset(-1) && c.quran.lastDay !== today) c.quran.streak = 0;
+      save();
+    }
+    return c.quran;
+  },
+
+  /* تحميل نص المصحف عند أول فتح فقط (ملف quran.js — يعمل من الملف والويب والتطبيق) */
+  _loadQuran() {
+    if (window.QURAN_DATA) return Promise.resolve();
+    if (this._quranLoading) return this._quranLoading;
+    this._quranLoading = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'quran.js';
+      sc.onload = () => resolve();
+      sc.onerror = () => reject(new Error('تعذر تحميل المصحف'));
+      document.head.appendChild(sc);
+    });
+    return this._quranLoading;
+  },
+
+  async openQuran(surahIdx) {
+    this.openModal(`<div style="text-align:center;padding:30px 0"><div style="font-size:3rem">📖</div><p class="muted">جارٍ فتح المصحف…</p></div>`);
+    try { await this._loadQuran(); }
+    catch (e) { this.openModal('<p class="muted" style="text-align:center;padding:20px">تعذر تحميل المصحف — تأكد من وجود ملف quran.js</p>'); return; }
+    if (surahIdx !== undefined) this._quranSurah = surahIdx;
+    this.renderQuranReader();
+    this._quranTickStart();
+  },
+
+  renderQuranReader() {
+    const qr = this._quranState();
+    const target = (C().quranDaily || 5) * 60;
+    const data = window.QURAN_DATA;
+    const i = this._quranSurah;
+    const s = data[i];
+    const options = data.map((x, j) => `<option value="${j}" ${j === i ? 'selected' : ''}>${j + 1}. ${x.n}</option>`).join('');
+    const basmala = i !== 0 && i !== 8 ? '<div class="basmala">بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ</div>' : '';
+    const verses = s.v.map((v, k) => `<span class="ayah">${v} <span class="ayah-num">﴿${k + 1}﴾</span></span>`).join(' ');
+    const done = qr.seconds >= target;
+    this.openModal(`
+      <div class="quran-head">
+        <select class="surah-select" onchange="App.openQuran(parseInt(this.value))">${options}</select>
+        <div class="quran-timer" id="quran-timer">${done && !qr.claimed ? '✅ اكتمل وردك!' : qr.claimed ? '🌟 ورد اليوم مُنجز' : '⏱️ ' + Math.floor(qr.seconds / 60) + ':' + String(qr.seconds % 60).padStart(2, '0') + ' / ' + (C().quranDaily || 5) + ':00'}</div>
+      </div>
+      ${done && !qr.claimed ? `<button class="btn-primary green" style="margin-bottom:10px" onclick="App.claimQuran()">أتممت وردي — نِل مكافأتك 🌟</button>` : ''}
+      <div class="quran-page">
+        <div class="surah-title">سورة ${esc(s.n)}</div>
+        ${basmala}
+        <div class="quran-text">${verses}</div>
+      </div>
+      <div class="form-row" style="margin-top:10px">
+        <div>${i > 0 ? `<button class="btn-ghost" style="width:100%" onclick="App.openQuran(${i - 1})">→ ${esc(data[i - 1].n)}</button>` : '<span></span>'}</div>
+        <div>${i < 113 ? `<button class="btn-ghost" style="width:100%" onclick="App.openQuran(${i + 1})">${esc(data[i + 1].n)} ←</button>` : '<span></span>'}</div>
+      </div>
+      <p class="muted" style="text-align:center;font-size:0.7rem;margin-top:8px">النص العثماني برواية حفص — Tanzil.net</p>`);
+  },
+
+  _quranTickStart() {
+    this._quranTickStop();
+    this._quranTimer = setInterval(() => {
+      const qr = this._quranState();
+      const target = (C().quranDaily || 5) * 60;
+      qr.seconds++;
+      qr.totalSeconds = (qr.totalSeconds || 0) + 1;
+      if (qr.seconds % 15 === 0) save();   // حفظ دوري خفيف
+      const el = document.getElementById('quran-timer');
+      if (el && !qr.claimed) {
+        if (qr.seconds >= target) {
+          // اكتمل الورد الآن: أعد رسم الرأس ليظهر زر المكافأة
+          if (qr.seconds - 1 < target) this.renderQuranReader();
+          else el.textContent = '✅ اكتمل وردك!';
+        } else {
+          el.textContent = '⏱️ ' + Math.floor(qr.seconds / 60) + ':' + String(qr.seconds % 60).padStart(2, '0') + ' / ' + (C().quranDaily || 5) + ':00';
+        }
+      }
+    }, 1000);
+  },
+
+  _quranTickStop() {
+    if (this._quranTimer) { clearInterval(this._quranTimer); this._quranTimer = null; save(); }
+  },
+
+  claimQuran() {
+    const qr = this._quranState();
+    const target = (C().quranDaily || 5) * 60;
+    if (qr.claimed || qr.seconds < target) return;
+    const c = C();
+    qr.claimed = true;
+    qr.streak = (qr.lastDay === dayKeyOffset(-1)) ? qr.streak + 1 : 1;
+    qr.best = Math.max(qr.best || 0, qr.streak);
+    qr.lastDay = todayKey();
+    c.xp += 25;
+    c.coins += 8;
+    c.lifetimeCoins += 8;
+    c.hp = Math.min(100, c.hp + 10);
+    save();
+    this.closeModal();
+    this.refreshKidHeader();
+    this.celebrate('نور على نور! 📖',
+      `أتممت وِرد اليوم${qr.streak > 1 ? `<br />🔥 سلسلة القرآن: <b>${qr.streak} يوم</b>` : ''}`,
+      ['+25 ✨ XP', '+8 🥕', '+10 ❤️'], '🕌');
+    this.renderKMap();
+  },
+
   /* ── ركن الألعاب: البوابة الموحدة ── */
   openGamesHub() {
     const wg = this._wordGameState();
@@ -2219,7 +2457,8 @@ const App = {
         <div class="prize-chip">الجائزة الآن: 🥕 ${lvl.prize}</div>
         ${lastLevel ? '' : `<button class="btn-ghost small" onclick="App.blurReveal()">🔍 وضّح أكثر (تنقص الجائزة)</button>`}
         <div class="wg-choices" style="margin-top:12px">
-          ${p.opts.map(o => `<button class="wg-choice word" onclick="App.blurGuess('${o.w}')">${o.w}</button>`).join('')}
+          ${p.opts.map(o => `<button class="wg-choice word" onclick="App.blurGuess('${o.w}')">
+            <span class="opt-say" data-say="${o.w}" onclick="event.stopPropagation();App.sayText(this)">🔊</span>${o.w}</button>`).join('')}
         </div>
         <p id="bg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
     }
@@ -2297,7 +2536,8 @@ const App = {
         <div class="wg-progress">${sg.done + 1} / ${WORDS_PER_DAY}</div>
         <div class="shadow-stage"><span>${p.target.e}</span></div>
         <div class="wg-choices" style="margin-top:12px">
-          ${p.opts.map(o => `<button class="wg-choice word" onclick="App.shadowGuess('${o.w}')">${o.w}</button>`).join('')}
+          ${p.opts.map(o => `<button class="wg-choice word" onclick="App.shadowGuess('${o.w}')">
+            <span class="opt-say" data-say="${o.w}" onclick="event.stopPropagation();App.sayText(this)">🔊</span>${o.w}</button>`).join('')}
         </div>
         <p id="sg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
     }
@@ -2474,19 +2714,43 @@ const App = {
     this._quizPlay = null;
   },
 
-  /* ── مشاهدة فيديو تعليمي داخل التطبيق ── */
+  /* ── مشاهدة فيديو تعليمي داخل التطبيق (+مكافأة أول مشاهدة) ── */
+  _videoWatch: null,   // { id, start }
+
   watchVideo(videoId) {
     const v = S.videos.find(x => x.id === videoId);
     if (!v) return;
     const embed = youtubeEmbed(v.url);
     if (!embed) { this.toast('رابط الفيديو غير صالح'); return; }
+    const c = C();
+    const rewarded = c.videosWatched && c.videosWatched[videoId];
+    this._videoWatch = rewarded ? null : { id: videoId, title: v.title, start: Date.now() };
     this.openModal(`
       <h3>🎬 ${esc(v.title)}</h3>
       <div class="video-frame">
         <iframe src="${embed}" title="${esc(v.title)}" frameborder="0"
           allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
           allowfullscreen></iframe>
-      </div>`);
+      </div>
+      ${rewarded ? '' : '<p class="muted" style="text-align:center;margin-top:8px">شاهد دقيقة على الأقل واكسب +3 🥕 📚</p>'}`);
+  },
+
+  /* تُمنح مكافأة المشاهدة عند إغلاق الفيديو بعد دقيقة على الأقل — مرة لكل فيديو */
+  _checkVideoReward() {
+    const w = this._videoWatch;
+    this._videoWatch = null;
+    if (!w) return;
+    if (Date.now() - w.start < 60000) return;
+    const c = C();
+    c.videosWatched = c.videosWatched || {};
+    if (c.videosWatched[w.id]) return;
+    c.videosWatched[w.id] = true;
+    c.coins += 3;
+    c.lifetimeCoins += 3;
+    c.xp += 5;
+    save();
+    this.refreshKidHeader();
+    this.celebrate('متعلم رائع! 🎬', `شاهدت «${esc(w.title)}»`, ['+5 ✨ XP', '+3 🥕'], '📚');
   },
 
   /* تقرير نصي يُشارك عبر واتساب أو أي تطبيق — للوالد خارج المنزل */
@@ -2675,7 +2939,7 @@ const App = {
     const baseGrid = AVATAR_BASES.map(b => {
       const open = lvl >= b.lvl;
       return open
-        ? `<button class="av-pick ${b.e === heroFace(c) ? 'active' : ''}" data-base="${b.e}" onclick="App.pickAvBase(this)">${b.e}</button>`
+        ? `<button class="av-pick ${b.id === heroBase(c) ? 'active' : ''}" data-base="${b.id}" title="${b.name}" onclick="App.pickAvBase(this)">${faceHTML(b.id)}</button>`
         : `<span class="av-pick locked" title="يفتح في المستوى ${b.lvl}">🔒<small>م${b.lvl}</small></span>`;
     }).join('');
     const bgRow = AVATAR_BGS.map(bg =>
@@ -2702,7 +2966,7 @@ const App = {
     const baseEl = document.querySelector('.av-pick.active');
     const bgEl = document.querySelector('.bg-pick.active');
     C().avatar = {
-      base: baseEl ? baseEl.dataset.base : heroFace(C()),
+      base: baseEl ? baseEl.dataset.base : heroBase(C()),
       bg: bgEl ? bgEl.dataset.bg : heroBg(C()),
     };
     save();
@@ -2722,12 +2986,44 @@ const App = {
 
   /* ── المتجر ── */
   renderKShop() {
-    const realRewards = S.rewards.map(r => `
+    // خصومات الولاء: كلما جمعت جزرًا أكثر في حياتك زاد خصمك
+    const tier = loyaltyTier(C());
+    const realRewards = S.rewards.map(r => {
+      const cost = discountedCost(r.cost, tier);
+      return `
       <div class="shop-item">
+        <button class="opt-say shop-say" data-say="${esc(r.title)} مقابل ${cost} جزرة" onclick="App.sayText(this)">🔊</button>
         <span class="s-emoji">${r.emoji}</span>
         <span class="s-name">${esc(r.title)}</span>
+        ${r.kind === 'out' ? '<small style="color:#8a86a8;font-weight:700">🚗 مشوار — بموافقة خاصة</small>' : ''}
+        ${r.kind === 'budget' ? '<small style="color:#8a86a8;font-weight:700">💰 يحتاج ميزانية — بموافقة خاصة</small>' : ''}
         ${r.teacher ? `<small style="color:#8a86a8;font-weight:700">🏫 من ${esc(r.teacher)}</small>` : ''}
-        <button class="buy-btn" ${C().coins < r.cost ? 'disabled' : ''} onclick="App.redeemReward('${r.id}')">${r.cost} 🥕</button>
+        <button class="buy-btn" ${C().coins < cost ? 'disabled' : ''} onclick="App.redeemReward('${r.id}')">
+          ${cost < r.cost ? `<s style="opacity:0.7">${r.cost}</s> ` : ''}${cost} 🥕</button>
+      </div>`;
+    }).join('');
+
+    // قسائم الشركاء
+    const vouchers = S.vouchers.map(v => {
+      const cost = discountedCost(v.cost, tier);
+      return `
+      <div class="shop-item voucher">
+        <button class="opt-say shop-say" data-say="قسيمة ${esc(v.partner)}: ${esc(v.title)} مقابل ${cost} جزرة" onclick="App.sayText(this)">🔊</button>
+        <span class="s-emoji">${v.emoji || '🎟️'}</span>
+        <span class="s-name">${esc(v.title)}</span>
+        <small style="color:#8a86a8;font-weight:700">${esc(v.partner)}</small>
+        <button class="buy-btn" ${C().coins < cost ? 'disabled' : ''} onclick="App.buyVoucher('${v.id}')">
+          ${cost < v.cost ? `<s style="opacity:0.7">${v.cost}</s> ` : ''}${cost} 🥕</button>
+      </div>`;
+    }).join('');
+
+    const myVouchers = (C().myVouchers || []).map(v => `
+      <div class="task-row">
+        <span class="task-cat">🎟️</span>
+        <div class="task-info">
+          <div class="t-title">${esc(v.title)} — ${esc(v.partner)}</div>
+          <div class="t-meta">الكود: <b class="voucher-code" dir="ltr">${esc(v.code)}</b> · ${v.date}</div>
+        </div>
       </div>`).join('');
 
     const gearShop = GEAR_ITEMS.map(g => {
@@ -2745,22 +3041,54 @@ const App = {
     const pending = C().redemptions.filter(r => r.status === 'pending');
 
     document.getElementById('ktab-shop').innerHTML = `
-      <div class="all-done-banner" style="background:linear-gradient(120deg,#ffe0b8,#ffd0a0)">رصيدك: ${C().coins} 🥕</div>
-      ${pending.length ? `<div class="card"><h3>⏳ بانتظار موافقة الوالدين</h3>${pending.map(p => `<p class="pill" style="margin-bottom:6px">🎁 ${esc(p.title)}</p>`).join('')}</div>` : ''}
+      <div class="all-done-banner" style="background:linear-gradient(120deg,#ffe0b8,#ffd0a0)">
+        رصيدك: ${C().coins} 🥕
+        ${tier.off ? `<div style="font-size:0.85rem;margin-top:4px">${tier.emoji} عضوية ${tier.name} — خصم ${tier.off}% على الجوائز والقسائم!</div>` : `<div style="font-size:0.78rem;margin-top:4px;opacity:0.8">اجمع 100 🥕 (إجمالي) لتفتح خصومات الولاء 🏅</div>`}
+      </div>
+      ${pending.length ? `<div class="card"><h3>⏳ بانتظار موافقة الوالدين</h3>${pending.map(p => `<p class="pill" style="margin-bottom:6px">${p.kind === 'out' ? '🚗' : p.kind === 'budget' ? '💰' : '🎁'} ${esc(p.title)}</p>`).join('')}</div>` : ''}
       <h3 class="shop-section-title">🎁 جوائز حقيقية من العائلة</h3>
       <div class="shop-grid">${realRewards || '<p class="muted">لا توجد جوائز بعد</p>'}</div>
+      ${vouchers ? `<h3 class="shop-section-title">🎟️ قسائم الشركاء</h3><div class="shop-grid">${vouchers}</div>` : ''}
+      ${myVouchers ? `<div class="card" style="margin-top:14px"><h3>🎫 قسائمي</h3>${myVouchers}</div>` : ''}
       <h3 class="shop-section-title">🧢 عتاد البطل</h3>
       <div class="shop-grid">${gearShop}</div>`;
   },
 
   redeemReward(rewardId) {
     const r = S.rewards.find(x => x.id === rewardId);
-    if (!r || C().coins < r.cost) return;
-    if (!confirm(`شراء "${r.title}" مقابل ${r.cost} 🥕؟`)) return;
-    C().coins -= r.cost;
-    C().redemptions.push({ id: uid(), rewardId: r.id, title: r.title, cost: r.cost, date: todayKey(), status: 'pending' });
+    if (!r) return;
+    const cost = discountedCost(r.cost, loyaltyTier(C()));
+    if (C().coins < cost) return;
+    if (!confirm(`شراء "${r.title}" مقابل ${cost} 🥕؟`)) return;
+    C().coins -= cost;
+    C().redemptions.push({ id: uid(), rewardId: r.id, title: r.title, cost, kind: r.kind || 'home', date: todayKey(), status: 'pending' });
     save();
-    this.celebrate('طلب رائع! 🎁', `أرسلنا "${esc(r.title)}" للوالدين للموافقة`, [`-${r.cost} 🥕`], '📨');
+    const special = r.kind === 'out' || r.kind === 'budget';
+    this.celebrate('طلب رائع! 🎁',
+      special
+        ? `"${esc(r.title)}" ${r.kind === 'out' ? 'مشوار خارج المنزل 🚗' : 'يحتاج ميزانية 💰'}<br /><small>أرسلنا تنبيهًا خاصًا لوالدك للموافقة والتخطيط</small>`
+        : `أرسلنا "${esc(r.title)}" للوالدين للموافقة`,
+      [`-${cost} 🥕`], special ? '🚨' : '📨');
+    this.renderKShop();
+    this.refreshKidHeader();
+  },
+
+  /* شراء قسيمة شريك: الكود يُكشف فورًا ويُحفظ في "قسائمي" */
+  buyVoucher(voucherId) {
+    const v = S.vouchers.find(x => x.id === voucherId);
+    if (!v) return;
+    const cost = discountedCost(v.cost, loyaltyTier(C()));
+    if (C().coins < cost) return;
+    if (!confirm(`شراء قسيمة "${v.title}" من ${v.partner} مقابل ${cost} 🥕؟`)) return;
+    const c = C();
+    c.coins -= cost;
+    c.myVouchers = c.myVouchers || [];
+    c.myVouchers.push({ id: uid(), voucherId: v.id, partner: v.partner, title: v.title, code: v.code, date: todayKey() });
+    v.used = (v.used || 0) + 1;   // ليطلع الوالد على الاستخدام
+    save();
+    this.celebrate('قسيمتك جاهزة! 🎟️',
+      `${esc(v.title)} — ${esc(v.partner)}<br /><div class="code-box" style="margin-top:8px;font-size:1rem;text-align:center" dir="ltr">${esc(v.code)}</div><small>محفوظة في "قسائمي" بالمتجر — أرها عند الاستخدام</small>`,
+      [`-${cost} 🥕`], '🎟️');
     this.renderKShop();
     this.refreshKidHeader();
   },
@@ -3063,7 +3391,7 @@ const App = {
   celebrate(title, msg, gains, emoji = '🎉') {
     document.getElementById('celebrate-title').textContent = title;
     document.getElementById('celebrate-msg').innerHTML = msg;
-    document.getElementById('celebrate-emoji').textContent = emoji;
+    document.getElementById('celebrate-emoji').innerHTML = emoji;
     document.getElementById('celebrate-gains').innerHTML =
       gains.map((g, i) => `<span class="gain-chip ${i === 0 ? 'xp' : ''}">${g}</span>`).join('');
     document.getElementById('celebrate').classList.add('active');
@@ -3097,6 +3425,8 @@ const App = {
   },
   closeModal() {
     document.getElementById('modal').classList.remove('active');
+    this._checkVideoReward();     // مكافأة مشاهدة الفيديو إن استحقت
+    this._quranTickStop();        // إيقاف عداد القرآن إن كان يعمل
   },
 
   _toastTimer: null,
