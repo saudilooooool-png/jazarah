@@ -312,15 +312,31 @@ const WORD_XP = 5;
 const WORD_COINS = 2;
 
 /* ─────────────── القراءة الصوتية ─────────────── */
+/* داخل تطبيق الأندرويد (Capacitor WebView) لا يتوفر نطق المتصفح —
+   نستخدم محرك النطق الأصلي للنظام عبر ملحق TextToSpeech، والمتصفح للويب */
 function speak(text, lang = 'ar-SA') {
+  const native = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech;
+  if (native) {
+    native.speak({ text, lang, rate: 0.9 }).catch(() => {});
+    return;
+  }
+  if (!('speechSynthesis' in window)) {
+    if (window.App) App.toast('جهازك لا يدعم القراءة الصوتية 🔇');
+    return;
+  }
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang;
+    const voices = speechSynthesis.getVoices();
+    const match = voices.find(v => v.lang && v.lang.startsWith(lang.slice(0, 2)));
+    if (match) u.voice = match;
     u.rate = 0.9;
     speechSynthesis.speak(u);
-  } catch (e) { /* غير مدعوم على هذا الجهاز */ }
+  } catch (e) { /* تجاهل */ }
 }
+/* بعض المتصفحات تحمّل قائمة الأصوات متأخرة — نطلبها مبكرًا */
+if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch (e) {} }
 
 /* استخراج رابط تضمين يوتيوب من أشكال الروابط المختلفة */
 function youtubeEmbed(url) {
@@ -408,6 +424,9 @@ function defaultChild(name, avatarBase, avatarBg) {
     taskArchive: {},
     wordGame: { date: null, arDone: 0, enDone: 0, totalSolved: 0 },
     mathGame: { date: null, done: 0, totalSolved: 0 },
+    blurGame: { date: null, done: 0, totalSolved: 0 },
+    shadowGame: { date: null, done: 0, totalSolved: 0 },
+    quizzesDone: {},        // { quizId: score } اختبارات المعلم المنجزة
     birthdate: null,        // YYYY-MM-DD — للاحتفال بعيد الميلاد
     grade: 'g1',            // المرحلة الدراسية kg1..g6
     lastBirthdayYear: null, // آخر سنة احتفلنا فيها بميلاده
@@ -423,6 +442,7 @@ function defaultState() {
     activeChildId: first.id,
     joinRequests: [],      // طلبات انضمام أرسلها أطفال بانتظار موافقة الوالد
     videos: [],            // مكتبة فيديوهات تعليمية يضيفها الوالد { id, title, url }
+    quizzes: [],           // اختبارات المعلمين التفاعلية { id, title, teacher, questions }
     rewards: [
       { id: uid(), emoji: '🎮', title: 'نصف ساعة لعب إضافية', cost: 25 },
       { id: uid(), emoji: '🌳', title: 'مشوار إلى الحديقة',    cost: 60 },
@@ -554,6 +574,7 @@ function load() {
         s.children = s.children.map(c => Object.assign(defaultChild(), c));
         s.joinRequests = s.joinRequests || [];
         s.videos = s.videos || [];
+        s.quizzes = s.quizzes || [];
         return s;
       }
       // ترحيل النسخة القديمة (طفل واحد) → v2
@@ -1005,7 +1026,27 @@ const App = {
             <button class="icon-btn" title="حذف" onclick="App.deleteVideo('${v.id}')">🗑️</button>
           </div>`).join('')}
         <button class="btn-primary green" style="margin-top:8px" onclick="App.videoForm()">＋ إضافة فيديو</button>
-      </div>`;
+      </div>
+      ${S.quizzes.length ? `
+      <div class="card">
+        <h3>📝 اختبارات المعلمين</h3>
+        ${S.quizzes.map(q => `
+          <div class="task-row">
+            <span class="task-cat">📝</span>
+            <div class="task-info">
+              <div class="t-title">${esc(q.title)}</div>
+              <div class="t-meta">🏫 ${esc(q.teacher)} · ${q.questions.length} أسئلة · نتيجة ${esc(C().name)}: ${C().quizzesDone[q.id] !== undefined ? C().quizzesDone[q.id] + '/' + q.questions.length : 'لم يحله بعد'}</div>
+            </div>
+            <button class="icon-btn" title="حذف" onclick="App.deleteQuiz('${q.id}')">🗑️</button>
+          </div>`).join('')}
+      </div>` : ''}`;
+  },
+
+  deleteQuiz(quizId) {
+    if (!confirm('حذف هذا الاختبار؟')) return;
+    S.quizzes = S.quizzes.filter(q => q.id !== quizId);
+    save();
+    this.renderPTasks();
   },
 
   /* ── إدارة مكتبة الفيديو ── */
@@ -1893,31 +1934,34 @@ const App = {
       html += `<div class="all-done-banner">🏆 أنهيت كل مهام اليوم! أنت بطل حقيقي 🎉</div>`;
     }
 
-    // تحدي كلمات اليوم (عربي + إنجليزي)
+    // ركن الألعاب — كل ألعاب اليوم في مكان واحد
     const wg = this._wordGameState();
-    const wgTotal = WORDS_PER_DAY * 2;
-    const wgDone = wg.arDone + wg.enDone;
+    const mg = this._mathGameState();
+    const bg = this._blurGameState();
+    const sg = this._shadowGameState();
+    const gamesDone = wg.arDone + wg.enDone + mg.done + bg.done + sg.done;
+    const gamesTotal = WORDS_PER_DAY * 5;   // كلمات×2 + حساب + ضبابية + ظل
     html += `
-      <button class="wordgame-card" onclick="App.openWordGame()">
-        <span class="wg-emoji">🔤</span>
+      <button class="wordgame-card" onclick="App.openGamesHub()">
+        <span class="wg-emoji">🎮</span>
         <span class="wg-info">
-          <b>تحدي كلمات اليوم</b>
-          <small>${wgDone >= wgTotal ? 'أتممت كلمات اليوم! عد غدًا 🌟' : `أكمل الحروف الناقصة — عربي وإنجليزي (${wgDone}/${wgTotal})`}</small>
+          <b>ركن الألعاب</b>
+          <small>${gamesDone >= gamesTotal ? 'أتممت كل ألعاب اليوم! عد غدًا 🌟' : `كلمات · حساب · ألغاز الصور (${gamesDone}/${gamesTotal})`}</small>
         </span>
-        <span class="wg-reward">🥕 +${WORD_COINS} لكل كلمة</span>
+        <span class="wg-reward">🥕 اكسب وأنت تلعب</span>
       </button>`;
 
-    // تحدي حساب اليوم — مولد حسب الصف
-    const mg = this._mathGameState();
-    html += `
-      <button class="wordgame-card math" onclick="App.openMathGame()">
-        <span class="wg-emoji">🧮</span>
-        <span class="wg-info">
-          <b>تحدي حساب اليوم</b>
-          <small>${mg.done >= WORDS_PER_DAY ? 'أتممت حساب اليوم! عد غدًا 🌟' : `أسئلة ${gradeName(C().grade)} (${mg.done}/${WORDS_PER_DAY})`}</small>
-        </span>
-        <span class="wg-reward">🥕 +${WORD_COINS} لكل سؤال</span>
-      </button>`;
+    // اختبارات المعلمين التفاعلية
+    if (S.quizzes.length) {
+      html += `<div class="videos-card"><h3>📝 اختبارات معلمي</h3>${S.quizzes.map(q => {
+        const score = C().quizzesDone[q.id];
+        return `<button class="video-row" onclick="App.playQuiz('${q.id}')">
+          <span>${score !== undefined ? '✅' : '📝'}</span>
+          <span style="flex:1">${esc(q.title)} <small style="color:#8a86a8">— 🏫 ${esc(q.teacher)}</small></span>
+          ${score !== undefined ? `<small style="font-weight:900;color:var(--green-dark)">${score}/${q.questions.length}</small>` : ''}
+        </button>`;
+      }).join('')}</div>`;
+    }
 
     // مكتبة الفيديو التعليمية
     if (S.videos.length) {
@@ -2043,7 +2087,7 @@ const App = {
         <p id="wg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
     }
 
-    this.openModal(`
+    this.openModal(`${this._gameBackBtn()}
       <h3 style="text-align:center">🔤 تحدي كلمات اليوم</h3>
       <div class="lib-chips" style="justify-content:center">
         <button class="lib-chip ${l === 'ar' ? 'active' : ''}" onclick="App.openWordGame('ar')">عربي (${wg.arDone}/${WORDS_PER_DAY})</button>
@@ -2097,6 +2141,201 @@ const App = {
     }
   },
 
+  /* ── ركن الألعاب: البوابة الموحدة ── */
+  openGamesHub() {
+    const wg = this._wordGameState();
+    const mg = this._mathGameState();
+    const bg = this._blurGameState();
+    const sg = this._shadowGameState();
+    const row = (emoji, name, desc, done, total, fn) => `
+      <button class="hub-row" onclick="App.${fn}()">
+        <span class="hub-emoji">${emoji}</span>
+        <span class="hub-info"><b>${name}</b><small>${desc}</small></span>
+        <span class="hub-progress ${done >= total ? 'done' : ''}">${done}/${total}</span>
+      </button>`;
+    this.openModal(`
+      <h3 style="text-align:center">🎮 ركن الألعاب</h3>
+      <p class="muted" style="text-align:center;margin-bottom:12px">ألعاب جديدة كل يوم — العب واكسب الجزر!</p>
+      ${row('🔤', 'كلمات اليوم', 'أكمل الحرف الناقص', wg.arDone + wg.enDone, WORDS_PER_DAY * 2, 'openWordGame')}
+      ${row('🧮', 'حساب اليوم', gradeName(C().grade), mg.done, WORDS_PER_DAY, 'openMathGame')}
+      ${row('🌫️', 'الصورة الضبابية', 'خمّن مبكرًا تكسب أكثر!', bg.done, WORDS_PER_DAY, 'openBlurGame')}
+      ${row('🕵️', 'الظل الغامض', 'من صاحب هذا الظل؟', sg.done, WORDS_PER_DAY, 'openShadowGame')}`);
+  },
+
+  _gameBackBtn() {
+    return `<button class="btn-ghost small" style="margin-bottom:8px" onclick="App.openGamesHub()">🎮 → الألعاب</button>`;
+  },
+
+  /* ── لعبة الصورة الضبابية: وضوح أكثر = جائزة أقل ── */
+  BLUR_LEVELS: [
+    { blur: 16, prize: 10 },
+    { blur: 10, prize: 7 },
+    { blur: 6,  prize: 5 },
+    { blur: 3,  prize: 3 },
+    { blur: 0,  prize: 1 },
+  ],
+  _blurLevel: 0,
+
+  _blurGameState() {
+    const c = C();
+    if (!c.blurGame) c.blurGame = { date: null, done: 0, totalSolved: 0 };
+    if (c.blurGame.date !== todayKey()) {
+      c.blurGame.date = todayKey();
+      c.blurGame.done = 0;
+      save();
+    }
+    return c.blurGame;
+  },
+
+  /* لغز اليوم رقم i: الهدف + 3 مشتتات من بنك الكلمات العربية */
+  _blurPuzzle(i, salt) {
+    const pool = WORDS_AR;
+    const target = pool[strHash(todayKey() + salt + i) % pool.length];
+    const opts = [target];
+    let h = strHash(todayKey() + salt + target.w);
+    while (opts.length < 4) {
+      const cand = pool[h % pool.length];
+      h = (h * 31 + 13) % 1000003;
+      if (!opts.some(o => o.w === cand.w)) opts.push(cand);
+    }
+    opts.sort((a, b) => strHash(todayKey() + a.w + salt) - strHash(todayKey() + b.w + salt));
+    return { target, opts };
+  },
+
+  openBlurGame(keepLevel) {
+    const bg = this._blurGameState();
+    if (!keepLevel) this._blurLevel = 0;
+    let body;
+    if (bg.done >= WORDS_PER_DAY) {
+      body = `<div style="text-align:center;padding:20px 0"><div style="font-size:3rem">🌟</div>
+        <p style="font-weight:900">أتممت ألغاز اليوم!</p><p class="muted">عد غدًا لصور جديدة</p></div>`;
+    } else {
+      const p = this._blurPuzzle(bg.done, 'blur');
+      const lvl = this.BLUR_LEVELS[this._blurLevel];
+      const lastLevel = this._blurLevel >= this.BLUR_LEVELS.length - 1;
+      body = `
+        <div class="wg-progress">${bg.done + 1} / ${WORDS_PER_DAY}</div>
+        <div class="blur-stage"><span style="filter:blur(${lvl.blur}px)">${p.target.e}</span></div>
+        <div class="prize-chip">الجائزة الآن: 🥕 ${lvl.prize}</div>
+        ${lastLevel ? '' : `<button class="btn-ghost small" onclick="App.blurReveal()">🔍 وضّح أكثر (تنقص الجائزة)</button>`}
+        <div class="wg-choices" style="margin-top:12px">
+          ${p.opts.map(o => `<button class="wg-choice word" onclick="App.blurGuess('${o.w}')">${o.w}</button>`).join('')}
+        </div>
+        <p id="bg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
+    }
+    this.openModal(`${this._gameBackBtn()}<h3 style="text-align:center">🌫️ الصورة الضبابية</h3>
+      <p class="muted" style="text-align:center;margin-bottom:8px">خمّن وهي ضبابية تكسب أكثر!</p>
+      <div style="text-align:center">${body}</div>`);
+  },
+
+  blurReveal() {
+    if (this._blurLevel < this.BLUR_LEVELS.length - 1) this._blurLevel++;
+    this.openBlurGame(true);
+  },
+
+  blurGuess(word) {
+    const bg = this._blurGameState();
+    if (bg.done >= WORDS_PER_DAY) return;
+    const p = this._blurPuzzle(bg.done, 'blur');
+    if (word !== p.target.w) {
+      // تخمين خاطئ: تتضح الصورة وتنقص الجائزة
+      if (this._blurLevel < this.BLUR_LEVELS.length - 1) {
+        this._blurLevel++;
+        this.openBlurGame(true);
+        setTimeout(() => { const m = document.getElementById('bg-msg'); if (m) m.textContent = 'ليست هي! وضّحنا الصورة قليلًا 👀'; }, 50);
+      } else {
+        const m = document.getElementById('bg-msg');
+        if (m) m.textContent = 'جرّب مرة أخرى 💪';
+      }
+      return;
+    }
+    const prize = this.BLUR_LEVELS[this._blurLevel].prize;
+    const c = C();
+    bg.done++;
+    bg.totalSolved = (bg.totalSolved || 0) + 1;
+    c.coins += prize;
+    c.lifetimeCoins += prize;
+    c.xp += WORD_XP;
+    save();
+    speak(p.target.w, 'ar-SA');
+    this.refreshKidHeader();
+    this._blurLevel = 0;
+    if (bg.done >= WORDS_PER_DAY) {
+      this.closeModal();
+      this.celebrate('عين صقر! 🌫️', `إنها <b>${esc(p.target.w)}</b> ${p.target.e}`, [`+${WORD_XP} ✨ XP`, `+${prize} 🥕`], '🦅');
+      this.renderKMap();
+    } else {
+      this.toast(`✅ ${p.target.w} — ربحت ${prize} 🥕`);
+      this.openBlurGame();
+    }
+  },
+
+  /* ── لعبة الظل الغامض ── */
+  _shadowTried: false,
+
+  _shadowGameState() {
+    const c = C();
+    if (!c.shadowGame) c.shadowGame = { date: null, done: 0, totalSolved: 0 };
+    if (c.shadowGame.date !== todayKey()) {
+      c.shadowGame.date = todayKey();
+      c.shadowGame.done = 0;
+      save();
+    }
+    return c.shadowGame;
+  },
+
+  openShadowGame() {
+    const sg = this._shadowGameState();
+    this._shadowTried = false;
+    let body;
+    if (sg.done >= WORDS_PER_DAY) {
+      body = `<div style="text-align:center;padding:20px 0"><div style="font-size:3rem">🌟</div>
+        <p style="font-weight:900">كشفت كل ظلال اليوم!</p><p class="muted">عد غدًا لظلال جديدة</p></div>`;
+    } else {
+      const p = this._blurPuzzle(sg.done, 'shadow');
+      body = `
+        <div class="wg-progress">${sg.done + 1} / ${WORDS_PER_DAY}</div>
+        <div class="shadow-stage"><span>${p.target.e}</span></div>
+        <div class="wg-choices" style="margin-top:12px">
+          ${p.opts.map(o => `<button class="wg-choice word" onclick="App.shadowGuess('${o.w}')">${o.w}</button>`).join('')}
+        </div>
+        <p id="sg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
+    }
+    this.openModal(`${this._gameBackBtn()}<h3 style="text-align:center">🕵️ الظل الغامض</h3>
+      <p class="muted" style="text-align:center;margin-bottom:8px">من صاحب هذا الظل؟</p>
+      <div style="text-align:center">${body}</div>`);
+  },
+
+  shadowGuess(word) {
+    const sg = this._shadowGameState();
+    if (sg.done >= WORDS_PER_DAY) return;
+    const p = this._blurPuzzle(sg.done, 'shadow');
+    if (word !== p.target.w) {
+      this._shadowTried = true;
+      const m = document.getElementById('sg-msg');
+      if (m) m.textContent = 'ليس هو… دقق في الظل 🔍';
+      return;
+    }
+    const prize = this._shadowTried ? 1 : 3;   // الإجابة من أول مرة أثمن
+    const c = C();
+    sg.done++;
+    sg.totalSolved = (sg.totalSolved || 0) + 1;
+    c.coins += prize;
+    c.lifetimeCoins += prize;
+    c.xp += WORD_XP;
+    save();
+    speak(p.target.w, 'ar-SA');
+    this.refreshKidHeader();
+    if (sg.done >= WORDS_PER_DAY) {
+      this.closeModal();
+      this.celebrate('محقق بارع! 🕵️', `إنه <b>${esc(p.target.w)}</b> ${p.target.e}`, [`+${WORD_XP} ✨ XP`, `+${prize} 🥕`], '🔦');
+      this.renderKMap();
+    } else {
+      this.toast(`✅ ${p.target.w} — +${prize} 🥕`);
+      this.openShadowGame();
+    }
+  },
+
   /* ── تحدي الحساب اليومي (حسب الصف) ── */
   _mathGameState() {
     const c = C();
@@ -2126,7 +2365,7 @@ const App = {
         <div class="wg-choices">${q.opts.map(o => `<button class="wg-choice" onclick="App.mathGuess(${o})">${o}</button>`).join('')}</div>
         <p id="mg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
     }
-    this.openModal(`<h3 style="text-align:center">🧮 تحدي حساب اليوم</h3><div style="text-align:center">${body}</div>`);
+    this.openModal(`${this._gameBackBtn()}<h3 style="text-align:center">🧮 تحدي حساب اليوم</h3><div style="text-align:center">${body}</div>`);
   },
 
   mathGuess(val) {
@@ -2157,6 +2396,82 @@ const App = {
       this.toast(`✅ صحيح! ${q.answer} — +${WORD_COINS} 🥕`);
       this.openMathGame();
     }
+  },
+
+  /* ── لعب اختبار المعلم التفاعلي ── */
+  _quizPlay: null,   // { quiz, index, correct, answered }
+
+  playQuiz(quizId) {
+    const quiz = S.quizzes.find(q => q.id === quizId);
+    if (!quiz) return;
+    this._quizPlay = { quiz, index: 0, correct: 0, replay: C().quizzesDone[quiz.id] !== undefined };
+    this.renderQuizQuestion();
+  },
+
+  renderQuizQuestion() {
+    const p = this._quizPlay;
+    const q = p.quiz.questions[p.index];
+    const [text, correctIdx, ...opts] = q;
+    // خلط الخيارات حتميًا لكل طفل
+    const order = [0, 1, 2, 3].sort((a, b) => strHash(C().id + text + a) - strHash(C().id + text + b));
+    this.openModal(`
+      <h3 style="text-align:center">📝 ${esc(p.quiz.title)}</h3>
+      <p class="muted" style="text-align:center">🏫 ${esc(p.quiz.teacher)}${p.replay ? ' · إعادة (بلا جزر)' : ''}</p>
+      <div style="text-align:center">
+        <div class="wg-progress">${p.index + 1} / ${p.quiz.questions.length}</div>
+        <div class="quiz-question">${esc(text)}</div>
+        <div class="quiz-options">
+          ${order.map(i => `<button class="wg-choice word" id="qopt-${i}" onclick="App.quizAnswer(${i})">${esc(opts[i])}</button>`).join('')}
+        </div>
+        <p id="qz-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>
+      </div>`);
+  },
+
+  quizAnswer(i) {
+    const p = this._quizPlay;
+    const q = p.quiz.questions[p.index];
+    const correctIdx = q[1];
+    const isRight = i === correctIdx;
+    if (isRight) p.correct++;
+    // تلوين الإجابة الصحيحة تعليميًا ثم الانتقال
+    const rightBtn = document.getElementById('qopt-' + correctIdx);
+    const pickedBtn = document.getElementById('qopt-' + i);
+    if (rightBtn) rightBtn.classList.add('right');
+    if (!isRight && pickedBtn) pickedBtn.classList.add('wrong');
+    document.querySelectorAll('.quiz-options .wg-choice').forEach(b => b.disabled = true);
+    const msg = document.getElementById('qz-msg');
+    if (msg) msg.textContent = isRight ? '✅ أحسنت!' : `الإجابة الصحيحة: ${q[2 + correctIdx]}`;
+    setTimeout(() => {
+      p.index++;
+      if (p.index < p.quiz.questions.length) this.renderQuizQuestion();
+      else this.finishQuiz();
+    }, 1200);
+  },
+
+  finishQuiz() {
+    const p = this._quizPlay;
+    const c = C();
+    const total = p.quiz.questions.length;
+    const full = p.correct === total;
+    let coins = 0, xp = 0;
+    if (!p.replay) {
+      coins = p.correct * 2 + (full ? 5 : 0);
+      xp = p.correct * 5;
+      c.coins += coins;
+      c.lifetimeCoins += coins;
+      c.xp += xp;
+    }
+    c.quizzesDone[p.quiz.id] = p.correct;
+    save();
+    this.closeModal();
+    this.refreshKidHeader();
+    this.celebrate(
+      full ? 'العلامة الكاملة! 🏆' : 'أكملت الاختبار! 📝',
+      `${esc(p.quiz.title)}<br />نتيجتك: <b>${p.correct} / ${total}</b>${p.replay ? '<br /><small>إعادة تدريبية — بلا جزر</small>' : ''}`,
+      p.replay ? [] : [`+${xp} ✨ XP`, `+${coins} 🥕`],
+      full ? '🏆' : '📝');
+    this.renderKMap();
+    this._quizPlay = null;
   },
 
   /* ── مشاهدة فيديو تعليمي داخل التطبيق ── */
@@ -2484,7 +2799,23 @@ const App = {
 
   enterTeacher() {
     this.showScreen('screen-teacher');
+    this._teacherTab = this._teacherTab || 'task';
     this.renderTeacherForm();
+  },
+
+  _teacherTab: 'task',
+  teacherTab(tab) {
+    this._teacherTab = tab;
+    if (tab === 'quiz') this.renderQuizBuilder();
+    else this.renderTeacherForm();
+  },
+
+  _teacherTabsHtml() {
+    return `
+      <div class="lib-chips" style="justify-content:center;margin-bottom:14px">
+        <button class="lib-chip ${this._teacherTab !== 'quiz' ? 'active' : ''}" onclick="App.teacherTab('task')">📋 مهمة / مكافأة</button>
+        <button class="lib-chip ${this._teacherTab === 'quiz' ? 'active' : ''}" onclick="App.teacherTab('quiz')">📝 اختبار تفاعلي</button>
+      </div>`;
   },
 
   renderTeacherForm() {
@@ -2493,6 +2824,7 @@ const App = {
     const proofOptions = Object.entries(PROOF_MODES)
       .map(([k, m]) => `<option value="${k}" ${k === 'photo' ? 'selected' : ''}>${m.emoji} ${m.name}</option>`).join('');
     document.getElementById('teacher-body').innerHTML = `
+      ${this._teacherTabsHtml()}
       <div class="card">
         <div class="form-grid">
           <div><label>اسمك (يظهر للطالب وولي الأمر)</label><input id="t-name" placeholder="مثال: المعلمة نورة" /></div>
@@ -2573,6 +2905,105 @@ const App = {
     document.getElementById('teacher-result').scrollIntoView({ behavior: 'smooth' });
   },
 
+  /* ── منشئ الاختبارات التفاعلية للمعلم ── */
+  _quizDraft: { title: '', name: '', questions: [] },
+
+  renderQuizBuilder() {
+    const d = this._quizDraft;
+    const qList = d.questions.map((q, i) => `
+      <div class="task-row">
+        <span class="task-cat">${i + 1}️⃣</span>
+        <div class="task-info">
+          <div class="t-title">${esc(q[0])}</div>
+          <div class="t-meta">الإجابة: ${esc(q[2 + q[1]])}</div>
+        </div>
+        <button class="icon-btn" onclick="App.quizRemoveQ(${i})">🗑️</button>
+      </div>`).join('');
+    document.getElementById('teacher-body').innerHTML = `
+      ${this._teacherTabsHtml()}
+      <div class="card">
+        <p class="muted" style="margin-bottom:10px">جهّز درس الغد كمسابقة تفاعلية: يحلها الطالب في التطبيق ويكسب الجزر على كل إجابة صحيحة (حتى 6 أسئلة)</p>
+        <div class="form-grid">
+          <div><label>اسمك</label><input id="q-name" value="${esc(d.name)}" placeholder="مثال: المعلمة نورة" /></div>
+          <div><label>عنوان الاختبار</label><input id="q-title" value="${esc(d.title)}" placeholder="مثال: مراجعة درس الكسور" /></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>الأسئلة (${d.questions.length}/6)</h3>
+        ${qList || '<p class="muted">أضف أول سؤال 👇</p>'}
+      </div>
+      ${d.questions.length < 6 ? `
+      <div class="card">
+        <div class="form-grid">
+          <div><label>السؤال</label><input id="q-text" placeholder="مثال: كم نصف العدد 8؟" /></div>
+          <div class="form-row">
+            <div><label>الخيار 1 (الصحيح ✅)</label><input id="q-o0" /></div>
+            <div><label>الخيار 2</label><input id="q-o1" /></div>
+          </div>
+          <div class="form-row">
+            <div><label>الخيار 3</label><input id="q-o2" /></div>
+            <div><label>الخيار 4</label><input id="q-o3" /></div>
+          </div>
+          <button class="btn-primary green" onclick="App.quizAddQ()">＋ أضف السؤال</button>
+          <p class="muted" style="font-size:0.75rem">اكتب الإجابة الصحيحة في الخيار الأول — التطبيق يخلط الخيارات تلقائيًا لكل طالب</p>
+        </div>
+      </div>` : ''}
+      ${d.questions.length ? `<button class="btn-primary purple" onclick="App.quizGenerate()">توليد رمز الاختبار 🔑</button>` : ''}
+      <div id="teacher-result"></div>`;
+  },
+
+  quizAddQ() {
+    const name = document.getElementById('q-name').value.trim();
+    const title = document.getElementById('q-title').value.trim();
+    const text = document.getElementById('q-text').value.trim();
+    const opts = [0, 1, 2, 3].map(i => document.getElementById('q-o' + i).value.trim());
+    if (!text || opts.some(o => !o)) { this.toast('أكمل السؤال والخيارات الأربعة'); return; }
+    this._quizDraft.name = name;
+    this._quizDraft.title = title;
+    // نخزن [السؤال، فهرس الصحيح، ...الخيارات] — الصحيح دائمًا الأول عند الإدخال
+    this._quizDraft.questions.push([text, 0, ...opts]);
+    this.renderQuizBuilder();
+  },
+
+  quizRemoveQ(i) {
+    this._quizDraft.questions.splice(i, 1);
+    this.renderQuizBuilder();
+  },
+
+  quizGenerate() {
+    const d = this._quizDraft;
+    d.name = document.getElementById('q-name').value.trim() || d.name;
+    d.title = document.getElementById('q-title').value.trim() || d.title;
+    if (!d.name || !d.title) { this.toast('اكتب اسمك وعنوان الاختبار'); return; }
+    if (!d.questions.length) { this.toast('أضف سؤالًا واحدًا على الأقل'); return; }
+    const payload = { v: 1, k: 'q', n: d.name, t: d.title, q: d.questions };
+    const code = encodeShareCode(payload);
+    this._lastShareCode = code;
+    this._lastShareMsg = `📝 اختبار تفاعلي من ${d.name} عبر تطبيق جَزَرة 🥕\n«${d.title}» — ${d.questions.length} أسئلة\n\nانسخ الرمز والصقه في التطبيق (إضافة رمز من المعلم):\n\n${code}`;
+    // الاختبارات الطويلة قد تتجاوز سعة QR — الرمز النصي يعمل دائمًا
+    let qrHtml = '';
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(code);
+      qr.make();
+      qrHtml = `<div class="qr-box">${qr.createSvgTag({ scalable: true, margin: 2 })}</div>`;
+    } catch (e) {
+      qrHtml = '<p class="muted">الاختبار كبير على QR — استخدم الرمز النصي عبر واتساب (يعمل تمامًا)</p>';
+    }
+    document.getElementById('teacher-result').innerHTML = `
+      <div class="card" style="text-align:center;border:3px solid var(--purple);margin-top:14px">
+        <h3>✅ رمز الاختبار جاهز</h3>
+        ${qrHtml}
+        <div class="code-box" dir="ltr">${this._lastShareCode}</div>
+        <div class="form-row" style="margin-top:12px">
+          <div><button class="btn-primary green" onclick="App.copyShareCode()">📋 نسخ</button></div>
+          <div><button class="btn-primary" onclick="App.whatsappShareCode()">💬 واتساب</button></div>
+        </div>
+        <button class="btn-ghost" style="margin-top:10px" onclick="App._quizDraft={title:'',name:'',questions:[]};App.renderQuizBuilder()">اختبار جديد</button>
+      </div>`;
+    document.getElementById('teacher-result').scrollIntoView({ behavior: 'smooth' });
+  },
+
   copyShareCode() {
     navigator.clipboard.writeText(this._lastShareMsg).then(
       () => this.toast('نُسخ الرمز مع التعليمات ✅'),
@@ -2599,7 +3030,15 @@ const App = {
     const raw = document.getElementById('f-import').value;
     const obj = decodeShareCode(raw);
     if (!obj) { this.toast('الرمز غير صالح — تأكد من نسخه كاملًا'); return; }
-    if (obj.k === 'r') {
+    if (obj.k === 'q') {
+      // اختبار تفاعلي من المعلم
+      if (!Array.isArray(obj.q) || !obj.q.length) { this.toast('رمز الاختبار غير مكتمل'); return; }
+      if (S.quizzes.some(x => x.title === obj.t && x.teacher === obj.n)) { this.toast('هذا الاختبار مضاف من قبل'); this.closeModal(); return; }
+      S.quizzes.push({ id: uid(), title: obj.t, teacher: obj.n, questions: obj.q.slice(0, 6) });
+      save();
+      this.closeModal();
+      this.toast(`أُضيف اختبار «${obj.t}» من ${obj.n} 📝`);
+    } else if (obj.k === 'r') {
       if (S.rewards.some(r => r.title === obj.t && r.teacher === obj.n)) { this.toast('هذه المكافأة مضافة من قبل'); this.closeModal(); return; }
       S.rewards.push({ id: uid(), emoji: '🏫', title: obj.t, cost: obj.o, teacher: obj.n });
       save();

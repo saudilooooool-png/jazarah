@@ -434,6 +434,51 @@ b { font-weight: 700; }
 .lib-chip.grade { background: #eef9f2; }
 .lib-chip.grade.active { color: var(--green-dark); border-color: var(--green); background: #e2f5ea; }
 
+/* ركن الألعاب */
+.hub-row {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: right;
+  background: #f8f6ff; border-radius: 16px; padding: 12px 14px; margin-bottom: 10px;
+  border: 2px solid transparent;
+}
+.hub-row:active { transform: scale(0.98); }
+.hub-emoji { font-size: 1.9rem; }
+.hub-info { flex: 1; display: flex; flex-direction: column; }
+.hub-info b { font-weight: 900; font-size: 0.95rem; }
+.hub-info small { color: #8a86a8; font-size: 0.78rem; }
+.hub-progress {
+  font-weight: 900; font-size: 0.85rem; background: #fff3e6; color: var(--carrot-dark);
+  border-radius: 99px; padding: 4px 12px;
+}
+.hub-progress.done { background: #e2f5ea; color: var(--green-dark); }
+
+/* لعبة الصورة الضبابية */
+.blur-stage {
+  height: 130px; display: grid; place-items: center; overflow: hidden;
+  background: #f4f2fb; border-radius: 18px; margin: 8px 0;
+}
+.blur-stage span { font-size: 5rem; transition: filter 0.5s ease; }
+.prize-chip {
+  display: inline-block; background: #fff3e6; color: var(--carrot-dark);
+  font-weight: 900; border-radius: 99px; padding: 6px 16px; margin: 4px 0 8px;
+}
+
+/* لعبة الظل الغامض */
+.shadow-stage {
+  height: 130px; display: grid; place-items: center;
+  background: linear-gradient(135deg, #e8f4ff, #d6ecff); border-radius: 18px; margin: 8px 0;
+}
+.shadow-stage span { font-size: 5rem; filter: brightness(0) opacity(0.85); }
+
+/* خيارات نصية عريضة (كلمات/اختبارات) */
+.wg-choice.word { font-size: 1rem; grid-column: span 2; }
+
+/* اختبار المعلم */
+.quiz-question { font-size: 1.15rem; font-weight: 900; margin: 12px 0 14px; }
+.quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.quiz-options .wg-choice { grid-column: auto; font-size: 0.95rem; }
+.wg-choice.right { background: #e2f5ea; border-color: var(--green); }
+.wg-choice.wrong { background: #ffecec; border-color: var(--red); }
+
 /* بطاقة الفيديوهات في الخريطة */
 .videos-card {
   background: #fff; border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
