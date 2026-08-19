@@ -100,6 +100,57 @@ const PARENT_TIPS = [
   'إن تعثرت السلسلة فذكّره بأفضل رقم وصله وشجعه على كسره',
 ];
 
+/* ─────────────── بنك كلمات تعلم اللغة ─────────────── */
+const WORDS_AR = [
+  { w: 'تفاحة', e: '🍎' }, { w: 'موزة', e: '🍌' }, { w: 'برتقال', e: '🍊' }, { w: 'عنب', e: '🍇' },
+  { w: 'فراولة', e: '🍓' }, { w: 'بطيخ', e: '🍉' }, { w: 'جزرة', e: '🥕' }, { w: 'خبز', e: '🍞' },
+  { w: 'حليب', e: '🥛' }, { w: 'عسل', e: '🍯' }, { w: 'قمر', e: '🌙' }, { w: 'شمس', e: '☀️' },
+  { w: 'نجمة', e: '⭐' }, { w: 'سحابة', e: '☁️' }, { w: 'مطر', e: '🌧️' }, { w: 'بحر', e: '🌊' },
+  { w: 'جبل', e: '⛰️' }, { w: 'شجرة', e: '🌳' }, { w: 'وردة', e: '🌹' }, { w: 'أسد', e: '🦁' },
+  { w: 'فيل', e: '🐘' }, { w: 'قطة', e: '🐱' }, { w: 'كلب', e: '🐶' }, { w: 'أرنب', e: '🐰' },
+  { w: 'حصان', e: '🐴' }, { w: 'جمل', e: '🐫' }, { w: 'دجاجة', e: '🐔' }, { w: 'سمكة', e: '🐟' },
+  { w: 'فراشة', e: '🦋' }, { w: 'نحلة', e: '🐝' }, { w: 'بيت', e: '🏠' }, { w: 'مدرسة', e: '🏫' },
+  { w: 'كتاب', e: '📖' }, { w: 'قلم', e: '✏️' }, { w: 'كرة', e: '⚽' }, { w: 'سيارة', e: '🚗' },
+  { w: 'طائرة', e: '✈️' }, { w: 'قطار', e: '🚆' }, { w: 'مفتاح', e: '🔑' }, { w: 'ساعة', e: '⌚' },
+];
+const WORDS_EN = [
+  { w: 'APPLE', e: '🍎' }, { w: 'BANANA', e: '🍌' }, { w: 'ORANGE', e: '🍊' }, { w: 'GRAPE', e: '🍇' },
+  { w: 'MILK', e: '🥛' }, { w: 'BREAD', e: '🍞' }, { w: 'CARROT', e: '🥕' }, { w: 'SUN', e: '☀️' },
+  { w: 'MOON', e: '🌙' }, { w: 'STAR', e: '⭐' }, { w: 'RAIN', e: '🌧️' }, { w: 'SEA', e: '🌊' },
+  { w: 'TREE', e: '🌳' }, { w: 'ROSE', e: '🌹' }, { w: 'LION', e: '🦁' }, { w: 'CAT', e: '🐱' },
+  { w: 'DOG', e: '🐶' }, { w: 'RABBIT', e: '🐰' }, { w: 'HORSE', e: '🐴' }, { w: 'CAMEL', e: '🐫' },
+  { w: 'FISH', e: '🐟' }, { w: 'BIRD', e: '🐦' }, { w: 'BEE', e: '🐝' }, { w: 'HOUSE', e: '🏠' },
+  { w: 'SCHOOL', e: '🏫' }, { w: 'BOOK', e: '📖' }, { w: 'PEN', e: '🖊️' }, { w: 'BALL', e: '⚽' },
+  { w: 'CAR', e: '🚗' }, { w: 'PLANE', e: '✈️' }, { w: 'TRAIN', e: '🚆' }, { w: 'KEY', e: '🔑' },
+  { w: 'CLOCK', e: '⌚' }, { w: 'WATER', e: '💧' }, { w: 'FIRE', e: '🔥' }, { w: 'HAND', e: '✋' },
+];
+const AR_LETTERS = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوية';
+const EN_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const WORDS_PER_DAY = 3;   // كلمات يومية لكل لغة
+const WORD_XP = 5;
+const WORD_COINS = 2;
+
+/* ─────────────── القراءة الصوتية ─────────────── */
+function speak(text, lang = 'ar-SA') {
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    u.rate = 0.9;
+    speechSynthesis.speak(u);
+  } catch (e) { /* غير مدعوم على هذا الجهاز */ }
+}
+
+/* استخراج رابط تضمين يوتيوب من أشكال الروابط المختلفة */
+function youtubeEmbed(url) {
+  const s = String(url).trim();
+  let m = s.match(/(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+  if (m) return 'https://www.youtube-nocookie.com/embed/' + m[1];
+  m = s.match(/[?&]list=([\w-]+)/);
+  if (m) return 'https://www.youtube-nocookie.com/embed/videoseries?list=' + m[1];
+  return null;
+}
+
 /* مكتبة شخصيات الأفاتار — تُفتح بالمستويات */
 const AVATAR_BASES = [
   { e: '🐣', lvl: 1 }, { e: '🐱', lvl: 1 }, { e: '🐰', lvl: 1 }, { e: '🐹', lvl: 1 },
@@ -137,6 +188,7 @@ const BADGES = [
   { id: 'healthy',      emoji: '🥗', name: 'حارس الصحة',    desc: '10 عادات صحية',                 check: c => catCompletions(c, 'health') >= 10 },
   { id: 'boss_slayer',  emoji: '⚔️', name: 'قاهر الوحوش',   desc: 'هزمتم زعيمًا عائليًا',          check: () => S.bossesDefeated >= 1 },
   { id: 'rich',         emoji: '💰', name: 'كنز الجزر',     desc: 'جمعت 100 جزرة',                 check: c => c.lifetimeCoins >= 100 },
+  { id: 'wordsmith',    emoji: '🔤', name: 'صائد الكلمات',  desc: 'حللت 30 كلمة',                  check: c => (c.wordGame && c.wordGame.totalSolved || 0) >= 30 },
 ];
 
 /* ─────────────── الحالة الافتراضية ─────────────── */
@@ -172,6 +224,7 @@ function defaultChild(name, avatarBase, avatarBg) {
     lastDailyChest: null,
     autopilot: { enabled: false, goals: ['study', 'sport', 'health'], count: 4, lastGen: null },
     taskArchive: {},
+    wordGame: { date: null, arDone: 0, enDone: 0, totalSolved: 0 },
   };
 }
 
@@ -183,6 +236,7 @@ function defaultState() {
     children: [first],
     activeChildId: first.id,
     joinRequests: [],      // طلبات انضمام أرسلها أطفال بانتظار موافقة الوالد
+    videos: [],            // مكتبة فيديوهات تعليمية يضيفها الوالد { id, title, url }
     rewards: [
       { id: uid(), emoji: '🎮', title: 'نصف ساعة لعب إضافية', cost: 25 },
       { id: uid(), emoji: '🌳', title: 'مشوار إلى الحديقة',    cost: 60 },
@@ -313,6 +367,7 @@ function load() {
         if (!s.children.length) s.children = [defaultChild('البطل')];
         s.children = s.children.map(c => Object.assign(defaultChild(), c));
         s.joinRequests = s.joinRequests || [];
+        s.videos = s.videos || [];
         return s;
       }
       // ترحيل النسخة القديمة (طفل واحد) → v2
@@ -736,7 +791,50 @@ const App = {
         ${C().mysteryBox
           ? `<p class="pill">📦 صندوق بانتظار الفتح: ${esc(C().mysteryBox.prize)} (+${C().mysteryBox.coins} 🥕)</p>`
           : `<button class="btn-primary purple" onclick="App.mysteryForm()">إسقاط صندوق 📦</button>`}
+      </div>
+      <div class="card">
+        <h3>🎬 مكتبة الفيديو التعليمية</h3>
+        <p class="muted" style="margin-bottom:8px">روابط يوتيوب تعليمية يشاهدها الأطفال داخل التطبيق (فيديو أو قائمة تشغيل)</p>
+        ${S.videos.map(v => `
+          <div class="task-row">
+            <span class="task-cat">▶️</span>
+            <div class="task-info"><div class="t-title">${esc(v.title)}</div></div>
+            <button class="icon-btn" title="حذف" onclick="App.deleteVideo('${v.id}')">🗑️</button>
+          </div>`).join('')}
+        <button class="btn-primary green" style="margin-top:8px" onclick="App.videoForm()">＋ إضافة فيديو</button>
       </div>`;
+  },
+
+  /* ── إدارة مكتبة الفيديو ── */
+  videoForm() {
+    this.openModal(`
+      <h3>🎬 فيديو تعليمي جديد</h3>
+      <div class="form-grid">
+        <div><label>العنوان</label><input id="f-vtitle" placeholder="مثال: تعلم الحروف الإنجليزية" /></div>
+        <div><label>رابط يوتيوب (فيديو أو قائمة تشغيل)</label><input id="f-vurl" dir="ltr" placeholder="https://youtu.be/..." /></div>
+        <button class="btn-primary green" onclick="App.saveVideo()">حفظ ✅</button>
+        <p id="video-msg" class="muted" style="min-height:1.2em"></p>
+      </div>`);
+  },
+
+  saveVideo() {
+    const title = document.getElementById('f-vtitle').value.trim();
+    const url = document.getElementById('f-vurl').value.trim();
+    const msg = document.getElementById('video-msg');
+    if (!title || !url) { msg.textContent = 'اكتب العنوان والرابط'; return; }
+    if (!youtubeEmbed(url)) { msg.textContent = '⚠️ الصق رابط فيديو أو قائمة تشغيل من يوتيوب (روابط القنوات غير مدعومة)'; return; }
+    S.videos.push({ id: uid(), title, url });
+    save();
+    this.closeModal();
+    this.renderPTasks();
+    this.toast('أُضيف الفيديو — سيظهر في خريطة الأبطال 🎬');
+  },
+
+  deleteVideo(videoId) {
+    if (!confirm('حذف هذا الفيديو؟')) return;
+    S.videos = S.videos.filter(v => v.id !== videoId);
+    save();
+    this.renderPTasks();
   },
 
   /* ── المساعد الآلي (الوالد الافتراضي) ── */
@@ -1558,6 +1656,32 @@ const App = {
       html += `<div class="all-done-banner">🏆 أنهيت كل مهام اليوم! أنت بطل حقيقي 🎉</div>`;
     }
 
+    // تحدي كلمات اليوم (عربي + إنجليزي)
+    const wg = this._wordGameState();
+    const wgTotal = WORDS_PER_DAY * 2;
+    const wgDone = wg.arDone + wg.enDone;
+    html += `
+      <button class="wordgame-card" onclick="App.openWordGame()">
+        <span class="wg-emoji">🔤</span>
+        <span class="wg-info">
+          <b>تحدي كلمات اليوم</b>
+          <small>${wgDone >= wgTotal ? 'أتممت كلمات اليوم! عد غدًا 🌟' : `أكمل الحروف الناقصة — عربي وإنجليزي (${wgDone}/${wgTotal})`}</small>
+        </span>
+        <span class="wg-reward">🥕 +${WORD_COINS} لكل كلمة</span>
+      </button>`;
+
+    // مكتبة الفيديو التعليمية
+    if (S.videos.length) {
+      html += `
+        <div class="videos-card">
+          <h3>🎬 فيديوهاتي التعليمية</h3>
+          ${S.videos.map(v => `
+            <button class="video-row" onclick="App.watchVideo('${v.id}')">
+              <span>▶️</span><span>${esc(v.title)}</span>
+            </button>`).join('')}
+        </div>`;
+    }
+
     if (C().tasks.length === 0) {
       html += `<div class="map-empty"><div class="big-emoji">🗺️</div><p class="muted">الخريطة فارغة… اطلب من والدك إضافة مهام المغامرة!</p></div>`;
     } else {
@@ -1575,6 +1699,7 @@ const App = {
               ${done ? '⭐' : (pending ? '⏳' : CATEGORIES[t.cat].emoji)}
             </button>
             <div class="node-card">
+              <button class="say-btn" title="اسمع المهمة" onclick="App.sayTask('${t.id}')">🔊</button>
               <div class="n-title">${et.golden && !done ? '✨ ' : ''}${esc(t.title)}</div>
               ${t.teacher ? `<div class="n-teacher">🏫 من ${esc(t.teacher)}</div>` : ''}
               <div class="n-reward">${pending ? '👀 بانتظار تأكيد والدك…'
@@ -1592,6 +1717,148 @@ const App = {
       <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="App.importCodeForm()">🏫 عندي رمز من معلمي</button>`;
 
     document.getElementById('ktab-map').innerHTML = html;
+  },
+
+  /* ── القراءة الصوتية للمهام ── */
+  sayTask(taskId) {
+    const t = C().tasks.find(x => x.id === taskId);
+    if (!t) return;
+    const et = effectiveTask(t, todayKey());
+    speak(`${t.title}. تكسب ${et.xp} نقطة خبرة و ${et.coins} جزرة`, 'ar-SA');
+  },
+
+  /* ── لعبة الحروف الناقصة ── */
+  _wordGameState() {
+    const c = C();
+    if (!c.wordGame) c.wordGame = { date: null, arDone: 0, enDone: 0, totalSolved: 0 };
+    const today = todayKey();
+    if (c.wordGame.date !== today) {
+      c.wordGame.date = today;
+      c.wordGame.arDone = 0;
+      c.wordGame.enDone = 0;
+      save();
+    }
+    return c.wordGame;
+  },
+
+  /* اختيار حتمي لكلمة اليوم رقم i بلغة معينة */
+  _dailyWord(lang, i) {
+    const bank = lang === 'ar' ? WORDS_AR : WORDS_EN;
+    const item = bank[strHash(todayKey() + lang + i) % bank.length];
+    const letters = Array.from(item.w);
+    // موضع الحرف الناقص وخيارات الإجابة — ثابتة طوال اليوم
+    const miss = strHash(item.w + todayKey()) % letters.length;
+    const alphabet = lang === 'ar' ? AR_LETTERS : EN_LETTERS;
+    const correct = letters[miss];
+    const choices = [correct];
+    let h = strHash(todayKey() + item.w + 'ch');
+    while (choices.length < 4) {
+      const ch = alphabet[h % alphabet.length];
+      h = (h * 31 + 7) % 1000003;
+      if (!choices.includes(ch)) choices.push(ch);
+    }
+    choices.sort((a, b) => strHash(a + item.w) - strHash(b + item.w)); // خلط ثابت
+    return { word: item.w, emoji: item.e, letters, miss, correct, choices };
+  },
+
+  _wgLang: 'ar',
+
+  openWordGame(lang) {
+    this._wgLang = lang || this._wgLang || 'ar';
+    const wg = this._wordGameState();
+    const l = this._wgLang;
+    const done = l === 'ar' ? wg.arDone : wg.enDone;
+    const langName = l === 'ar' ? 'عربي' : 'English';
+
+    let body;
+    if (done >= WORDS_PER_DAY) {
+      body = `<div style="text-align:center;padding:20px 0">
+        <div style="font-size:3rem">🌟</div>
+        <p style="font-weight:900">أتممت كلمات ${langName} اليوم!</p>
+        <p class="muted">عد غدًا لكلمات جديدة</p>
+      </div>`;
+    } else {
+      const q = this._dailyWord(l, done);
+      const tiles = q.letters.map((ch, i) =>
+        `<span class="wg-tile ${i === q.miss ? 'missing' : ''}">${i === q.miss ? '؟' : ch}</span>`).join('');
+      const btns = q.choices.map(ch =>
+        `<button class="wg-choice" onclick="App.wordGuess('${ch}')">${ch}</button>`).join('');
+      body = `
+        <div class="wg-progress">${done + 1} / ${WORDS_PER_DAY}</div>
+        <div class="wg-big-emoji">${q.emoji}</div>
+        <button class="btn-ghost small" style="margin-bottom:8px" onclick="App.sayWord()">🔊 اسمع الكلمة</button>
+        <div class="wg-word" dir="${l === 'ar' ? 'rtl' : 'ltr'}">${tiles}</div>
+        <div class="wg-choices">${btns}</div>
+        <p id="wg-msg" class="muted" style="min-height:1.3em;margin-top:8px"></p>`;
+    }
+
+    this.openModal(`
+      <h3 style="text-align:center">🔤 تحدي كلمات اليوم</h3>
+      <div class="lib-chips" style="justify-content:center">
+        <button class="lib-chip ${l === 'ar' ? 'active' : ''}" onclick="App.openWordGame('ar')">عربي (${wg.arDone}/${WORDS_PER_DAY})</button>
+        <button class="lib-chip ${l === 'en' ? 'active' : ''}" onclick="App.openWordGame('en')">English (${wg.enDone}/${WORDS_PER_DAY})</button>
+      </div>
+      <div style="text-align:center">${body}</div>`);
+  },
+
+  sayWord() {
+    const wg = this._wordGameState();
+    const l = this._wgLang;
+    const done = l === 'ar' ? wg.arDone : wg.enDone;
+    if (done >= WORDS_PER_DAY) return;
+    const q = this._dailyWord(l, done);
+    speak(q.word, l === 'ar' ? 'ar-SA' : 'en-US');
+  },
+
+  wordGuess(ch) {
+    const wg = this._wordGameState();
+    const l = this._wgLang;
+    const done = l === 'ar' ? wg.arDone : wg.enDone;
+    if (done >= WORDS_PER_DAY) return;
+    const q = this._dailyWord(l, done);
+    const msg = document.getElementById('wg-msg');
+    if (ch !== q.correct) {
+      if (msg) msg.textContent = 'جرّب حرفًا آخر 💪';
+      return;
+    }
+    // إجابة صحيحة: مكافأة فورية + نطق الكلمة كاملة
+    const c = C();
+    if (l === 'ar') wg.arDone++; else wg.enDone++;
+    wg.totalSolved = (wg.totalSolved || 0) + 1;
+    c.xp += WORD_XP;
+    c.coins += WORD_COINS;
+    c.lifetimeCoins += WORD_COINS;
+    let bonus = 0;
+    const langDone = (l === 'ar' ? wg.arDone : wg.enDone) >= WORDS_PER_DAY;
+    if (langDone) { bonus = 5; c.coins += bonus; c.lifetimeCoins += bonus; }
+    save();
+    speak(q.word, l === 'ar' ? 'ar-SA' : 'en-US');
+    this.refreshKidHeader();
+    if (langDone) {
+      this.closeModal();
+      this.celebrate(`أتممت كلمات ${l === 'ar' ? 'العربية' : 'الإنجليزية'}! 🔤`,
+        `الكلمة الأخيرة: <b>${esc(q.word)}</b> ${q.emoji}`,
+        [`+${WORD_XP} ✨ XP`, `+${WORD_COINS + bonus} 🥕`], '🌟');
+      this.renderKMap();
+    } else {
+      this.toast(`✅ ${q.word} — +${WORD_COINS} 🥕`);
+      this.openWordGame(l);   // الكلمة التالية
+    }
+  },
+
+  /* ── مشاهدة فيديو تعليمي داخل التطبيق ── */
+  watchVideo(videoId) {
+    const v = S.videos.find(x => x.id === videoId);
+    if (!v) return;
+    const embed = youtubeEmbed(v.url);
+    if (!embed) { this.toast('رابط الفيديو غير صالح'); return; }
+    this.openModal(`
+      <h3>🎬 ${esc(v.title)}</h3>
+      <div class="video-frame">
+        <iframe src="${embed}" title="${esc(v.title)}" frameborder="0"
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen></iframe>
+      </div>`);
   },
 
   /* تقرير نصي يُشارك عبر واتساب أو أي تطبيق — للوالد خارج المنزل */
