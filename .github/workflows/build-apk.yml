@@ -59,6 +59,32 @@ jobs:
           # إذن الكاميرا لصور الإثبات
           sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.CAMERA" />|' android/app/src/main/AndroidManifest.xml
 
+      - name: Persistent signing + auto version
+        run: |
+          # رقم نسخة تصاعدي مع كل بناء — يتيح التثبيت فوق النسخة السابقة
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          # توقيع ثابت من مفتاح المستودع — نفس التوقيع في كل بناء فلا يلزم حذف التطبيق عند التحديث
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("../../signing/jazarah.p12")
+                      storePassword "jazarah2026"
+                      keyAlias "jazarah"
+                      keyPassword "jazarah2026"
+                      storeType "PKCS12"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+
       - name: App icons from PWA icon
         run: |
           for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
@@ -70,11 +96,11 @@ jobs:
             done
           done
 
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
+      - name: Build signed release APK
+        run: cd android && ./gradlew assembleRelease --no-daemon
 
       - name: Collect APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk jazarah.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk jazarah.apk
 
       - name: Publish to release android-apk
         uses: softprops/action-gh-release@v2
