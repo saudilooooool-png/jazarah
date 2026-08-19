@@ -288,4 +288,58 @@ const Sync = {
   },
 };
 
+/* ─────── بيانات مركزية يديرها صاحب التطبيق (تقويم مدرسي + عروض) ───────
+   قراءة عامة عبر المفتاح العلني، الكتابة من لوحة Supabase فقط */
+const META_KEY = 'jazarah_meta_v1';
+
+const Meta = {
+  data: null,   // { calendar: [], offers: [], fetchedAt }
+
+  load() {
+    try { this.data = JSON.parse(localStorage.getItem(META_KEY)) || null; } catch (e) { this.data = null; }
+  },
+
+  saveMeta() { localStorage.setItem(META_KEY, JSON.stringify(this.data)); },
+
+  calendar() { return (this.data && this.data.calendar) || []; },
+  offers() { return (this.data && this.data.offers) || []; },
+
+  /* أقرب حدث قادم من التقويم المركزي */
+  nextEvent() {
+    const today = new Date(new Date().toDateString());
+    return this.calendar()
+      .map(e => ({ ...e, d: new Date(e.start_date + 'T00:00:00') }))
+      .filter(e => e.d >= today)
+      .sort((a, b) => a.d - b.d)[0] || null;
+  },
+
+  daysTo(ev) {
+    if (!ev) return null;
+    return Math.round((ev.d - new Date(new Date().toDateString())) / 86400000);
+  },
+
+  /* جلب التقويم والعروض — مرة كل 12 ساعة كحد أقصى */
+  async refresh(force) {
+    this.load();
+    if (!force && this.data && Date.now() - (this.data.fetchedAt || 0) < 12 * 3600 * 1000) return;
+    try {
+      const headers = { 'apikey': SB_KEY };
+      const [calRes, offRes] = await Promise.all([
+        fetch(SB_URL + '/rest/v1/app_calendar?select=title,kind,start_date,end_date&order=start_date.asc', { headers }),
+        fetch(SB_URL + '/rest/v1/offers?select=id,partner,title,emoji,city,district,cost,code,ladder&active=eq.true', { headers }),
+      ]);
+      if (!calRes.ok && !offRes.ok) return;
+      this.data = {
+        calendar: calRes.ok ? await calRes.json() : this.calendar(),
+        offers: offRes.ok ? await offRes.json() : this.offers(),
+        fetchedAt: Date.now(),
+      };
+      this.saveMeta();
+    } catch (e) { /* بلا إنترنت — نبقى على المخزن */ }
+  },
+};
+
+Meta.load();
+Meta.refresh();
+
 Sync.init();

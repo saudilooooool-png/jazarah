@@ -777,3 +777,44 @@ b { font-weight: 700; }
   .cs-grid { grid-template-columns: repeat(4, 1fr); }
   .chart { height: 170px; }
 }
+
+/* الويكند والتقويم */
+.weekend-banner {
+  background: linear-gradient(120deg, #ffe9a8, #ffd66b); color: #7a5230;
+  border-radius: var(--radius); padding: 12px 16px; font-weight: 900;
+  text-align: center; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.countdown-card {
+  display: flex; align-items: center; gap: 12px; background: #fff;
+  border-radius: var(--radius); padding: 12px 16px; margin-bottom: 14px;
+  box-shadow: 0 3px 10px rgba(45,42,74,0.08); border-right: 5px solid var(--sky);
+}
+.cd-emoji { font-size: 1.8rem; }
+.cd-info { display: flex; flex-direction: column; }
+.cd-info b { font-size: 0.95rem; font-weight: 900; }
+.cd-info small { color: #8a86a8; font-size: 0.78rem; font-weight: 700; }
+
+/* محفظة وقت الشاشة */
+.screentime-card {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: right;
+  background: linear-gradient(135deg, #5a6acf, #7a5acf); color: #fff;
+  border-radius: var(--radius); padding: 14px; margin-bottom: 14px;
+  box-shadow: 0 5px 0 #46519e;
+}
+.screentime-card:active { transform: translateY(2px); box-shadow: none; }
+.screen-balance { font-size: 3rem; font-weight: 900; color: var(--purple); margin: 8px 0; }
+.screen-balance small { font-size: 1rem; color: #8a86a8; }
+
+/* لعبة صندوق الغداء */
+.lunch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.lunch-item {
+  background: #fff; border: 3px solid #e5e1f5; border-radius: 14px; padding: 8px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.lunch-item.picked { border-color: var(--green); background: #e2f5ea; }
+.li-emoji { font-size: 1.7rem; }
+.li-name { font-size: 0.62rem; font-weight: 900; color: #5a5680; }
+.lunch-slots {
+  background: #fbf7ec; border: 2px dashed #e8dfc8; border-radius: 14px;
+  padding: 10px; font-size: 1.3rem; margin-top: 6px; font-weight: 900;
+}

@@ -40,6 +40,7 @@ const TASK_LIBRARY = [
   { title: 'تنظيف الأسنان صباحًا ومساءً',      cat: 'health',   xp: 10, coins: 4,  proof: 'self'   },
   { title: 'ترتيب السرير بعد الاستيقاظ',      cat: 'health',   xp: 10, coins: 4,  proof: 'photo'  },
   { title: 'الاستحمام دون تذكير',             cat: 'health',   xp: 10, coins: 4,  proof: 'self'   },
+  { title: 'جهّزت صندوق غدائي الصحي بنفسي 🍱', cat: 'health',   xp: 20, coins: 7,  proof: 'photo'  },
   // 🌙 نور القلب
   { title: 'الصلوات الخمس في وقتها',          cat: 'faith',    xp: 40, coins: 12, proof: 'parent' },
   { title: 'صلاة الفجر في وقتها',             cat: 'faith',    xp: 30, coins: 10, proof: 'parent' },
@@ -84,6 +85,32 @@ const REWARD_LIBRARY = [
     { emoji: '🧸', title: 'لعبة صغيرة',                cost: 200 },
     { emoji: '🎁', title: 'هدية مفاجأة كبيرة',         cost: 500 },
   ]},
+];
+
+/* ─────────────── وضع الويكند (الجمعة والسبت) ─────────────── */
+function isWeekend(d = new Date()) { const day = d.getDay(); return day === 5 || day === 6; }
+function isFriday(d = new Date()) { return d.getDay() === 5; }
+
+/* مكتبة نشاطات الويكند — لا دراسة، بل عائلة وحياة */
+const WEEKEND_LIBRARY = [
+  { title: 'نزهة أو نشاط عائلي خارج المنزل', cat: 'kindness', xp: 30, coins: 10, proof: 'parent' },
+  { title: 'زيارة الأجداد أو صلة الرحم',     cat: 'kindness', xp: 30, coins: 10, proof: 'parent' },
+  { title: 'طبخة مع العائلة 👨‍🍳',            cat: 'kindness', xp: 25, coins: 8,  proof: 'photo'  },
+  { title: 'مساعدة في ترتيب المنزل',          cat: 'kindness', xp: 20, coins: 7,  proof: 'parent' },
+  { title: 'غسل السيارة مع بابا 🚗',          cat: 'kindness', xp: 25, coins: 8,  proof: 'photo'  },
+  { title: 'قراءة حرة لكتاب أحبه',            cat: 'study',    xp: 20, coins: 7,  proof: 'parent', weekendOk: true },
+  { title: 'سباحة أو رياضة عائلية',           cat: 'sport',    xp: 30, coins: 10, proof: 'parent' },
+  { title: 'لعب مع إخوتي دون أجهزة ساعة',     cat: 'kindness', xp: 20, coins: 7,  proof: 'parent' },
+  { title: 'تجهيز أغراضي ليوم الأحد 🎒',      cat: 'health',   xp: 15, coins: 5,  proof: 'photo'  },
+];
+
+/* ─────────────── لعبة صندوق الغداء الصحي ─────────────── */
+const LUNCH_ITEMS = [
+  { n: 'تفاحة', e: '🍎', g: 'fruit' }, { n: 'موزة', e: '🍌', g: 'fruit' }, { n: 'عنب', e: '🍇', g: 'fruit' },
+  { n: 'خيار', e: '🥒', g: 'veg' }, { n: 'جزر', e: '🥕', g: 'veg' }, { n: 'طماطم', e: '🍅', g: 'veg' },
+  { n: 'ساندويتش جبن', e: '🥪', g: 'main' }, { n: 'بيضة', e: '🥚', g: 'main' }, { n: 'زبادي', e: '🥛', g: 'main' },
+  { n: 'ماء', e: '💧', g: 'drink' }, { n: 'حليب', e: '🥛', g: 'drink' }, { n: 'عصير طبيعي', e: '🧃', g: 'drink' },
+  { n: 'شيبس', e: '🍟', g: 'junk' }, { n: 'مشروب غازي', e: '🥤', g: 'junk' }, { n: 'حلوى', e: '🍬', g: 'junk' }, { n: 'دونات', e: '🍩', g: 'junk' },
 ];
 
 /* ─────────────── نصائح تربوية للوالدين ─────────────── */
@@ -446,6 +473,9 @@ function defaultChild(name, avatarBase, avatarBg) {
     quran: { date: null, seconds: 0, claimed: false, streak: 0, best: 0, lastDay: null, totalSeconds: 0 },
     quranDaily: 5,          // ورد القراءة اليومي بالدقائق (يحدده الوالد)
     journey: { stage: 0, date: null, xpToday: 0, advanced: 0, lastXP: null },   // رحلة العوالم
+    screenTime: { balance: 0, log: [] },     // محفظة وقت الشاشة بالدقائق
+    wishes: [],                              // قائمة الأمنيات { id, title, status, cost, rewardId }
+    lunchGame: { date: null, done: 0, totalSolved: 0 },
     birthdate: null,        // YYYY-MM-DD — للاحتفال بعيد الميلاد
     grade: 'g1',            // المرحلة الدراسية kg1..g6
     lastBirthdayYear: null, // آخر سنة احتفلنا فيها بميلاده
@@ -463,6 +493,8 @@ function defaultState() {
     videos: [],            // مكتبة فيديوهات تعليمية يضيفها الوالد { id, title, url }
     quizzes: [],           // اختبارات المعلمين التفاعلية { id, title, teacher, questions }
     vouchers: [],          // قسائم شركاء بخصم مقابل كود { id, partner, title, cost, code, emoji, used }
+    family: { city: '', district: '', school: '' },   // يدخلها الوالد لفتح سوق العروض
+    screenPerTask: 10,     // دقائق شاشة تُكسب مع كل مهمة منجزة (0 = إيقاف)
     rewards: [
       { id: uid(), emoji: '🎮', title: 'نصف ساعة لعب إضافية', cost: 25 },
       { id: uid(), emoji: '🌳', title: 'مشوار إلى الحديقة',    cost: 60 },
@@ -535,7 +567,14 @@ function runAutopilot(force) {
   });
 
   const manualTitles = new Set(C().tasks.map(t => t.title));
-  const pool = TASK_LIBRARY.filter(t => ap.goals.includes(t.cat) && !manualTitles.has(t.title));
+  let pool;
+  if (isWeekend()) {
+    // الويكند: بلا دراسة — نشاطات عائلية ورياضة وإيمان بدلها
+    pool = WEEKEND_LIBRARY.concat(TASK_LIBRARY.filter(t => t.cat !== 'study' && ap.goals.includes(t.cat)))
+      .filter(t => !manualTitles.has(t.title));
+  } else {
+    pool = TASK_LIBRARY.filter(t => ap.goals.includes(t.cat) && !manualTitles.has(t.title));
+  }
   // ترتيب حتمي متغير يوميًا — تنويع تلقائي مع ضمان تغطية الأهداف المختارة
   pool.sort((a, b) => strHash(a.title + today) - strHash(b.title + today));
   const picked = [];
@@ -626,6 +665,14 @@ function loyaltyTier(c) {
   if (t >= 100) return { name: 'برونزية', emoji: '🥉', off: 5 };
   return { name: '', emoji: '', off: 0 };
 }
+/* خصم الشريك بحسب عالم الطفل في رحلة العوالم */
+function partnerOff(voucher) {
+  const world = worldIndexOf((C().journey && C().journey.stage) || 0);
+  let off = 0;
+  for (const l of (voucher.ladder || [])) if (world >= l.world && l.off > off) off = l.off;
+  return off;
+}
+
 function discountedCost(cost, tier) {
   if (!tier.off) return cost;
   return Math.max(1, Math.ceil(cost * (100 - tier.off) / 100));
@@ -663,6 +710,8 @@ function load() {
         s.videos = s.videos || [];
         s.quizzes = s.quizzes || [];
         s.vouchers = s.vouchers || [];
+        s.family = s.family || { city: '', district: '', school: '' };
+        if (s.screenPerTask === undefined) s.screenPerTask = 10;
         return s;
       }
       // ترحيل النسخة القديمة (طفل واحد) → v2
@@ -767,6 +816,14 @@ function grantCompletion(t, dateKey) {
   C().coins += t.coins;
   C().lifetimeCoins += t.coins;
   if (t.cat === 'health') C().hp = Math.min(100, C().hp + 10);
+
+  // محفظة وقت الشاشة: كل مهمة منجزة = دقائق لعب (يضبطها الوالد)
+  if (S.screenPerTask > 0) {
+    if (!C().screenTime) C().screenTime = { balance: 0, log: [] };
+    C().screenTime.balance += S.screenPerTask;
+    C().screenTime.log.push({ date: dateKey, mins: S.screenPerTask, kind: 'earn' });
+    if (C().screenTime.log.length > 60) C().screenTime.log = C().screenTime.log.slice(-60);
+  }
 
   // السلسلة: أول إنجاز في يومه يمددها
   if (C().lastFullDay !== dateKey) {
@@ -1227,17 +1284,19 @@ const App = {
     const grade = C().grade;
     const chips = [
       `<button class="lib-chip grade ${f === 'grade' ? 'active' : ''}" onclick="App.taskLibrary('grade')">🎓 مكتبة ${gradeName(grade)}</button>`,
+      `<button class="lib-chip ${f === 'weekend' ? 'active' : ''}" onclick="App.taskLibrary('weekend')">🏖️ الويكند</button>`,
       `<button class="lib-chip ${f === 'all' ? 'active' : ''}" onclick="App.taskLibrary('all')">الكل</button>`,
     ].concat(Object.entries(CATEGORIES).map(([k, c]) =>
         `<button class="lib-chip ${f === k ? 'active' : ''}" onclick="App.taskLibrary('${k}')">${c.emoji} ${c.name}</button>`)).join('');
 
     const existing = new Set(C().tasks.map(t => t.title));
     // مصدر القائمة: مكتبة الصف الدراسي الدائمة أو المكتبة العامة
-    const source = f === 'grade' ? (CURRICULUM[grade] || []) : TASK_LIBRARY.filter(t => f === 'all' || t.cat === f);
+    const source = f === 'grade' ? (CURRICULUM[grade] || []) : f === 'weekend' ? WEEKEND_LIBRARY : TASK_LIBRARY.filter(t => f === 'all' || t.cat === f);
     const items = source.map(t => {
       const added = existing.has(t.title);
       const ref = f === 'grade'
         ? `'grade',${(CURRICULUM[grade] || []).indexOf(t)}`
+        : f === 'weekend' ? `'weekend',${WEEKEND_LIBRARY.indexOf(t)}`
         : `'lib',${TASK_LIBRARY.indexOf(t)}`;
       return `
       <div class="task-row">
@@ -1259,7 +1318,7 @@ const App = {
   },
 
   addFromLibrary(src, idx) {
-    const t = src === 'grade' ? (CURRICULUM[C().grade] || [])[idx] : TASK_LIBRARY[idx];
+    const t = src === 'grade' ? (CURRICULUM[C().grade] || [])[idx] : src === 'weekend' ? WEEKEND_LIBRARY[idx] : TASK_LIBRARY[idx];
     if (!t || C().tasks.some(x => x.title === t.title)) return;
     C().tasks.push({ id: uid(), ...t });
     save();
@@ -1352,6 +1411,7 @@ const App = {
           <div><label>الجزر 🥕</label><input id="f-coins" type="number" min="1" max="50" value="${t ? t.coins : 5}" /></div>
         </div>
         <div><label>طريقة تأكيد الإنجاز</label><select id="f-proof">${proofOptions}</select></div>
+        <label class="goal-check"><input type="checkbox" id="f-weekend" ${t && t.weekendOk ? 'checked' : ''} /><span>🏖️ تظهر حتى في الويكند (مهام الدراسة تُخفى الجمعة والسبت افتراضيًا)</span></label>
         <button class="btn-primary green" onclick="App.saveTask('${taskId || ''}')">حفظ</button>
       </div>`);
   },
@@ -1363,11 +1423,12 @@ const App = {
     const xp = Math.max(5, parseInt(document.getElementById('f-xp').value) || 20);
     const coins = Math.max(1, parseInt(document.getElementById('f-coins').value) || 5);
     const proof = document.getElementById('f-proof').value;
+    const weekendOk = document.getElementById('f-weekend').checked;
     if (taskId) {
       const t = C().tasks.find(x => x.id === taskId);
-      Object.assign(t, { title, cat, xp, coins, proof });
+      Object.assign(t, { title, cat, xp, coins, proof, weekendOk });
     } else {
-      C().tasks.push({ id: uid(), title, cat, xp, coins, proof });
+      C().tasks.push({ id: uid(), title, cat, xp, coins, proof, weekendOk });
     }
     save();
     this.closeModal();
@@ -1437,6 +1498,20 @@ const App = {
         <div><button class="btn-primary" onclick="App.rewardLibrary()">🎁 أفكار جاهزة</button></div>
         <div><button class="btn-primary green" onclick="App.rewardForm()">✏️ مكافأة مخصصة</button></div>
       </div>
+      <button class="btn-primary purple" style="margin-top:10px" onclick="App.offersMarket()">🛍️ سوق عروض منطقتكم</button>
+      ${(C().wishes || []).filter(w => w.status === 'wish').length ? `
+      <div class="card" style="margin-top:14px;border:3px solid var(--gold)">
+        <h3>⭐ أمنيات ${esc(C().name)} الجديدة</h3>
+        ${(C().wishes || []).filter(w => w.status === 'wish').map(w => `
+          <div class="task-row">
+            <span class="task-cat">⭐</span>
+            <div class="task-info"><div class="t-title">${esc(w.title)}</div></div>
+            <div class="task-actions">
+              <button class="icon-btn" style="background:#e2f5ea" title="حوّلها لهدف بسعر جزر" onclick="App.wishToGoal('${C().id}','${w.id}')">🎯</button>
+              <button class="icon-btn" title="تجاهل" onclick="App.dismissWish('${C().id}','${w.id}')">✕</button>
+            </div>
+          </div>`).join('')}
+      </div>` : ''}
       <div class="card" style="margin-top:14px">
         <h3>🎟️ قسائم الشركاء</h3>
         <p class="muted" style="margin-bottom:8px">خصومات من متاجر وترفيه مقابل كود — يشتريها البطل بالجزر ويظهر له الكود (مثال: خصم مدينة الملاهي)</p>
@@ -1535,6 +1610,14 @@ const App = {
   approveRedemption(id) {
     const r = C().redemptions.find(x => x.id === id);
     if (r) r.status = 'approved';
+    // إن كانت المكافأة أمنية محولة لهدف — سجلها متحققة
+    if (r) {
+      const reward = S.rewards.find(x => x.id === r.rewardId);
+      if (reward && reward.wishId) {
+        const w = (C().wishes || []).find(x => x.id === reward.wishId);
+        if (w) { w.status = 'done'; C().unseenApprovals.push({ title: '⭐ تحققت أمنيتك: ' + w.title, xp: 0, coins: 0 }); }
+      }
+    }
     save();
     this.renderPRewards();
     this.toast('تمت الموافقة — لا تنسَ تنفيذ الوعد! 🤝');
@@ -1779,6 +1862,22 @@ const App = {
         ${childrenHtml || '<p class="muted">أضف أول بطل!</p>'}
       </div>
       <button class="btn-primary" onclick="App.childForm()">＋ إضافة بطل جديد</button>
+      <div class="card" style="margin-top:14px">
+        <h3>⏱️ وقت الشاشة</h3>
+        <div class="form-grid">
+          <div><label>دقائق اللعب المكتسبة مع كل مهمة منجزة (0 = إيقاف)</label>
+          <input id="f-screenper" type="number" min="0" max="60" value="${S.screenPerTask}" /></div>
+          <button class="btn-primary green" onclick="S.screenPerTask=Math.max(0,parseInt(document.getElementById('f-screenper').value)||0);save();App.toast('تم الحفظ ✅')">حفظ</button>
+          <p class="muted">رصيد ${esc(C().name)} الحالي: ${(C().screenTime && C().screenTime.balance) || 0} دقيقة · استُخدم مؤخرًا: ${((C().screenTime && C().screenTime.log) || []).filter(l => l.kind === 'use').slice(-3).map(l => l.mins + 'د').join('، ') || '—'}</p>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📅 التقويم المدرسي (مركزي)</h3>
+        <p class="muted" style="margin-bottom:8px">يُدار من إدارة جَزَرة ويُعمم على كل العائلات</p>
+        ${typeof Meta !== 'undefined' && Meta.calendar().length
+          ? Meta.calendar().map(e => `<p class="pill" style="margin-bottom:6px">📅 ${esc(e.title)} — ${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}</p>`).join('')
+          : '<p class="muted">لا أحداث بعد — نفّذ ملف supabase-setup-2.sql ثم أدر التقويم من لوحة Supabase</p>'}
+      </div>
       <div class="card" style="margin-top:14px">
         <h3>البيانات</h3>
         <p class="muted" style="margin-bottom:10px">تُحفظ البيانات محليًا على هذا الجهاز فقط</p>
@@ -2110,6 +2209,35 @@ const App = {
       html += `<div class="all-done-banner">🏆 أنهيت كل مهام اليوم! أنت بطل حقيقي 🎉</div>`;
     }
 
+    // وضع الويكند: تحية + سورة الكهف يوم الجمعة
+    if (isWeekend()) {
+      html += `<div class="weekend-banner">🏖️ ${isFriday() ? 'جمعة مباركة!' : 'سبت سعيد!'} — لا دروس اليوم، استمتع بنشاطات العائلة</div>`;
+      if (isFriday()) {
+        html += `
+          <button class="quran-card" style="background:linear-gradient(135deg,#365f8c,#4a7ab5);box-shadow:0 5px 0 #2a4a6e" onclick="App.openQuran(17)">
+            <span class="wg-emoji">🕌</span>
+            <span class="wg-info"><b>سنة الجمعة: سورة الكهف</b><small>اقرأها الآن من مصحف جَزَرة — وتُحسب في وردك</small></span>
+            <span class="wg-reward">📖</span>
+          </button>`;
+      }
+    }
+
+    // عداد التقويم المدرسي المركزي (يديره صاحب التطبيق)
+    if (typeof Meta !== 'undefined') {
+      const ev = Meta.nextEvent();
+      if (ev) {
+        const days = Meta.daysTo(ev);
+        html += `
+          <div class="countdown-card">
+            <span class="cd-emoji">${ev.kind === 'long_weekend' ? '🎈' : ev.kind === 'eid' ? '🌙' : '🏖️'}</span>
+            <span class="cd-info">
+              <b>${days === 0 ? esc(ev.title) + ' اليوم! 🎉' : 'باقي ' + days + ' يوم على ' + esc(ev.title)}</b>
+              ${days > 0 && days <= 21 ? `<small>تحدي ما قبل الإجازة: كم مرحلة تقطع قبلها؟ 🗺️</small>` : ''}
+            </span>
+          </div>`;
+      }
+    }
+
     // لافتة رحلة العوالم — هوية التقدم الأساسية
     journeyUpdate(C());
     const j = C().journey;
@@ -2163,6 +2291,15 @@ const App = {
         <span class="wg-reward">🥕 اكسب وأنت تلعب</span>
       </button>`;
 
+    // محفظة وقت الشاشة
+    const stBal = (C().screenTime && C().screenTime.balance) || 0;
+    html += `
+      <button class="screentime-card" onclick="App.openScreenTime()">
+        <span class="wg-emoji">⏱️</span>
+        <span class="wg-info"><b>وقت الشاشة: ${stBal} دقيقة</b><small>${stBal > 0 ? 'اضغط لبدء وقت اللعب ▶️' : 'أنجز مهامًا لتكسب دقائق لعب'}</small></span>
+        <span class="wg-reward">🎮</span>
+      </button>`;
+
     // اختبارات المعلمين التفاعلية
     if (S.quizzes.length) {
       html += `<div class="videos-card"><h3>📝 اختبارات معلمي</h3>${S.quizzes.map(q => {
@@ -2192,8 +2329,10 @@ const App = {
     } else {
       const pendingToday = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
       const goldenId = goldenTaskId(today);
+      // وضع الويكند: الجمعة والسبت بلا دراسة (إلا ما وسمه الوالد)
+      const visibleTasks = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk);
       html += '<div class="map-path">';
-      C().tasks.forEach((t, i) => {
+      visibleTasks.forEach((t, i) => {
         const done = doneIds.has(t.id);
         const pending = pendingToday.has(t.id);
         const et = effectiveTask(t, today);
@@ -2211,7 +2350,7 @@ const App = {
                 : `✨ ${et.xp} XP &nbsp; 🥕 ${et.coins}${et.golden ? ' &nbsp; <b style="color:#cf9a1d">مهمة اليوم الذهبية ×2</b>' : ''}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
             </div>
           </div>
-          ${i < C().tasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
+          ${i < visibleTasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
       });
       html += '</div>';
     }
@@ -2356,6 +2495,182 @@ const App = {
       this.toast(`✅ ${q.word} — +${WORD_COINS} 🥕`);
       this.openWordGame(l);   // الكلمة التالية
     }
+  },
+
+  /* ═══════════ محفظة وقت الشاشة ═══════════
+     المهام تكسب دقائق لعب، والطفل يشغل العداد عند الاستخدام */
+  _screenTimer: null,
+
+  openScreenTime() {
+    const st = C().screenTime || { balance: 0, log: [] };
+    this.openModal(`
+      <h3 style="text-align:center">⏱️ وقت الشاشة</h3>
+      <div style="text-align:center">
+        <div class="screen-balance">${st.balance}<small> دقيقة</small></div>
+        <p class="muted">كل مهمة تنجزها تضيف ${S.screenPerTask} دقائق لمحفظتك 🎮</p>
+        ${st.balance > 0 ? `
+          <div class="form-row" style="margin-top:12px">
+            ${[15, 30, st.balance].filter((v, i, a) => v > 0 && v <= st.balance && a.indexOf(v) === i).map(m =>
+              `<div><button class="btn-primary green" onclick="App.startScreenTime(${m})">▶️ ${m === st.balance && m > 30 ? 'كل الرصيد' : m + ' دقيقة'}</button></div>`).join('')}
+          </div>
+          <p class="muted" style="margin-top:8px">اضغط وابدأ اللعب — سننبهك بالصوت عند انتهاء الوقت</p>`
+          : '<p style="font-weight:900;margin-top:10px">أنجز مهامًا لتكسب وقت لعب! 💪</p>'}
+      </div>`);
+  },
+
+  startScreenTime(mins) {
+    const st = C().screenTime;
+    mins = Math.min(mins, st.balance);
+    if (mins <= 0) return;
+    st.balance -= mins;
+    st.log.push({ date: todayKey(), mins, kind: 'use' });
+    save();
+    let remaining = mins * 60;
+    this.openModal(`
+      <h3 style="text-align:center">🎮 وقت اللعب يعمل</h3>
+      <div style="text-align:center">
+        <div class="screen-balance" id="st-count">${mins}:00</div>
+        <p class="muted">استمتع! سنناديك عند الانتهاء 🔔</p>
+        <button class="btn-ghost" style="margin-top:10px" onclick="App.stopScreenTime(${mins})">⏹️ إنهاء مبكر (يرجع الباقي)</button>
+      </div>`);
+    clearInterval(this._screenTimer);
+    this._screenTimer = setInterval(() => {
+      remaining--;
+      const el = document.getElementById('st-count');
+      if (el) el.textContent = Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
+      this._screenRemaining = remaining;
+      if (remaining <= 0) {
+        clearInterval(this._screenTimer);
+        this._screenTimer = null;
+        this.closeModal();
+        speak('انتهى وقت اللعب! سلّم الجهاز يا بطل', 'ar-SA');
+        this.celebrate('انتهى وقت اللعب ⏰', 'أحسنت الالتزام! أنجز مهام أكثر لوقت أكثر', [], '🤝');
+      }
+    }, 1000);
+  },
+
+  stopScreenTime(started) {
+    clearInterval(this._screenTimer);
+    this._screenTimer = null;
+    // إرجاع الدقائق غير المستهلكة
+    const backMins = Math.floor((this._screenRemaining || 0) / 60);
+    if (backMins > 0) {
+      C().screenTime.balance += backMins;
+      C().screenTime.log.push({ date: todayKey(), mins: backMins, kind: 'refund' });
+      save();
+    }
+    this.closeModal();
+    this.toast(backMins > 0 ? `أُعيدت ${backMins} دقيقة لمحفظتك 👍` : 'انتهى وقت اللعب');
+  },
+
+  /* ═══════════ قائمة الأمنيات ═══════════ */
+  wishForm() {
+    this.openModal(`
+      <h3>⭐ أمنية جديدة</h3>
+      <p class="muted" style="margin-bottom:10px">اكتب شيئًا تتمناه — سيراه والدك وقد يحوله لهدف تجمع له الجزر!</p>
+      <div class="form-grid">
+        <div><label>أمنيتي</label><input id="f-wish" placeholder="مثال: يوم في المسبح 🏊" /></div>
+        <button class="btn-primary" onclick="App.addWish()">أضفها لقائمتي ⭐</button>
+      </div>`);
+  },
+
+  addWish() {
+    const title = document.getElementById('f-wish').value.trim();
+    if (!title) { this.toast('اكتب أمنيتك أولًا'); return; }
+    C().wishes = C().wishes || [];
+    if (C().wishes.length >= 10) { this.toast('قائمتك ممتلئة — حقق أمنية أولًا!'); return; }
+    C().wishes.push({ id: uid(), title, status: 'wish' });
+    save();
+    this.closeModal();
+    this.celebrate('أمنية جديدة! ⭐', esc(title) + '<br /><small>أرسلناها لوالدك — اجتهد وقد تتحقق!</small>', [], '🌠');
+    this.renderKHero();
+  },
+
+  /* الوالد يحول الأمنية إلى هدف بسعر جزر */
+  wishToGoal(childId, wishId) {
+    const child = S.children.find(x => x.id === childId);
+    const w = child && child.wishes.find(x => x.id === wishId);
+    if (!w) return;
+    const cost = parseInt(prompt(`حدد سعر "${w.title}" بالجزر 🥕 ليجمع له ${child.name}:`, '150'));
+    if (!cost || cost < 5) return;
+    const reward = { id: uid(), emoji: '⭐', title: w.title, cost, kind: 'budget', wishId: w.id };
+    S.rewards.push(reward);
+    w.status = 'goal';
+    w.cost = cost;
+    w.rewardId = reward.id;
+    save();
+    this.renderPRewards();
+    this.toast(`صارت هدفًا في متجر ${child.name} — ${cost} 🥕 ⭐`);
+  },
+
+  dismissWish(childId, wishId) {
+    const child = S.children.find(x => x.id === childId);
+    if (!child) return;
+    child.wishes = child.wishes.filter(x => x.id !== wishId);
+    save();
+    this.renderPRewards();
+  },
+
+  /* ═══════════ سوق العروض (جهة الوالد) ═══════════ */
+  offersMarket() {
+    const fam = S.family;
+    if (!fam.city || !fam.district || !fam.school) {
+      // البوابة: البيانات شرط الدخول
+      this.openModal(`
+        <h3>🛍️ سوق العروض</h3>
+        <p class="muted" style="margin-bottom:12px">أدخل بياناتكم لتصلكم عروض وخصومات حيّكم من شركاء جَزَرة — البيانات تخصك أنت (الوالد) ولا تُعرض للأطفال</p>
+        <div class="form-grid">
+          <div><label>المدينة</label><input id="f-city" value="${esc(fam.city)}" placeholder="الرياض" /></div>
+          <div><label>الحي</label><input id="f-district" value="${esc(fam.district)}" placeholder="النرجس" /></div>
+          <div><label>مدرسة الأبناء</label><input id="f-school" value="${esc(fam.school)}" placeholder="مدارس ..." /></div>
+          <button class="btn-primary purple" onclick="App.saveFamilyInfo()">افتح السوق 🗝️</button>
+        </div>`);
+      return;
+    }
+    const offers = (typeof Meta !== 'undefined' ? Meta.offers() : [])
+      .filter(o => o.city === fam.city && (!o.district || o.district === fam.district));
+    const added = new Set(S.vouchers.map(v => v.offerId).filter(Boolean));
+    this.openModal(`
+      <h3>🛍️ عروض ${esc(fam.city)}${fam.district ? ' — ' + esc(fam.district) : ''}</h3>
+      <p class="muted" style="margin-bottom:10px">أضف ما يعجبك ليظهر قسيمة في متجر أبنائك — خصم الشريك يرتفع مع تقدمهم في رحلة العوالم!</p>
+      <div class="lib-list">
+        ${offers.map(o => `
+          <div class="task-row">
+            <span class="task-cat">${o.emoji || '🎟️'}</span>
+            <div class="task-info">
+              <div class="t-title">${esc(o.title)} — ${esc(o.partner)}</div>
+              <div class="t-meta">${o.cost} 🥕${(o.ladder || []).map(l => ` · ${WORLDS[l.world] ? WORLDS[l.world].emoji : ''}${l.off}%`).join('')}</div>
+            </div>
+            ${added.has(o.id)
+              ? '<span class="pill" style="background:#e2f5ea">✔</span>'
+              : `<button class="icon-btn" style="background:#fff3e6;font-weight:900;color:var(--carrot-dark)" onclick="App.addOffer('${o.id}')">＋</button>`}
+          </div>`).join('') || '<p class="muted">لا عروض في منطقتكم بعد — قريبًا مع انضمام الشركاء 🤝</p>'}
+      </div>
+      <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="S.family={city:'',district:'',school:''};save();App.offersMarket()">✏️ تعديل بيانات المنطقة</button>`);
+  },
+
+  saveFamilyInfo() {
+    const city = document.getElementById('f-city').value.trim();
+    const district = document.getElementById('f-district').value.trim();
+    const school = document.getElementById('f-school').value.trim();
+    if (!city || !district || !school) { this.toast('أكمل الحقول الثلاثة لفتح السوق'); return; }
+    S.family = { city, district, school };
+    save();
+    if (typeof Meta !== 'undefined') Meta.refresh(true).then(() => this.offersMarket());
+    else this.offersMarket();
+  },
+
+  addOffer(offerId) {
+    const o = (typeof Meta !== 'undefined' ? Meta.offers() : []).find(x => x.id === offerId);
+    if (!o || S.vouchers.some(v => v.offerId === offerId)) return;
+    S.vouchers.push({
+      id: uid(), offerId: o.id, partner: o.partner, title: o.title,
+      emoji: o.emoji || '🎟️', cost: o.cost, code: o.code, ladder: o.ladder || [], used: 0,
+    });
+    save();
+    this.offersMarket();
+    this.renderPRewards();
+    this.toast(`أُضيف عرض ${o.partner} لمتجر الأبطال 🎟️`);
   },
 
   /* ═══════════ رحلة العوالم: الخريطة الكبرى ═══════════ */
@@ -2541,7 +2856,8 @@ const App = {
       ${row('🔤', 'كلمات اليوم', 'أكمل الحرف الناقص', wg.arDone + wg.enDone, WORDS_PER_DAY * 2, 'openWordGame')}
       ${row('🧮', 'حساب اليوم', gradeName(C().grade), mg.done, WORDS_PER_DAY, 'openMathGame')}
       ${row('🌫️', 'الصورة الضبابية', 'خمّن مبكرًا تكسب أكثر!', bg.done, WORDS_PER_DAY, 'openBlurGame')}
-      ${row('🕵️', 'الظل الغامض', 'من صاحب هذا الظل؟', sg.done, WORDS_PER_DAY, 'openShadowGame')}`);
+      ${row('🕵️', 'الظل الغامض', 'من صاحب هذا الظل؟', sg.done, WORDS_PER_DAY, 'openShadowGame')}
+      ${row('🍱', 'صندوق الغداء البطل', 'ركّب صندوقًا صحيًا', this._lunchGameState().done, 1, 'openLunchGame')}`);
   },
 
   _gameBackBtn() {
@@ -2718,6 +3034,102 @@ const App = {
       this.toast(`✅ ${p.target.w} — +${prize} 🥕`);
       this.openShadowGame();
     }
+  },
+
+  /* ── لعبة صندوق الغداء البطل: ركّب صندوقًا صحيًا متوازنًا ── */
+  _lunchPicks: [],
+
+  _lunchGameState() {
+    const c = C();
+    if (!c.lunchGame) c.lunchGame = { date: null, done: 0, totalSolved: 0 };
+    if (c.lunchGame.date !== todayKey()) {
+      c.lunchGame.date = todayKey();
+      c.lunchGame.done = 0;
+      save();
+    }
+    return c.lunchGame;
+  },
+
+  /* 8 عناصر يومية حتمية: عنصر صحي من كل فئة + مشتتات وعناصر غير صحية */
+  _lunchItems() {
+    const groups = ['main', 'fruit', 'veg', 'drink'];
+    const items = [];
+    for (const g of groups) {
+      const pool = LUNCH_ITEMS.filter(x => x.g === g);
+      items.push(pool[strHash(todayKey() + g) % pool.length]);
+    }
+    const junk = LUNCH_ITEMS.filter(x => x.g === 'junk');
+    items.push(junk[strHash(todayKey() + 'j1') % junk.length]);
+    items.push(junk[(strHash(todayKey() + 'j2') + 1) % junk.length]);
+    // عنصران صحيان إضافيان كمشتتات إيجابية
+    const extra = LUNCH_ITEMS.filter(x => x.g !== 'junk' && !items.includes(x));
+    items.push(extra[strHash(todayKey() + 'e1') % extra.length]);
+    items.push(extra[(strHash(todayKey() + 'e2') + 3) % extra.length]);
+    return items.sort((a, b) => strHash(todayKey() + a.n) - strHash(todayKey() + b.n));
+  },
+
+  openLunchGame() {
+    const lg = this._lunchGameState();
+    this._lunchPicks = [];
+    let body;
+    if (lg.done >= 1) {
+      body = `<div style="text-align:center;padding:20px 0"><div style="font-size:3rem">🌟</div>
+        <p style="font-weight:900">ركّبت صندوق اليوم!</p><p class="muted">عد غدًا لصندوق جديد — وجهّز صندوقك الحقيقي بنفس الطريقة 😉</p></div>`;
+    } else {
+      body = `
+        <p class="muted">اختر <b>4 عناصر</b> لصندوق متوازن: وجبة + فاكهة + خضار + مشروب صحي — وانتبه من المقالب! 😄</p>
+        <div class="lunch-grid">
+          ${this._lunchItems().map((it, i) => `
+            <button class="lunch-item" id="li-${i}" data-g="${it.g}" onclick="App.lunchPick(this)">
+              <span class="li-emoji">${it.e}</span><span class="li-name">${it.n}</span>
+            </button>`).join('')}
+        </div>
+        <div class="lunch-slots" id="lunch-slots">🍱 اختر 4 عناصر…</div>
+        <button class="btn-primary green" id="lunch-check" style="display:none;margin-top:10px" onclick="App.lunchCheck()">جهّز الصندوق! 🍱</button>`;
+    }
+    this.openModal(`${this._gameBackBtn()}<h3 style="text-align:center">🍱 صندوق الغداء البطل</h3><div style="text-align:center">${body}</div>`);
+  },
+
+  lunchPick(btn) {
+    const on = btn.classList.toggle('picked');
+    const idx = btn.id;
+    if (on) this._lunchPicks.push(idx);
+    else this._lunchPicks = this._lunchPicks.filter(x => x !== idx);
+    if (this._lunchPicks.length > 4) {
+      btn.classList.remove('picked');
+      this._lunchPicks = this._lunchPicks.filter(x => x !== idx);
+      this.toast('الصندوق يتسع لأربعة فقط!');
+    }
+    const slots = document.getElementById('lunch-slots');
+    slots.textContent = '🍱 ' + (this._lunchPicks.length ? this._lunchPicks.map(id => document.getElementById(id).querySelector('.li-emoji').textContent).join(' ') : 'اختر 4 عناصر…');
+    document.getElementById('lunch-check').style.display = this._lunchPicks.length === 4 ? 'block' : 'none';
+  },
+
+  lunchCheck() {
+    const groups = this._lunchPicks.map(id => document.getElementById(id).dataset.g);
+    const hasJunk = groups.includes('junk');
+    const variety = new Set(groups.filter(g => g !== 'junk')).size;
+    const lg = this._lunchGameState();
+    if (hasJunk) {
+      this.toast('في صندوقك شيء غير صحي! 🍟 بدّله وحاول');
+      return;
+    }
+    if (variety < 3) {
+      this.toast('نوّع أكثر: وجبة وفاكهة وخضار ومشروب 💪');
+      return;
+    }
+    const c = C();
+    lg.done = 1;
+    lg.totalSolved = (lg.totalSolved || 0) + 1;
+    c.coins += 3;
+    c.lifetimeCoins += 3;
+    c.xp += WORD_XP;
+    c.hp = Math.min(100, c.hp + 5);
+    save();
+    this.closeModal();
+    this.refreshKidHeader();
+    this.celebrate('صندوق بطل حقيقي! 🍱', 'متوازن وصحي — جهّز صندوقك الحقيقي هكذا غدًا!', ['+5 ✨ XP', '+3 🥕', '+5 ❤️'], '🥗');
+    this.renderKMap();
   },
 
   /* ── تحدي الحساب اليومي (حسب الصف) ── */
@@ -3066,6 +3478,18 @@ const App = {
         </div>
       </div>
       <div class="card">
+        <h3>⭐ أمنياتي</h3>
+        ${(C().wishes || []).map(w => {
+          if (w.status === 'goal') {
+            const pct = Math.min(100, Math.round(C().coins / w.cost * 100));
+            return `<div style="margin-bottom:10px"><b>🎯 ${esc(w.title)}</b><div class="t-meta">${C().coins >= w.cost ? 'رصيدك يكفي! اطلبها من المتجر 🎉' : 'تبقى ' + (w.cost - C().coins) + ' 🥕 لتحقيقها'}</div><div class="progressbar" style="margin-top:4px"><i style="width:${pct}%"></i></div></div>`;
+          }
+          if (w.status === 'done') return `<p class="pill" style="margin-bottom:6px;background:#e2f5ea">✅ ${esc(w.title)} — تحققت!</p>`;
+          return `<p class="pill" style="margin-bottom:6px">⭐ ${esc(w.title)} <small>بانتظار والدك</small></p>`;
+        }).join('') || '<p class="muted">ما أمنيتك؟ لعبة، رحلة، يوم مسبح…</p>'}
+        <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="App.wishForm()">＋ أضف أمنية</button>
+      </div>
+      <div class="card">
         <h3>🧢 عتادي</h3>
         ${C().gear.length === 0
           ? '<p class="muted">اشترِ عتادًا من المتجر ليظهر على بطلك!</p>'
@@ -3161,6 +3585,7 @@ const App = {
         <span class="s-emoji">${v.emoji || '🎟️'}</span>
         <span class="s-name">${esc(v.title)}</span>
         <small style="color:#8a86a8;font-weight:700">${esc(v.partner)}</small>
+        ${(v.ladder || []).length ? `<small style="color:var(--green-dark);font-weight:900">خصم الشريك لك: ${partnerOff(v)}% ${worldOf(C().journey.stage).emoji}</small>` : ''}
         <button class="buy-btn" ${C().coins < cost ? 'disabled' : ''} onclick="App.buyVoucher('${v.id}')">
           ${cost < v.cost ? `<s style="opacity:0.7">${v.cost}</s> ` : ''}${cost} 🥕</button>
       </div>`;
@@ -3232,7 +3657,7 @@ const App = {
     const c = C();
     c.coins -= cost;
     c.myVouchers = c.myVouchers || [];
-    c.myVouchers.push({ id: uid(), voucherId: v.id, partner: v.partner, title: v.title, code: v.code, date: todayKey() });
+    c.myVouchers.push({ id: uid(), voucherId: v.id, partner: v.partner, title: v.title, code: v.code, off: partnerOff(v), date: todayKey() });
     v.used = (v.used || 0) + 1;   // ليطلع الوالد على الاستخدام
     save();
     this.celebrate('قسيمتك جاهزة! 🎟️',
