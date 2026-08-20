@@ -475,6 +475,7 @@ function defaultChild(name, avatarBase, avatarBg) {
     myVouchers: [],         // قسائم الشركاء المشتراة
     quran: { date: null, seconds: 0, claimed: false, streak: 0, best: 0, lastDay: null, totalSeconds: 0 },
     quranDaily: 5,          // ورد القراءة اليومي بالدقائق (يحدده الوالد)
+    quranPath: { pos: 0, ayah: 0, done: {} },   // موقع الطفل في رحلة البراعم
     journey: { stage: 0, date: null, xpToday: 0, advanced: 0, lastXP: null },   // رحلة العوالم
     screenTime: { balance: 0, log: [] },     // محفظة وقت الشاشة بالدقائق
     wishes: [],                              // قائمة الأمنيات { id, title, status, cost, rewardId }
@@ -2217,7 +2218,7 @@ const App = {
       html += `<div class="weekend-banner">🏖️ ${isFriday() ? 'جمعة مباركة!' : 'سبت سعيد!'} — لا دروس اليوم، استمتع بنشاطات العائلة</div>`;
       if (isFriday()) {
         html += `
-          <button class="quran-card" style="background:linear-gradient(135deg,#365f8c,#4a7ab5);box-shadow:0 5px 0 #2a4a6e" onclick="App.openQuran(17)">
+          <button class="quran-card" style="background:linear-gradient(135deg,#365f8c,#4a7ab5);box-shadow:0 5px 0 #2a4a6e" onclick="App.openQuranFull(17)">
             <span class="wg-emoji">🕌</span>
             <span class="wg-info"><b>سنة الجمعة: سورة الكهف</b><small>اقرأها الآن من مصحف جَزَرة — وتُحسب في وردك</small></span>
             <span class="wg-reward">📖</span>
@@ -2267,7 +2268,7 @@ const App = {
     const qTarget = (C().quranDaily || 5) * 60;
     const qPct = Math.min(100, Math.round(qr.seconds / qTarget * 100));
     html += `
-      <button class="quran-card" onclick="App.openQuran()">
+      <button class="quran-card" onclick="App.openQuranKids()">
         <span class="wg-emoji">📖</span>
         <span class="wg-info">
           <b>وِردي من القرآن</b>
@@ -2723,6 +2724,142 @@ const App = {
     if (head) head.style.background = w.grad[0] + 'd9';
   },
 
+  /* ═══════════ رحلة البراعم: قرآن الأطفال الموجه ═══════════
+     مسار حفظ الأطفال: الفاتحة ثم قصار السور صعودًا (جزء عم كاملًا)
+     آية واحدة كبيرة + تلاوة صوتية + التالي/السابق — بلا قوائم ولا تمرير */
+  KIDS_QURAN_ORDER: [1, 114, 113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101, 100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79, 78],
+  _quranAudio: null,
+  _ayahOffsets: null,
+
+  _quranPathState() {
+    const c = C();
+    if (!c.quranPath) { c.quranPath = { pos: 0, ayah: 0, done: {} }; save(); }
+    return c.quranPath;
+  },
+
+  /* الرقم العالمي للآية (1..6236) — لملفات التلاوة الصوتية */
+  _globalAyah(surahIdx, ayahIdx) {
+    if (!this._ayahOffsets) {
+      this._ayahOffsets = [];
+      let t = 0;
+      for (const s of window.QURAN_DATA) { this._ayahOffsets.push(t); t += s.v.length; }
+    }
+    return this._ayahOffsets[surahIdx] + ayahIdx + 1;
+  },
+
+  playAyah(surahIdx, ayahIdx) {
+    this.stopAyah();
+    const n = this._globalAyah(surahIdx, ayahIdx);
+    this._quranAudio = new Audio(`https://cdn.islamic.network/quran/audio/128/ar.alafasy/${n}.mp3`);
+    const btn = document.getElementById('ayah-play');
+    if (btn) btn.textContent = '⏸️';
+    this._quranAudio.onended = () => { if (btn) btn.textContent = '🔊'; };
+    this._quranAudio.onerror = () => { if (btn) btn.textContent = '🔊'; this.toast('التلاوة تحتاج اتصالًا بالإنترنت 📶'); };
+    this._quranAudio.play().catch(() => this.toast('التلاوة تحتاج اتصالًا بالإنترنت 📶'));
+  },
+
+  stopAyah() {
+    if (this._quranAudio) { try { this._quranAudio.pause(); } catch (e) {} this._quranAudio = null; }
+  },
+
+  toggleAyahAudio() {
+    const qp = this._quranPathState();
+    if (this._quranAudio && !this._quranAudio.paused) { this.stopAyah(); const b = document.getElementById('ayah-play'); if (b) b.textContent = '🔊'; return; }
+    this.playAyah(this.KIDS_QURAN_ORDER[qp.pos] - 1, qp.ayah);
+  },
+
+  async openQuranKids() {
+    this.openModal(`<div style="text-align:center;padding:30px 0"><div style="font-size:3rem">🌱</div><p class="muted">جارٍ فتح رحلة البراعم…</p></div>`);
+    try { await this._loadQuran(); }
+    catch (e) { this.openModal('<p class="muted" style="text-align:center;padding:20px">تعذر تحميل المصحف</p>'); return; }
+    this._quranMode = 'kids';
+    this.renderQuranKids();
+    this._quranTickStart();
+  },
+
+  renderQuranKids() {
+    const qp = this._quranPathState();
+    const order = this.KIDS_QURAN_ORDER;
+    if (qp.pos >= order.length) {
+      this.openModal(`
+        <div style="text-align:center;padding:16px 0">
+          <div style="font-size:3.5rem">🏆</div>
+          <h3>أتممت رحلة البراعم كاملة!</h3>
+          <p class="muted" style="margin:8px 0 14px">الفاتحة وجزء عم كله — ما شاء الله! انتقل الآن للمصحف الكامل</p>
+          <button class="btn-primary green" onclick="App.openQuranFull(66)">أكمل من سورة الملك 📖</button>
+        </div>`);
+      return;
+    }
+    const surahIdx = order[qp.pos] - 1;
+    const s = window.QURAN_DATA[surahIdx];
+    if (qp.ayah >= s.v.length) qp.ayah = s.v.length - 1;
+    const ayah = s.v[qp.ayah];
+    const qr = this._quranState();
+    const target = (C().quranDaily || 5) * 60;
+    const wirdDone = qr.seconds >= target && !qr.claimed;
+
+    this.openModal(`
+      <div class="kq-head">
+        <span class="kq-station">🌱 محطة ${qp.pos + 1} من ${order.length}</span>
+        <span class="quran-timer" id="quran-timer">${qr.claimed ? '🌟' : '⏱️ ' + Math.floor(qr.seconds / 60) + ':' + String(qr.seconds % 60).padStart(2, '0')}</span>
+      </div>
+      <div class="kq-surah">سورة ${esc(s.n)}</div>
+      ${wirdDone ? `<button class="btn-primary green" style="margin-bottom:8px" onclick="App.claimQuran()">أتممت وردي — نِل مكافأتك 🌟</button>` : ''}
+      <div class="kq-ayah-card">
+        <div class="kq-ayah">${ayah}</div>
+        <div class="kq-num">آية ${qp.ayah + 1} من ${s.v.length}</div>
+      </div>
+      <div class="kq-controls">
+        <button class="kq-btn" ${qp.ayah === 0 && qp.pos === 0 ? 'disabled' : ''} onclick="App.kidsQuranPrev()">→ السابقة</button>
+        <button class="kq-btn play" id="ayah-play" onclick="App.toggleAyahAudio()">🔊</button>
+        <button class="kq-btn next" onclick="App.kidsQuranNext()">${qp.ayah === s.v.length - 1 ? 'أتمم السورة ✅' : 'التالية ←'}</button>
+      </div>
+      <div class="kq-dots">${s.v.map((_, i) => `<i class="${i < qp.ayah ? 'done' : i === qp.ayah ? 'here' : ''}"></i>`).join('')}</div>
+      <button class="btn-ghost small" style="width:100%;margin-top:10px" onclick="App.openQuranFull(${surahIdx})">📖 المصحف الكامل</button>`);
+    // تلاوة تلقائية للآية الحالية
+    this.playAyah(surahIdx, qp.ayah);
+  },
+
+  kidsQuranNext() {
+    const qp = this._quranPathState();
+    const surahIdx = this.KIDS_QURAN_ORDER[qp.pos] - 1;
+    const s = window.QURAN_DATA[surahIdx];
+    if (qp.ayah < s.v.length - 1) {
+      qp.ayah++;
+      save();
+      this.renderQuranKids();
+    } else {
+      // ختم السورة!
+      this.stopAyah();
+      qp.done[surahIdx + 1] = true;
+      qp.pos++;
+      qp.ayah = 0;
+      const c = C();
+      c.xp += 15;
+      c.coins += 5;
+      c.lifetimeCoins += 5;
+      save();
+      this.closeModal();
+      this.refreshKidHeader();
+      const next = qp.pos < this.KIDS_QURAN_ORDER.length ? window.QURAN_DATA[this.KIDS_QURAN_ORDER[qp.pos] - 1].n : null;
+      this.celebrate(`ختمت سورة ${esc(s.n)}! 🌟`,
+        next ? `محطتك التالية: <b>سورة ${esc(next)}</b> 🌱` : 'أتممت الرحلة كاملة!',
+        ['+15 ✨ XP', '+5 🥕'], '🕌');
+      speak(`أحسنت! ختمت سورة ${s.n}`, 'ar-SA');
+    }
+  },
+
+  kidsQuranPrev() {
+    const qp = this._quranPathState();
+    if (qp.ayah > 0) { qp.ayah--; }
+    else if (qp.pos > 0) {
+      qp.pos--;
+      qp.ayah = window.QURAN_DATA[this.KIDS_QURAN_ORDER[qp.pos] - 1].v.length - 1;
+    }
+    save();
+    this.renderQuranKids();
+  },
+
   /* ═══════════ ركن القرآن الكريم ═══════════
      القراءة داخل التطبيق فقط: عداد الوقت يعمل ما دام القارئ مفتوحًا */
   _quranTimer: null,
@@ -2757,11 +2894,12 @@ const App = {
     return this._quranLoading;
   },
 
-  async openQuran(surahIdx) {
+  async openQuranFull(surahIdx) {
     this.openModal(`<div style="text-align:center;padding:30px 0"><div style="font-size:3rem">📖</div><p class="muted">جارٍ فتح المصحف…</p></div>`);
     try { await this._loadQuran(); }
     catch (e) { this.openModal('<p class="muted" style="text-align:center;padding:20px">تعذر تحميل المصحف — تأكد من وجود ملف quran.js</p>'); return; }
     if (surahIdx !== undefined) this._quranSurah = surahIdx;
+    this._quranMode = 'full';
     this.renderQuranReader();
     this._quranTickStart();
   },
@@ -2778,7 +2916,7 @@ const App = {
     const done = qr.seconds >= target;
     this.openModal(`
       <div class="quran-head">
-        <select class="surah-select" onchange="App.openQuran(parseInt(this.value))">${options}</select>
+        <select class="surah-select" onchange="App.openQuranFull(parseInt(this.value))">${options}</select>
         <div class="quran-timer" id="quran-timer">${done && !qr.claimed ? '✅ اكتمل وردك!' : qr.claimed ? '🌟 ورد اليوم مُنجز' : '⏱️ ' + Math.floor(qr.seconds / 60) + ':' + String(qr.seconds % 60).padStart(2, '0') + ' / ' + (C().quranDaily || 5) + ':00'}</div>
       </div>
       ${done && !qr.claimed ? `<button class="btn-primary green" style="margin-bottom:10px" onclick="App.claimQuran()">أتممت وردي — نِل مكافأتك 🌟</button>` : ''}
@@ -2788,8 +2926,8 @@ const App = {
         <div class="quran-text">${verses}</div>
       </div>
       <div class="form-row" style="margin-top:10px">
-        <div>${i > 0 ? `<button class="btn-ghost" style="width:100%" onclick="App.openQuran(${i - 1})">→ ${esc(data[i - 1].n)}</button>` : '<span></span>'}</div>
-        <div>${i < 113 ? `<button class="btn-ghost" style="width:100%" onclick="App.openQuran(${i + 1})">${esc(data[i + 1].n)} ←</button>` : '<span></span>'}</div>
+        <div>${i > 0 ? `<button class="btn-ghost" style="width:100%" onclick="App.openQuranFull(${i - 1})">→ ${esc(data[i - 1].n)}</button>` : '<span></span>'}</div>
+        <div>${i < 113 ? `<button class="btn-ghost" style="width:100%" onclick="App.openQuranFull(${i + 1})">${esc(data[i + 1].n)} ←</button>` : '<span></span>'}</div>
       </div>
       <p class="muted" style="text-align:center;font-size:0.7rem;margin-top:8px">النص العثماني برواية حفص — Tanzil.net</p>`);
   },
@@ -2806,7 +2944,7 @@ const App = {
       if (el && !qr.claimed) {
         if (qr.seconds >= target) {
           // اكتمل الورد الآن: أعد رسم الرأس ليظهر زر المكافأة
-          if (qr.seconds - 1 < target) this.renderQuranReader();
+          if (qr.seconds - 1 < target) (this._quranMode === 'kids' ? this.renderQuranKids() : this.renderQuranReader());
           else el.textContent = '✅ اكتمل وردك!';
         } else {
           el.textContent = '⏱️ ' + Math.floor(qr.seconds / 60) + ':' + String(qr.seconds % 60).padStart(2, '0') + ' / ' + (C().quranDaily || 5) + ':00';
@@ -4016,6 +4154,7 @@ const App = {
     document.getElementById('modal').classList.remove('active');
     this._checkVideoReward();     // مكافأة مشاهدة الفيديو إن استحقت
     this._quranTickStop();        // إيقاف عداد القرآن إن كان يعمل
+    this.stopAyah();              // إيقاف التلاوة الصوتية
   },
 
   _toastTimer: null,
