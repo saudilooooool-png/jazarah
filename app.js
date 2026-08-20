@@ -345,6 +345,10 @@ const WORD_COINS = 2;
 /* داخل تطبيق الأندرويد (Capacitor WebView) لا يتوفر نطق المتصفح —
    نستخدم محرك النطق الأصلي للنظام عبر ملحق TextToSpeech، والمتصفح للويب */
 function speak(text, lang = 'ar-SA') {
+  if (window.JazarahAudio) {
+    JazarahAudio.speak(text, lang);
+    return;
+  }
   const native = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech;
   if (native) {
     native.speak({ text, lang, rate: 0.9 }).catch(() => {});
@@ -2025,6 +2029,14 @@ const App = {
         ${childrenHtml || '<p class="muted">أضف أول بطل!</p>'}
       </div>
       <button class="btn-primary" onclick="App.childForm()">＋ إضافة بطل جديد</button>
+      <div class="card audio-card" style="margin-top:14px">
+        <h3>🔊 صوت جزّور</h3>
+        <p class="muted" style="margin-bottom:10px">النمط الافتراضي الآن «طفولي ناعم»: طبقة أعلى، سرعة أخف، وتفضيل الأصوات العربية الناعمة إن توفرت.</p>
+        <div class="form-row">
+          <div><button class="btn-primary purple" onclick="App.audioSettingsForm()">اختبار واختيار الصوت</button></div>
+          <div><button class="btn-primary green" onclick="App.testKidAudio()">جرّب التشجيع ✨</button></div>
+        </div>
+      </div>
       <div class="card" style="margin-top:14px">
         <h3>⏱️ وقت الشاشة</h3>
         <div class="form-grid">
@@ -2046,6 +2058,56 @@ const App = {
         <p class="muted" style="margin-bottom:10px">تُحفظ البيانات محليًا على هذا الجهاز فقط · نسخة التطبيق: <b>بناء ${APP_BUILD}</b></p>
         <button class="btn-ghost" style="width:100%;color:#ff5d5d;border-color:#ffd0d0" onclick="App.resetAll()">🗑️ إعادة ضبط التطبيق بالكامل</button>
       </div>`;
+  },
+
+  audioSettingsForm() {
+    const voices = window.JazarahAudio ? JazarahAudio.voiceOptions('ar-SA') : [];
+    const saved = localStorage.getItem('jazarah_voice_ar-SA') || '';
+    const tone = window.JazarahAudio ? JazarahAudio.toneName() : 'child_soft';
+    const tones = window.JazarahAudio ? Object.entries(JazarahAudio.tones) : [];
+    this.openModal(`
+      <h3>🔊 إعداد صوت جزّور</h3>
+      <p class="muted" style="margin-bottom:12px">اختر نمطًا ناعمًا. إذا كان الجهاز لا يملك إلا صوتًا عربيًا رجاليًا فسنرفع الطبقة ونخفف السرعة، لكن الصوت البشري الحقيقي يحتاج ملفات MP3 نضيفها لاحقًا.</p>
+      <div class="form-grid">
+        <div>
+          <label>نمط النبرة</label>
+          <div class="tone-grid">
+            ${tones.map(([key, cfg]) => `
+              <label class="tone-choice ${key === tone ? 'active' : ''}">
+                <input type="radio" name="voice-tone" value="${key}" ${key === tone ? 'checked' : ''} />
+                <b>${esc(cfg.label)}</b>
+                <small>${esc(cfg.intro)}</small>
+              </label>`).join('')}
+          </div>
+        </div>
+        <div>
+          <label>الصوت العربي</label>
+          <select id="f-voice">
+            <option value="">اختيار تلقائي</option>
+            ${voices.map(v => `<option value="${esc(v.name)}" ${v.name === saved ? 'selected' : ''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('')}
+          </select>
+          ${voices.length ? '' : '<p class="muted">لا تظهر أصوات عربية حاليًا في هذا المتصفح؛ جرّب من الجهاز الحقيقي أو Android/iOS.</p>'}
+        </div>
+        <button class="btn-primary green" onclick="App.saveAudioVoice()">حفظ وتجربة الصوت</button>
+        <button class="btn-ghost" onclick="App.testKidAudio()">تشغيل مؤثر نجاح قصير</button>
+      </div>`);
+  },
+
+  saveAudioVoice() {
+    const name = document.getElementById('f-voice').value;
+    const toneEl = document.querySelector('input[name="voice-tone"]:checked');
+    if (window.JazarahAudio) JazarahAudio.saveVoice('ar-SA', name);
+    if (window.JazarahAudio && toneEl) JazarahAudio.saveTone(toneEl.value);
+    this.toast('تم حفظ الصوت ✅');
+    this.testKidAudio();
+  },
+
+  testKidAudio() {
+    if (window.JazarahAudio) {
+      JazarahAudio.cheer('يا سلام! صوت جزّور صار ألطف. أحسنت يا بطل.');
+      return;
+    }
+    speak('يا سلام! أحسنت يا بطل.', 'ar-SA');
   },
 
   /* إنشاء / تعديل حساب طفل — من لوحة الوالد فقط */
@@ -2344,6 +2406,10 @@ const App = {
   renderKMap() {
     const today = todayKey();
     const doneIds = new Set(C().completions[today] || []);
+    const pendingToday = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
+    const nextStep = this._nextKidStep(doneIds, pendingToday);
+    const todayTotal = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk).length;
+    const todayDone = doneIds.size;
 
     // مشهد جزّور: الرفيق الحي أول ما يستقبل الطفل — وجه واحد، فعل واحد
     const mood = this.jazzourMood();
@@ -2356,7 +2422,22 @@ const App = {
         </button>
         <div class="jz-bubble">${this._jazzourBubble(mood)}</div>
       </div>
-      <button class="btn-primary big jz-cta" onclick="App.nextAdventureStep()">▶️ أكمل مغامرتك</button>`;
+      <section class="next-step-card">
+        <div class="next-copy">
+          <span class="next-label">التالي لك الآن</span>
+          <h2>${esc(nextStep.title)}</h2>
+          <p>${esc(nextStep.desc)}</p>
+        </div>
+        <div class="next-actions">
+          <button class="btn-primary big" onclick="${nextStep.action}">${nextStep.cta}</button>
+          <button class="listen-pill" data-say="${esc(nextStep.say)}" onclick="App.sayText(this)">🔊 اسمع</button>
+        </div>
+        <div class="today-progress">
+          <span>تقدم اليوم</span>
+          <b>${todayDone}/${todayTotal || 1}</b>
+          <i><em style="width:${Math.min(100, Math.round((todayDone / Math.max(1, todayTotal)) * 100))}%"></em></i>
+        </div>
+      </section>`;
 
     // صندوق المفاجأة
     if (C().mysteryBox) {
@@ -2482,7 +2563,6 @@ const App = {
     if (C().tasks.length === 0) {
       html += `<div class="map-empty"><div class="big-emoji">🗺️</div><p class="muted">الخريطة فارغة… اطلب من والدك إضافة مهام المغامرة!</p></div>`;
     } else {
-      const pendingToday = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
       // وضع الويكند: الجمعة والسبت بلا دراسة (إلا ما وسمه الوالد) — واختيارات الأيام السابقة تُخفى
       const visibleTasks = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
         .filter(t => !t.mine || t.id === 'mine-' + today);
@@ -2536,6 +2616,52 @@ const App = {
     if (!t) return;
     const et = effectiveTask(t, todayKey());
     speak(`${t.title}. تكسب ${et.xp} نقطة خبرة و ${et.coins} جزرة`, 'ar-SA');
+  },
+
+  _nextKidStep(doneIds, pendingToday) {
+    const qr = this._quranState();
+    if (!qr.claimed) {
+      return {
+        title: 'ورد القرآن',
+        desc: `اقرأ ${C().quranDaily || 5} دقائق مع جزّور.`,
+        cta: 'ابدأ القرآن 📖',
+        action: 'App.openQuranKids()',
+        say: `ابدأ ورد القرآن. اقرأ ${C().quranDaily || 5} دقائق مع جزّور.`,
+      };
+    }
+    const today = todayKey();
+    const nextTask = C().tasks
+      .filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
+      .filter(t => !t.mine || t.id === 'mine-' + today)
+      .find(t => !doneIds.has(t.id) && !pendingToday.has(t.id));
+    if (nextTask) {
+      const et = effectiveTask(nextTask, today);
+      return {
+        title: nextTask.title,
+        desc: `${CATEGORIES[nextTask.cat].name} · ${et.coins} جزرات`,
+        cta: 'أنجز المهمة ⭐',
+        action: `App.completeTask('${nextTask.id}')`,
+        say: `مهمتك الآن: ${nextTask.title}.`,
+      };
+    }
+    const wg = this._wordGameState();
+    const mg = this._mathGameState();
+    if (wg.arDone < WORDS_PER_DAY || wg.enDone < WORDS_PER_DAY || mg.done < 3) {
+      return {
+        title: 'ألعاب اليوم',
+        desc: 'كلمات وحساب خفيفة تكسبك جزرًا إضافية.',
+        cta: 'افتح الألعاب 🎮',
+        action: 'App.openGamesHub()',
+        say: 'افتح ألعاب اليوم. كلمات وحساب خفيفة.',
+      };
+    }
+    return {
+      title: 'يومك مكتمل',
+      desc: 'أحسنت! شارك إنجازك أو اختر شكلك.',
+      cta: 'شارك اليوم 📤',
+      action: 'App.shareDayReport()',
+      say: 'أحسنت. يومك مكتمل يا بطل.',
+    };
   },
 
   /* ── لعبة الحروف الناقصة ── */

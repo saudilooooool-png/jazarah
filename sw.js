@@ -1,12 +1,13 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v10';
+const CACHE = 'jazarah-v12';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './audio.js',
   './sync.js',
   './qrcode.js',
   './manifest.webmanifest',
