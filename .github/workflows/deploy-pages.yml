@@ -35,7 +35,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site
-          cp index.html styles.css app.js sync.js qrcode.js quran.js manifest.webmanifest sw.js _site/
+          cp index.html styles.css app.js audio.js sync.js qrcode.js quran.js manifest.webmanifest sw.js _site/
           cp -r icons avatars _site/
           sed -i "s/BUILD_PLACEHOLDER/web-${{ github.run_number }}/" _site/app.js
 

@@ -132,3 +132,6 @@ if ('speechSynthesis' in window) {
     speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
   } catch (e) {}
 }
+
+/* فحوص التطبيق تبحث عنها عبر window — التصريح بـ const لا يضعها هناك */
+window.JazarahAudio = JazarahAudio;
