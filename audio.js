@@ -12,7 +12,21 @@ const JazarahAudio = {
     done: 'audio/prompts/ar/done.mp3',
   },
   cache: new Map(),
-  preferredVoice: null,
+
+  /* شخصيات صوت جزّور — يختار الوالد ما يناسب طفله */
+  tones: {
+    child_soft:  { label: 'طفولي ناعم',  rate: 0.86, pitch: 1.35, intro: 'صوت خفيف ومرح للأطفال' },
+    mother_soft: { label: 'أمومي هادئ',  rate: 0.82, pitch: 1.18, intro: 'أهدأ وأنسب قبل النوم والقرآن' },
+    narrator:    { label: 'راوي واضح',   rate: 0.90, pitch: 1.02, intro: 'واضح للمهام الطويلة والحكاية' },
+  },
+
+  toneName() {
+    return localStorage.getItem('jazarah_voice_tone') || 'child_soft';
+  },
+
+  tone() {
+    return this.tones[this.toneName()] || this.tones.child_soft;
+  },
 
   async playClip(name) {
     const src = this.clips[name];
@@ -70,9 +84,14 @@ const JazarahAudio = {
     if (!('speechSynthesis' in window)) return null;
     const voices = speechSynthesis.getVoices();
     const saved = localStorage.getItem('jazarah_voice_' + lang);
+    // نفضّل الأصوات الناعمة القريبة من صوت الأم/المعلمة ونتجنب الأصوات الرجالية العميقة
+    const soft = /(laila|layla|salma|zeina|zainab|hoda|huda|amira|fatima|mariam|microsoft.*ar|google.*arabic|female|woman|samantha|sara|siri)/i;
+    const deepMale = /(maged|naayf|naif|male|man|tarik|tariq)/i;
+    const two = lang.slice(0, 2);
     return voices.find(v => v.name === saved) ||
-      voices.find(v => v.lang === lang && /female|maged|laila|salma|ar/i.test(v.name)) ||
-      voices.find(v => v.lang && v.lang.startsWith(lang.slice(0, 2))) ||
+      voices.find(v => v.lang === lang && soft.test(v.name) && !deepMale.test(v.name)) ||
+      voices.find(v => v.lang && v.lang.startsWith(two) && soft.test(v.name) && !deepMale.test(v.name)) ||
+      voices.find(v => v.lang && v.lang.startsWith(two)) ||
       null;
   },
 
@@ -86,13 +105,12 @@ const JazarahAudio = {
     const clean = this.shortText(text);
     if (!clean) return;
 
+    const tone = this.tone();
+    const rate = opts.rate || tone.rate;
+    const pitch = opts.pitch || tone.pitch;
+
     if (native) {
-      native.speak({
-        text: clean,
-        lang,
-        rate: opts.rate || 0.82,
-        pitch: opts.pitch || 1.08,
-      }).catch(() => {});
+      native.speak({ text: clean, lang, rate, pitch }).catch(() => {});
       return;
     }
 
@@ -107,8 +125,8 @@ const JazarahAudio = {
       u.lang = lang;
       const voice = this.pickVoice(lang);
       if (voice) u.voice = voice;
-      u.rate = opts.rate || 0.82;
-      u.pitch = opts.pitch || 1.08;
+      u.rate = rate;
+      u.pitch = pitch;
       speechSynthesis.speak(u);
     } catch (e) {
       /* تجاهل */
@@ -123,6 +141,16 @@ const JazarahAudio = {
   saveVoice(lang, name) {
     if (name) localStorage.setItem('jazarah_voice_' + lang, name);
     else localStorage.removeItem('jazarah_voice_' + lang);
+  },
+
+  saveTone(name) {
+    if (this.tones[name]) localStorage.setItem('jazarah_voice_tone', name);
+  },
+
+  /* تشجيع كامل: مؤثر نجاح + عبارة بصوت جزّور */
+  async cheer(text) {
+    this.chime('success');
+    await this.speak(text || 'يا سلام! إنجاز جميل يا بطل.', 'ar-SA', { clip: 'cheer', alsoTts: true });
   },
 };
 

@@ -1086,3 +1086,16 @@ b { font-weight: 700; }
 }
 .pw-node.here img { width: 52px; }
 .pw-foot { text-align: center; padding: 12px 18px 26px; font-weight: 800; }
+
+/* شخصيات صوت جزّور */
+.tone-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.tone-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  background: #f7f4ff; border: 2px solid #e5ddfa; border-radius: 14px;
+  padding: 10px 12px; cursor: pointer; font-family: inherit; text-align: right;
+  color: var(--ink);
+}
+.tone-tile b { font-size: 0.98rem; }
+.tone-tile small { color: #8a86a8; font-weight: 700; font-size: 0.78rem; }
+.tone-tile.on { border-color: var(--purple); background: #efe8ff; box-shadow: 0 3px 0 #d8ccf7; }
+@media (min-width: 700px) { .tone-grid { grid-template-columns: repeat(3, 1fr); } }

@@ -2061,16 +2061,28 @@ const App = {
   },
 
   audioSettingsForm() {
-    const voices = window.JazarahAudio ? JazarahAudio.voiceOptions('ar-SA') : [];
+    const A = window.JazarahAudio;
+    const voices = A ? A.voiceOptions('ar-SA') : [];
     const saved = localStorage.getItem('jazarah_voice_ar-SA') || '';
+    const curTone = A ? A.toneName() : 'child_soft';
+    const tones = A ? A.tones : {};
     this.openModal(`
       <h3>🔊 إعداد صوت جزّور</h3>
-      <p class="muted" style="margin-bottom:12px">الأفضل لاحقًا إضافة ملفات صوت بشرية قصيرة. إلى ذلك الحين اختر أفضل صوت عربي متوفر في الجهاز.</p>
+      <p class="muted" style="margin-bottom:12px">اختر شخصية صوت جزّور ثم أفضل صوت عربي متوفر في الجهاز — واسمع الفرق مباشرة.</p>
       <div class="form-grid">
         <div>
-          <label>الصوت العربي</label>
+          <label>شخصية الصوت</label>
+          <div class="tone-grid">
+            ${Object.entries(tones).map(([k, t]) => `
+              <button class="tone-tile ${k === curTone ? 'on' : ''}" onclick="App.pickTone('${k}')">
+                <b>${esc(t.label)}</b><small>${esc(t.intro)}</small>
+              </button>`).join('')}
+          </div>
+        </div>
+        <div>
+          <label>الصوت العربي في الجهاز</label>
           <select id="f-voice">
-            <option value="">اختيار تلقائي</option>
+            <option value="">اختيار تلقائي (يفضّل الصوت الناعم)</option>
             ${voices.map(v => `<option value="${esc(v.name)}" ${v.name === saved ? 'selected' : ''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('')}
           </select>
           ${voices.length ? '' : '<p class="muted">لا تظهر أصوات عربية حاليًا في هذا المتصفح؛ جرّب من الجهاز الحقيقي أو Android/iOS.</p>'}
@@ -2078,6 +2090,13 @@ const App = {
         <button class="btn-primary green" onclick="App.saveAudioVoice()">حفظ وتجربة الصوت</button>
         <button class="btn-ghost" onclick="App.testKidAudio()">تشغيل مؤثر نجاح قصير</button>
       </div>`);
+  },
+
+  pickTone(name) {
+    if (window.JazarahAudio) JazarahAudio.saveTone(name);
+    document.querySelectorAll('.tone-tile').forEach(b => b.classList.toggle('on', b.getAttribute('onclick').includes(`'${name}'`)));
+    const t = window.JazarahAudio ? JazarahAudio.tones[name] : null;
+    speak(t ? `أنا جزّور بصوت ${t.label}. هيا نكمل مغامرتنا!` : 'أنا جزّور!', 'ar-SA');
   },
 
   saveAudioVoice() {
@@ -2088,8 +2107,8 @@ const App = {
   },
 
   testKidAudio() {
-    if (window.JazarahAudio) JazarahAudio.chime('success');
-    speak('أحسنت يا بطل! جزّور فخور بك.', 'ar-SA');
+    if (window.JazarahAudio) JazarahAudio.cheer('أحسنت يا بطل! جزّور فخور بك.');
+    else speak('أحسنت يا بطل! جزّور فخور بك.', 'ar-SA');
   },
 
   /* إنشاء / تعديل حساب طفل — من لوحة الوالد فقط */
