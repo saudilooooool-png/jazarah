@@ -2349,8 +2349,8 @@ const App = {
     const heartsWaiting = (C().feed || []).filter(f => f.heart && !f.seen).length;
     let html = `
       <div class="jz-scene">
-        <button class="jz-char" id="jz-char" onclick="App.pokeJazzour()" aria-label="جزّور">
-          <img src="avatars/jazzour-${mood}.svg" alt="جزّور" />
+        <button class="jz-char" id="jz-char" onpointerdown="App.jzDown(event)" aria-label="جزّور">
+          <img src="avatars/jazzour-${mood}.svg" alt="جزّور" draggable="false" />
           ${heartsWaiting ? `<span class="jz-heart-badge">❤️ ${heartsWaiting}</span>` : ''}
         </button>
         <div class="jz-bubble">${this._jazzourBubble(mood)}</div>
@@ -2908,6 +2908,51 @@ const App = {
       happy: `رائع! ${done} ${done === 1 ? 'إنجاز' : 'إنجازات'} اليوم — جزّور سعيد!`,
       cheer: 'يوم بطولي! جزّور يرقص فرحًا ⭐',
     }[mood];
+  },
+
+  /* ── جزّور يُحمل بالإصبع ويتحرك معه في كل الاتجاهات ── */
+  _jz: null,
+  _jzBound: false,
+
+  jzDown(e) {
+    const el = document.getElementById('jz-char');
+    if (!el) return;
+    e.preventDefault();
+    this._jz = { x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, moved: false, el };
+    if (el.setPointerCapture) { try { el.setPointerCapture(e.pointerId); } catch (_) {} }
+    el.classList.remove('jz-return', 'jz-bounce');
+    if (!this._jzBound) {
+      this._jzBound = true;
+      window.addEventListener('pointermove', ev => this.jzMove(ev), { passive: false });
+      window.addEventListener('pointerup', ev => this.jzUp(ev));
+      window.addEventListener('pointercancel', ev => this.jzUp(ev));
+    }
+  },
+
+  jzMove(e) {
+    const s = this._jz;
+    if (!s) return;
+    s.dx = e.clientX - s.x0; s.dy = e.clientY - s.y0;
+    if (!s.moved && Math.hypot(s.dx, s.dy) > 8) { s.moved = true; s.el.classList.add('jz-drag'); }
+    if (s.moved) {
+      e.preventDefault();
+      const tilt = Math.max(-16, Math.min(16, s.dx * 0.08));
+      s.el.style.transform = `translate(${s.dx}px, ${s.dy}px) rotate(${tilt}deg) scale(1.06)`;
+    }
+  },
+
+  jzUp() {
+    const s = this._jz;
+    if (!s) return;
+    this._jz = null;
+    if (!s.moved) { this.pokeJazzour(); return; }
+    // عودة زنبركية لمكانه — واللعبة تُعاد بلا حدود
+    s.el.classList.remove('jz-drag');
+    s.el.classList.add('jz-return');
+    s.el.style.transform = '';
+    setTimeout(() => s.el.classList.remove('jz-return'), 700);
+    const lines = ['هيييه! رحلة ممتعة!', 'وأنا رجعت لمكاني!', 'مرة ثانية! مرة ثانية!', 'أنا أطير يا بطل!'];
+    speak(lines[Math.floor(Math.random() * lines.length)], 'ar-SA');
   },
 
   pokeJazzour() {

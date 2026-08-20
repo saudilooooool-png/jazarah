@@ -951,3 +951,9 @@ b { font-weight: 700; }
   .jz-char { width: 150px; height: 172px; }
   .hub-grid { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* جزّور يُسحب بالإصبع */
+.jz-char { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.jz-char img { pointer-events: none; }
+.jz-char.jz-drag { transition: none; z-index: 60; position: relative; filter: drop-shadow(0 14px 14px rgba(60, 30, 0, 0.25)); }
+.jz-char.jz-return { transition: transform 0.65s cubic-bezier(0.34, 1.9, 0.4, 1); }
