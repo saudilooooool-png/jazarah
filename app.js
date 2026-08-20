@@ -6,6 +6,9 @@
 
 'use strict';
 
+/* رقم البناء — يُستبدل تلقائيًا في خط البناء ليظهر أي نسخة تعمل فعلًا */
+const APP_BUILD = 'BUILD_PLACEHOLDER';
+
 const STORAGE_KEY = 'jazarah_state_v1';
 
 const CATEGORIES = {
@@ -1880,7 +1883,7 @@ const App = {
       </div>
       <div class="card" style="margin-top:14px">
         <h3>البيانات</h3>
-        <p class="muted" style="margin-bottom:10px">تُحفظ البيانات محليًا على هذا الجهاز فقط</p>
+        <p class="muted" style="margin-bottom:10px">تُحفظ البيانات محليًا على هذا الجهاز فقط · نسخة التطبيق: <b>بناء ${APP_BUILD}</b></p>
         <button class="btn-ghost" style="width:100%;color:#ff5d5d;border-color:#ffd0d0" onclick="App.resetAll()">🗑️ إعادة ضبط التطبيق بالكامل</button>
       </div>`;
   },
@@ -4034,3 +4037,12 @@ document.getElementById('celebrate').addEventListener('click', e => {
 });
 
 dailyUpkeep();
+
+/* عرض رقم البناء أسفل شاشة البداية — للتحقق أي نسخة تعمل */
+(function () {
+  const el = document.createElement('div');
+  el.style.cssText = 'text-align:center;color:#b08968;font-size:0.7rem;font-weight:700;margin-top:14px';
+  el.textContent = 'جَزَرة · بناء ' + APP_BUILD;
+  const wrap = document.querySelector('.role-wrap');
+  if (wrap) wrap.appendChild(el);
+})();
