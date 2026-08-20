@@ -879,7 +879,34 @@ b { font-weight: 700; }
   content: ''; position: absolute; right: -8px; top: 50%; margin-top: -8px;
   border: 8px solid transparent; border-left-color: #fff; border-right: none;
 }
-.jz-cta { width: 100%; font-size: 1.15rem; margin-bottom: 6px; }
+.next-step-card {
+  background: linear-gradient(135deg, #fff, #fff8e8);
+  border: 3px solid #ffd99f;
+  border-radius: 26px;
+  padding: 16px;
+  margin: 4px 0 12px;
+  box-shadow: 0 7px 0 rgba(255, 140, 66, 0.18);
+}
+.next-copy .next-label {
+  display: inline-flex; background: #fff0d9; color: var(--carrot-dark);
+  border-radius: 999px; padding: 4px 10px; font-size: 0.78rem; font-weight: 900;
+}
+.next-copy h2 { font-size: 1.35rem; font-weight: 900; margin: 8px 0 3px; }
+.next-copy p { color: #7a6f8e; font-weight: 700; font-size: 0.92rem; }
+.next-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: stretch; margin-top: 12px; }
+.listen-pill {
+  background: #f0e9ff; color: var(--purple); border-radius: 16px; padding: 0 14px;
+  font-weight: 900; border: 2px solid #dccbff;
+}
+.today-progress {
+  display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px;
+  margin-top: 12px; font-size: 0.82rem; color: #8a86a8; font-weight: 900;
+}
+.today-progress i { height: 10px; border-radius: 999px; background: #f0e9ff; overflow: hidden; }
+.today-progress em {
+  display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--gold));
+  border-radius: inherit; transition: width 0.35s ease;
+}
 
 /* شبكة الأركان المدمجة */
 .hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
