@@ -483,6 +483,8 @@ function defaultChild(name, avatarBase, avatarBg) {
     birthdate: null,        // YYYY-MM-DD — للاحتفال بعيد الميلاد
     grade: 'g1',            // المرحلة الدراسية kg1..g6
     lastBirthdayYear: null, // آخر سنة احتفلنا فيها بميلاده
+    feed: [],               // يوميات الطفل { id, e, title, ts, img, heart, seen }
+    myPickDate: null,       // تاريخ آخر «مهمة أختارها أنا»
   };
 }
 
@@ -659,6 +661,134 @@ function journeyUpdate(c) {
   }
   if (events.length) save();
   return events;
+}
+
+/* ─────────────── حكاية جزّور: قصة مسلسلة ───────────────
+   فصل واحد يُفتح مع كل مرحلة تُنجز في رحلة العوالم — كل فصل ينتهي
+   بتشويق يجعل الطفل ينتظر الغد. STORY[i] = ما حدث في المرحلة i */
+const STORY = [
+  // 🥕 وادي الجزر (1-10)
+  'استيقظ جزّور صباحًا فوجد ألوان وادي الجزر قد اختفت! كل شيء رمادي… وعلى الأرض أثر أقدام ضخمة. من ترك هذا الأثر؟',
+  'تبع جزّور الأثر حتى بيت الجدة أرنوبة، فقالت له: «وحش الكسل سرق بذور النور الثماني!». ماذا يوجد في الخريطة التي أعطته إياها؟',
+  'فتح جزّور الخريطة فإذا فيها ثمانية عوالم، في كل عالم بذرة نور مخبأة. لكن الخريطة ناقصة… أين قطعتها الأولى؟',
+  'وجد جزّور القطعة الأولى تحت جسر الوادي، وسمع صوتًا يهمس: «لن تصل أبدًا أيها الجزر الصغير!». من صاحب الصوت؟',
+  'ظهر ثعلوب، مساعد وحش الكسل! ركض جزّور بسرعة البرق ونجا منه. لكن ثعلوب أسقط شيئًا لامعًا من جيبه…',
+  'التقط جزّور مفتاحًا ذهبيًا صغيرًا مكتوبًا عليه: «باب الينبوع». أين يا ترى هذا الباب؟',
+  'دلّه عصفور الوادي على صخرة عليها ثقب مفتاح! فتح جزّور الباب فوجد سلّمًا يهبط تحت الأرض…',
+  'في أسفل السلم وجد جزّور ينبوع الألوان القديم، لكنه جاف تمامًا. على الحائط كُتب: «الماء يعود بهزيمة الحارس»…',
+  'خرج جزّور ليستعد، فأعطته الجدة أرنوبة درعًا من أوراق الجزر: «غدًا تواجه حارس الوادي. نم مبكرًا يا بطل!»',
+  'واجه جزّور حارس الوادي الحجري وهزمه بذكائه! انفجر الينبوع بالألوان وظهرت بذرة النور الأولى ✨ لكن الخريطة أشارت إلى غابة مظلمة…',
+  // 🌲 الغابة المسحورة (11-20)
+  'دخل جزّور الغابة المسحورة فسمع الأشجار تتهامس: «جزر صغير… جزر شجاع…». هل الأشجار هنا تتكلم حقًا؟',
+  'تكلمت شجرة عجوز: «بذرة النور عند ملكة اليراعات، لكن ضوءها انطفأ منذ جاء وحش الكسل». كيف يعيد جزّور الضوء؟',
+  'قرر جزّور جمع قطرات الندى المضيئة. جمع سبع قطرات… لكن القطرة الثامنة كانت في عش النسر العملاق!',
+  'تسلل جزّور بهدوء إلى العش… وأخذ القطرة! لكن ريشة سقطت وأيقظت النسر. ماذا سيفعل الآن؟',
+  'صرخ جزّور: «أنا لست لصًا! أجمع الضوء لأنقذ الغابة». فأعجب النسر بصدقه وحمله على جناحيه إلى بحيرة اليراعات!',
+  'أضاء جزّور القطرات الثماني حول البحيرة فاستيقظت اليراعات واحدة تلو الأخرى… ما أجمل المنظر! لكن أين الملكة؟',
+  'ظهرت ملكة اليراعات من زهرة كبيرة وقالت: «شكرًا يا جزّور! لكن ثعلوب حبس أصدقائي في قفص شوكي…»',
+  'وجد جزّور القفص الشوكي وفكّر: القوة لن تفتحه، لكن الماء يلين الشوك! سقاه من ماء الينبوع حتى فُتح القفص 🎉',
+  'أقامت الغابة مهرجان الأضواء احتفالًا بجزّور، وقالت الملكة: «غدًا أعطيك البذرة… فاستعد للرحيل نحو الرمال الذهبية»',
+  'أعطته الملكة بذرة النور الثانية ✨ وأضاءت له طريق الخروج. عند حافة الغابة، لاحت في الأفق صحراء تلمع كالذهب…',
+  // 🏜️ الصحراء الذهبية (21-30)
+  'وصل جزّور إلى الصحراء الذهبية والشمس فوق رأسه. من بعيد رأى قافلة جِمال تسير… إلى أين تتجه؟',
+  'قابل جزّور الجمل سالم قائد القافلة فقال له: «بذرة النور في المدينة المفقودة، ولا يعرف طريقها إلا البوصلة الذهبية»',
+  'البوصلة الذهبية عند تاجر عجوز في السوق، لا يبيعها بالمال — بل بحل لغزه! هل ينجح جزّور؟',
+  'قال التاجر: «ما الشيء الذي كلما أخذت منه كبُر؟». فكّر جزّور طويلًا ثم صاح: «الحفرة!» فضحك التاجر وأعطاه البوصلة!',
+  'سارت القافلة خلف البوصلة يومًا كاملًا… وفجأة تحرك الرمل تحتهم: عاصفة رملية قادمة!',
+  'احتمى الجميع خلف صخرة كبيرة، وحمى جزّور صغير الجمال بدرعه الورقي. لما هدأت العاصفة… ظهرت أبواب المدينة المفقودة من تحت الرمل!',
+  'دخل جزّور المدينة الذهبية فوجدها نائمة: كل تماثيلها كانت حرّاسًا حوّلهم وحش الكسل إلى حجر…',
+  'في وسط المدينة نافورة مكتوب عليها: «من يوقظ المدينة؟ من يعمل ولا يكسل». وضع جزّور بذرتي النور فوق النافورة…',
+  'توهجت النافورة وبدأ الحجر يتشقق عن الحراس ببطء! قال سالم: «ناموا الليلة هنا، غدًا تستيقظ المدينة كاملة»',
+  'استيقظت المدينة الذهبية بأكملها وهتف الحراس باسم جزّور! أعطوه بذرة النور الثالثة ✨ وقالوا: «التالية في مكان لا تصله الشمس… تحت البحر!»',
+  // 🌊 أعماق البحر (31-40)
+  'وقف جزّور أمام البحر متعجبًا: كيف ينزل جزر إلى الأعماق دون أن يغرق؟ وفجأة طفت أمامه فقاعة عملاقة!',
+  'كانت الفقاعة مركبة السلحفاة الحكيمة أم مئة عام! قالت: «اركب يا بطل، سمعت الأسماك تتحدث عنك». وغاصت المركبة…',
+  'مرّا بحديقة شعاب مرجانية رمادية حزينة. قالت السلحفاة: «كانت أجمل ألوان البحر… قبل أن يمر وحش الكسل من هنا»',
+  'قابلهما حصان بحر صغير يبكي: «أخي علق في شبكة قديمة!». هل يستطيع جزّور مساعدته في الأعماق؟',
+  'قصّ جزّور الشبكة بورقة من أوراقه الحادة وحرر حصان البحر! فأهداه صدفة تسمع منها همس البحر كله…',
+  'همست الصدفة: «بذرة النور في مدينة اللؤلؤ… واحذر سمكة الظلام التي تحرس بوابتها»',
+  'عند بوابة مدينة اللؤلؤ ظهرت سمكة الظلام الضخمة! لكن جزّور لاحظ شيئًا غريبًا: السمكة كانت تبكي…',
+  'قالت السمكة: «لست شريرة! وحش الكسل أطفأ فانوسي فصار الجميع يخافني في العتمة». فأشعل جزّور فانوسها بقطرة ندى مضيئة!',
+  'فتحت السمكة البوابة بنفسها ورافقته إلى قصر اللؤلؤ. قال ملك البحر: «نم في القصر الليلة يا ضيفنا، وغدًا لك ما وعدنا»',
+  'أعطاه ملك البحر بذرة النور الرابعة ✨ داخل محارة ذهبية، ورفعته الفقاعة إلى السطح… حيث لاحت قمم جبال بيضاء تلمع كالسكر!',
+  // 🏔️ القمم الثلجية (41-50)
+  'وصل جزّور إلى سفح القمم الثلجية يرتجف من البرد. من ينسج له معطفًا في هذا الصقيع؟',
+  'وجد كوخًا صغيرًا فيه أرنبة تنسج الصوف، قالت: «معطف مقابل حكاية!». فحكى لها مغامراته وحصل على أدفأ معطف!',
+  'صعد جزّور الجبل فوجد الجسر الجليدي مكسورًا والوادي عميق… كيف سيعبر إلى القمة؟',
+  'رأى جزّور عائلة من الوعول تقفز بين الصخور، فعلمته الوعول الصغيرة القفز الآمن خطوة خطوة حتى عبر!',
+  'في منتصف الجبل هبت عاصفة ثلجية، فاحتمى جزّور في كهف… وسمع صوت أنين عميق يخرج من داخله!',
+  'كان الأنين لطائر الثلج العملاق، جناحه مجروح! ضمّد جزّور جرحه بورقة من أوراقه ودفّأه حتى نام…',
+  'استيقظ طائر الثلج معافى وقال: «أنا حارس بذرة النور! لكنها تجمدت في قلب بحيرة الجليد منذ زمن الكسل…»',
+  'حمل الطائر جزّورًا فوق القمم إلى البحيرة المتجمدة. قال: «لن يذيب الجليد إلا دفء قلب مجتهد… ضع يدك عليه»',
+  'وضع جزّور يده على الجليد وتذكر كل اجتهاده… فبدأ الجليد يذوب ببطء ويلمع! قال الطائر: «غدًا تكتمل الذوبة، نم هنا في عشي الدافئ»',
+  'ذاب الجليد وأشرقت بذرة النور الخامسة ✨ من قلب البحيرة! حملها جزّور وودّع الطائر… ومن القمة رأى مدينة حمراء تتوهج: مدينة البراكين!',
+  // 🌋 مدينة البراكين (51-60)
+  'نزل جزّور نحو مدينة البراكين حيث الأرض دافئة والسماء برتقالية. عند البوابة وقف حارس من صخر ناري…',
+  'قال الحارس: «لا يدخل مدينتنا إلا شجاع القلب. أرني شجاعتك!» فأراه جزّور بذور النور الخمس، فانحنى الحارس احترامًا!',
+  'في المدينة قابل جزّور صانعة البلورات النارية شرارة، قالت: «بذرة النور سقطت في نهر الحمم! ولا أحد يجرؤ على الاقتراب…»',
+  'فكّر جزّور: «الحمم لا تُلمس، لكن يمكن صناعة جسر!». فبدأ مع شرارة جمع الصخور الباردة… كم صخرة يحتاجان؟',
+  'عمل الاثنان يومًا كاملًا وبنيا نصف الجسر. قالت شرارة: «تعبنا اليوم يثمر غدًا» — وهذا ما يقوله والدك أيضًا!',
+  'اكتمل الجسر! مشى جزّور فوق نهر الحمم خطوة خطوة… وفي المنتصف رأى البذرة تلمع على صخرة صغيرة',
+  'وفجأة اهتز البركان! صخور تتساقط والجسر يتمايل… ثبّت جزّور قدميه وتذكر تدريب الوعول!',
+  'قفز جزّور القفزة الأخيرة وأمسك البذرة! لكن الجسر انهار خلفه… كيف سيعود؟',
+  'أطلقت شرارة طائرتها الورقية النارية فتعلق بها جزّور وطارت به فوق النهر إلى الأمان! هتفت المدينة كلها لبطل الجزر',
+  'احتفلت مدينة البراكين وسلمته بذرة النور السادسة ✨ ثم أشارت شرارة إلى السماء: «البذرة السابعة… ليست على الأرض أصلًا!»',
+  // 🚀 الفضاء (61-70)
+  'بنى مهندسو مدينة البراكين لجزّور صاروخًا صغيرًا برتقاليًا! ارتدى خوذته وعدّ: ثلاثة… اثنان… واحد…',
+  'انطلق الصاروخ! رأى جزّور بيته يصغر والأرض تصير كرة زرقاء جميلة. «كم هي جميلة! سأحميها بالنور» قال لنفسه…',
+  'رست المركبة على القمر، فوجد جزّور آثار أقدام صغيرة تقوده إلى فوهة عميقة… من يسكن القمر؟',
+  'في الفوهة قابل قمرون، كائنًا فضيًا لطيفًا يجمع النجوم الساقطة! قال: «بذرة النور؟ رأيتها! سرقها ثعلوب وهرب إلى حزام الكويكبات!»',
+  'طار جزّور وقمرون بين الكويكبات المتدحرجة، يراوغان يمينًا ويسارًا… وأخيرًا لمحا مركبة ثعلوب!',
+  'طاردا ثعلوب حتى حاصراه عند سديم ملون. صاح ثعلوب: «لن أعطيك البذرة أبدًا!» ورمى شبكة نجمية على مركبتهما!',
+  'قص جزّور الشبكة وقال لثعلوب بهدوء: «لماذا تخدم وحش الكسل وهو لا يعطيك شيئًا؟». فتردد ثعلوب لأول مرة…',
+  'اعترف ثعلوب: «وعدني بجبل من الحلوى ولم يفِ أبدًا…». قال جزّور: «تعال معنا، والصديق خير من ألف وعد كاذب»',
+  'سلّم ثعلوب البذرة السابعة ✨ بنفسه وصار صديقًا! ناما تلك الليلة في محطة قمرون يشاهدان الشهب…',
+  'قال قمرون مودعًا: «البذرة الأخيرة في مملكة التنانين… حيث يسكن وحش الكسل نفسه». شدّ جزّور حزامه: المعركة الأخيرة اقتربت!',
+  // 🐉 مملكة التنانين (71-80)
+  'هبط الصاروخ في مملكة التنانين: قلاع فوق السحاب وتنانين تحلق في كل مكان… لكن أجنحتها بطيئة حزينة. لماذا؟',
+  'قال تنين صغير اسمه لهب: «وحش الكسل ينفث ضباب النعاس كل صباح فننام عن التحليق… حتى ملكنا نائم منذ شهور!»',
+  'قرر جزّور إيقاظ الملك أولًا. صنع من أوراقه وبذور النور السبع بوقًا مضيئًا… فهل ينفع النور مع النعاس؟',
+  'نفخ جزّور في البوق فخرج نور ولحن جميل! فتح الملك عينًا واحدة وقال بصوت نعسان: «من… من أيقظني؟»',
+  'وقف الملك التنين لأول مرة منذ شهور وقال: «أيها الجزر الشجاع، وحش الكسل في القلعة السوداء. سأحملك إليها… إن كان قلبك جاهزًا»',
+  'حلّق جزّور على ظهر الملك نحو القلعة السوداء، ومعه لهب وثعلوب. عند البوابة نفث الوحش أول موجة ضباب نعاس!',
+  'صمد جزّور وتذكر كل يوم اجتهد فيه: المهام والقراءة والقرآن… كل إنجاز صار درعًا من نور حوله!',
+  'دخل جزّور القلعة فرأى وحش الكسل عملاقًا رماديًا… لكنه لاحظ شيئًا: الوحش نفسه يتثاءب ويذبل. سرّ قوته يضعف أمام المجتهدين!',
+  'صاح الوحش: «نم يا جزّور! ارتح! أجّل كل شيء لغد!» فأجاب جزّور: «أرتاح بعد الإنجاز، وأنام لأصحو أقوى!» وارتفع نوره أكثر…',
+  'وضع جزّور البذور الثماني في قلب القلعة فانفجر النور في كل مكان! ذاب وحش الكسل وصار غيمة صغيرة هربت بعيدًا. عادت الألوان لكل العوالم، وتوّجت التنانين جزّورًا: بطل العوالم الثمانية 👑 والبطل الحقيقي… هو أنت!',
+];
+
+/* «مهمة أختارها أنا» — استقلالية بجرعة يومية آمنة: الطفل يختار مهمة واحدة */
+const KID_PICKS = [
+  { emoji: '🛏️', title: 'أرتب سريري بنفسي',        cat: 'kindness' },
+  { emoji: '🤲', title: 'أساعد ماما أو بابا',       cat: 'kindness' },
+  { emoji: '📚', title: 'أقرأ قصة قبل النوم',       cat: 'study' },
+  { emoji: '🎨', title: 'أرسم لوحة جميلة',          cat: 'study' },
+  { emoji: '🤸', title: 'أتمرن ١٠ دقائق',           cat: 'sport' },
+  { emoji: '🪴', title: 'أسقي النباتات',            cat: 'kindness' },
+  { emoji: '🧸', title: 'أرتب ألعابي',              cat: 'kindness' },
+  { emoji: '🦷', title: 'أنظف أسناني دون تذكير',    cat: 'health' },
+  { emoji: '💧', title: 'أشرب ٦ أكواب ماء',         cat: 'health' },
+  { emoji: '🕌', title: 'أحفظ دعاءً جديدًا',         cat: 'faith' },
+  { emoji: '👶', title: 'ألعب مع أخي الصغير',       cat: 'kindness' },
+  { emoji: '🚶', title: 'أمشي مع عائلتي',           cat: 'sport' },
+];
+
+/* يوميات الطفل: شريط أحداث يراه الوالد كقصص العائلة ويرسل عليه ❤️ */
+function feedPush(c, emoji, title, img) {
+  if (!c.feed) c.feed = [];
+  c.feed.unshift({ id: uid(), e: emoji, title, ts: Date.now(), img: img || null, heart: false, seen: false });
+  // الصور تبقى لأحدث الأحداث فقط حفاظًا على حجم التخزين والمزامنة
+  c.feed.slice(10).forEach(f => { f.img = null; });
+  if (c.feed.length > 60) c.feed = c.feed.slice(0, 60);
+}
+
+/* وقت حدث اليوميات بصيغة ودية: اليوم بالساعة، أمس، أو التاريخ */
+function feedTimeStr(ts) {
+  const d = new Date(ts);
+  const key = todayKey(d);
+  if (key === todayKey()) return 'اليوم ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  if (key === dayKeyOffset(-1)) return 'أمس';
+  return key;
 }
 
 /* عضوية الولاء: خصم في المتجر بحسب إجمالي الجزر المجموع مدى الحياة */
@@ -845,8 +975,12 @@ function grantCompletion(t, dateKey) {
     if (allDone) { bonus = 10; C().coins += bonus; C().lifetimeCoins += bonus; }
   }
 
-  save();
+  // يوميات الطفل — يظهر الإنجاز في شريط يوم الوالد
+  feedPush(C(), (CATEGORIES[t.cat] && CATEGORIES[t.cat].emoji) || '⭐', t.title ? 'أنجز: ' + t.title : 'أنجز مهمة');
   const newLevel = levelOf(C().xp);
+  if (newLevel > prevLevel) feedPush(C(), '🆙', `ترقّى للمستوى ${newLevel}!`);
+
+  save();
   return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel };
 }
 
@@ -1144,8 +1278,27 @@ const App = {
       </div>`;
     }).join('');
 
+    // شريط يوم الطفل — الوالد يفتح ليرى لا ليدير: كل إنجاز لحظة، والقلب يصل للطفل فورًا
+    const feed = (C().feed || []).slice(0, 8);
+    const feedHtml = feed.length ? `
+      <div class="card feed-card">
+        <h3>📸 يوم ${esc(C().name)}</h3>
+        <p class="muted" style="margin-bottom:8px">اضغط 🤍 وسيصل قلبك للطفل مع اسم إنجازه — أقوى مكافأة مجانية</p>
+        ${feed.map(f => `
+          <div class="feed-row">
+            <span class="feed-emoji">${f.e}</span>
+            <div class="task-info">
+              <div class="t-title">${esc(f.title)}</div>
+              <div class="t-meta">${feedTimeStr(f.ts)}${f.heart ? (f.seen ? ' · ❤️ شاهده' : ' · ❤️ في طريقه إليه') : ''}</div>
+            </div>
+            ${f.img ? `<img class="feed-thumb" src="${f.img}" alt="صورة الإنجاز" />` : ''}
+            <button class="heart-btn ${f.heart ? 'on' : ''}" title="أرسل قلبًا" onclick="App.heartFeed('${f.id}')">${f.heart ? '❤️' : '🤍'}</button>
+          </div>`).join('')}
+      </div>` : '';
+
     document.getElementById('ptab-tasks').innerHTML = `
       ${reviewHtml}
+      ${feedHtml}
       ${apHtml}
       <div class="card">
         <h3>مهام اليوم (${C().tasks.length})</h3>
@@ -1369,8 +1522,13 @@ const App = {
     if (!p) return;
     C().pendingProofs = C().pendingProofs.filter(x => x.id !== id);
     // نمنح المكافآت بهوية المهمة الأصلية وتاريخ الإنجاز الأصلي
-    const taskLike = { id: p.taskId, cat: p.cat, xp: p.xp, coins: p.coins };
+    const taskLike = { id: p.taskId, cat: p.cat, xp: p.xp, coins: p.coins, title: p.title };
     grantCompletion(taskLike, p.date);
+    // صورة الإثبات تظهر في شريط اليوم — كأنها قصة عائلية
+    if (p.photo && C().feed && C().feed.length) {
+      const fe = C().feed.find(f => f.title.includes(p.title));
+      if (fe) fe.img = p.photo;
+    }
     C().unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins });
     save();
     this.renderPTasks();
@@ -2164,6 +2322,11 @@ const App = {
           `تقدمت في ${esc(worldOf(j.stage).name)} ${worldOf(j.stage).emoji}<br /><small>${isBossStage(j.stage) ? 'التالية بوابة الزعيم! تحتاج جهدًا مضاعفًا 👾' : 'واصل غدًا لمرحلة جديدة'}</small>`,
           [`🗺️ ${j.stage} / ${TOTAL_STAGES}`], '🚩');
       }
+      // فصل جديد من حكاية جزّور يُعرض بعد إغلاق الاحتفال + يظهر في شريط يوم الوالد
+      const jStage = C().journey.stage;
+      if (jStage > 0 && STORY[jStage - 1]) this._storyToShow = jStage - 1;
+      feedPush(C(), '🗺️', ev.type === 'world' ? `دخل ${WORLDS[ev.world].name} ${WORLDS[ev.world].emoji}` : `قطع المرحلة ${jStage} في رحلة العوالم`);
+      save();
       this._applyWorldTheme();
       if (document.getElementById('ktab-map').classList.contains('active')) this.renderKMap();
     }
@@ -2180,11 +2343,19 @@ const App = {
   renderKMap() {
     const today = todayKey();
     const doneIds = new Set(C().completions[today] || []);
-    const allDone = C().tasks.length > 0 && C().tasks.every(t => doneIds.has(t.id));
 
+    // مشهد جزّور: الرفيق الحي أول ما يستقبل الطفل — وجه واحد، فعل واحد
+    const mood = this.jazzourMood();
+    const heartsWaiting = (C().feed || []).filter(f => f.heart && !f.seen).length;
     let html = `
-      <h2 class="map-title">🗺️ مغامرة اليوم</h2>
-      <p class="map-sub">${dayNameOffset(0)} — أكمل المراحل واجمع الكنوز!</p>`;
+      <div class="jz-scene">
+        <button class="jz-char" id="jz-char" onclick="App.pokeJazzour()" aria-label="جزّور">
+          <img src="avatars/jazzour-${mood}.svg" alt="جزّور" />
+          ${heartsWaiting ? `<span class="jz-heart-badge">❤️ ${heartsWaiting}</span>` : ''}
+        </button>
+        <div class="jz-bubble">${this._jazzourBubble(mood)}</div>
+      </div>
+      <button class="btn-primary big jz-cta" onclick="App.nextAdventureStep()">▶️ أكمل مغامرتك</button>`;
 
     // صندوق المفاجأة
     if (C().mysteryBox) {
@@ -2207,10 +2378,6 @@ const App = {
           <p class="boss-reward">🏆 ${esc(S.boss.reward)}</p>
           <button class="boss-hit-btn" onclick="App.kidBossHit()">اضرب وحش الكسل! ⚔️</button>
         </div>`;
-    }
-
-    if (allDone) {
-      html += `<div class="all-done-banner">🏆 أنهيت كل مهام اليوم! أنت بطل حقيقي 🎉</div>`;
     }
 
     // وضع الويكند: تحية + سورة الكهف يوم الجمعة
@@ -2278,63 +2445,46 @@ const App = {
         <span class="wg-reward">${qr.claimed ? '✅' : '🥕 +8'}</span>
       </button>`;
 
-    // ركن الألعاب — كل ألعاب اليوم في مكان واحد
+    // شبكة الأركان — أربعة أبواب مدمجة بدل بطاقات مكدسة (يكتشفها لا تُعرض كلها)
     const wg = this._wordGameState();
     const mg = this._mathGameState();
     const bg = this._blurGameState();
     const sg = this._shadowGameState();
     const gamesDone = wg.arDone + wg.enDone + mg.done + bg.done + sg.done;
     const gamesTotal = WORDS_PER_DAY * 5;   // كلمات×2 + حساب + ضبابية + ظل
-    html += `
-      <button class="wordgame-card" onclick="App.openGamesHub()">
-        <span class="wg-emoji">🎮</span>
-        <span class="wg-info">
-          <b>ركن الألعاب</b>
-          <small>${gamesDone >= gamesTotal ? 'أتممت كل ألعاب اليوم! عد غدًا 🌟' : `كلمات · حساب · ألغاز الصور (${gamesDone}/${gamesTotal})`}</small>
-        </span>
-        <span class="wg-reward">🥕 اكسب وأنت تلعب</span>
-      </button>`;
-
-    // محفظة وقت الشاشة
     const stBal = (C().screenTime && C().screenTime.balance) || 0;
+    const libCount = S.quizzes.length + S.videos.length;
+    const chapters = Math.min((C().journey && C().journey.stage) || 0, STORY.length);
     html += `
-      <button class="screentime-card" onclick="App.openScreenTime()">
-        <span class="wg-emoji">⏱️</span>
-        <span class="wg-info"><b>وقت الشاشة: ${stBal} دقيقة</b><small>${stBal > 0 ? 'اضغط لبدء وقت اللعب ▶️' : 'أنجز مهامًا لتكسب دقائق لعب'}</small></span>
-        <span class="wg-reward">🎮</span>
-      </button>`;
+      <div class="hub-grid">
+        <button class="hub-tile" onclick="App.openGamesHub()">
+          <span class="ht-emoji">🎮</span><b>الألعاب</b>
+          <small>${gamesDone >= gamesTotal ? 'أتممتها اليوم 🌟' : gamesDone + '/' + gamesTotal + ' اليوم'}</small>
+        </button>
+        <button class="hub-tile" onclick="App.openStoryBook()">
+          <span class="ht-emoji">📖</span><b>حكاية جزّور</b>
+          <small>${chapters ? chapters + ' من ' + STORY.length + ' فصلًا' : 'تبدأ بأول مرحلة'}</small>
+        </button>
+        <button class="hub-tile" onclick="App.openScreenTime()">
+          <span class="ht-emoji">⏱️</span><b>وقت الشاشة</b>
+          <small>${stBal > 0 ? stBal + ' دقيقة ▶️' : 'أنجز لتكسب دقائق'}</small>
+        </button>
+        <button class="hub-tile" onclick="App.openLibrary()">
+          <span class="ht-emoji">🎒</span><b>مكتبتي</b>
+          <small>${libCount ? libCount + ' فيديو واختبار' : 'رموز معلمي هنا'}</small>
+        </button>
+      </div>`;
 
-    // اختبارات المعلمين التفاعلية
-    if (S.quizzes.length) {
-      html += `<div class="videos-card"><h3>📝 اختبارات معلمي</h3>${S.quizzes.map(q => {
-        const score = C().quizzesDone[q.id];
-        return `<button class="video-row" onclick="App.playQuiz('${q.id}')">
-          <span>${score !== undefined ? '✅' : '📝'}</span>
-          <span style="flex:1">${esc(q.title)} <small style="color:#8a86a8">— 🏫 ${esc(q.teacher)}</small></span>
-          ${score !== undefined ? `<small style="font-weight:900;color:var(--green-dark)">${score}/${q.questions.length}</small>` : ''}
-        </button>`;
-      }).join('')}</div>`;
-    }
-
-    // مكتبة الفيديو التعليمية
-    if (S.videos.length) {
-      html += `
-        <div class="videos-card">
-          <h3>🎬 فيديوهاتي التعليمية</h3>
-          ${S.videos.map(v => `
-            <button class="video-row" onclick="App.watchVideo('${v.id}')">
-              <span>▶️</span><span>${esc(v.title)}</span>
-            </button>`).join('')}
-        </div>`;
-    }
+    html += `<h2 class="map-title" style="margin-top:14px">🗺️ مهام اليوم</h2>
+      <p class="map-sub">${dayNameOffset(0)} — أكمل المراحل واجمع الكنوز!</p>`;
 
     if (C().tasks.length === 0) {
       html += `<div class="map-empty"><div class="big-emoji">🗺️</div><p class="muted">الخريطة فارغة… اطلب من والدك إضافة مهام المغامرة!</p></div>`;
     } else {
       const pendingToday = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
-      const goldenId = goldenTaskId(today);
-      // وضع الويكند: الجمعة والسبت بلا دراسة (إلا ما وسمه الوالد)
-      const visibleTasks = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk);
+      // وضع الويكند: الجمعة والسبت بلا دراسة (إلا ما وسمه الوالد) — واختيارات الأيام السابقة تُخفى
+      const visibleTasks = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
+        .filter(t => !t.mine || t.id === 'mine-' + today);
       html += '<div class="map-path">';
       visibleTasks.forEach((t, i) => {
         const done = doneIds.has(t.id);
@@ -2342,13 +2492,13 @@ const App = {
         const et = effectiveTask(t, today);
         const side = i % 2 === 0 ? 'side-left' : 'side-right';
         html += `
-          <div class="map-node ${side} ${done ? 'done' : ''} ${pending ? 'pending' : ''} ${et.golden && !done && !pending ? 'golden' : ''}">
+          <div class="map-node ${side} ${done ? 'done' : ''} ${pending ? 'pending' : ''} ${et.golden && !done && !pending ? 'golden' : ''}" id="node-${t.id}">
             <button class="node-circle" onclick="App.completeTask('${t.id}')" ${done || pending ? 'disabled' : ''}>
               ${done ? '⭐' : (pending ? '⏳' : CATEGORIES[t.cat].emoji)}
             </button>
             <div class="node-card">
               <button class="say-btn" title="اسمع المهمة" onclick="App.sayTask('${t.id}')">🔊</button>
-              <div class="n-title">${et.golden && !done ? '✨ ' : ''}${esc(t.title)}</div>
+              <div class="n-title">${et.golden && !done ? '✨ ' : ''}${esc(t.title)}${t.mine ? ' <small style="color:#9b6dff">🙋 اختياري</small>' : ''}</div>
               ${t.teacher ? `<div class="n-teacher">🏫 من ${esc(t.teacher)}</div>` : ''}
               <div class="n-reward">${pending ? '👀 بانتظار تأكيد والدك…'
                 : `✨ ${et.xp} XP &nbsp; 🥕 ${et.coins}${et.golden ? ' &nbsp; <b style="color:#cf9a1d">مهمة اليوم الذهبية ×2</b>' : ''}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
@@ -2356,13 +2506,20 @@ const App = {
           </div>
           ${i < visibleTasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
       });
+      // «مهمة أختارها أنا» — محطة الاستقلالية اليومية في آخر الخريطة
+      if (C().myPickDate !== today) {
+        html += `<div class="path-connector"></div>
+          <button class="my-pick-node" onclick="App.openMyPick()">
+            <span class="m-emoji">🙋</span>
+            <span><b>مهمة أختارها أنا</b><br /><small>اختر بنفسك مهمة اليوم الإضافية — أنت القائد!</small></span>
+          </button>`;
+      }
       html += '</div>';
     }
 
-    // مشاركة إنجاز اليوم مع الوالد البعيد + إضافة رمز معلم
+    // مشاركة إنجاز اليوم مع الوالد البعيد
     html += `
-      <button class="btn-primary purple" style="margin-top:6px" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>
-      <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="App.importCodeForm()">🏫 عندي رمز من معلمي</button>`;
+      <button class="btn-primary purple" style="margin-top:6px" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>`;
 
     document.getElementById('ktab-map').innerHTML = html;
   },
@@ -2704,7 +2861,10 @@ const App = {
       <h3 style="text-align:center">🗺️ رحلة العوالم</h3>
       <p class="muted" style="text-align:center;margin-bottom:10px">كل يوم مجتهد = مرحلة · بوابة الزعيم 👾 تحتاج جهدًا مضاعفًا</p>
       <div class="jworlds">${worlds}</div>
-      <button class="btn-primary purple" style="margin-top:12px" onclick="App.shareJourney()">📤 شارك موقعي مع أصدقائي</button>`);
+      <div class="form-row" style="margin-top:12px">
+        <div><button class="btn-primary" onclick="App.closeModal();App.openStoryBook()">📖 حكاية جزّور</button></div>
+        <div><button class="btn-primary purple" onclick="App.shareJourney()">📤 شارك موقعي</button></div>
+      </div>`);
   },
 
   shareJourney() {
@@ -2722,6 +2882,188 @@ const App = {
     scr.style.background = `linear-gradient(180deg, ${w.grad[0]} 0%, ${w.grad[1]} 30%, #fff6e5 100%)`;
     const head = document.querySelector('.kid-header');
     if (head) head.style.background = w.grad[0] + 'd9';
+  },
+
+  /* ═══════════ جزّور: رفيق الرحلة الحي ═══════════ */
+  _storyToShow: null,
+
+  /* مزاج جزّور يعكس يوم الطفل — الرعاية تقلب المعادلة: هو من ينتظر الطفل */
+  jazzourMood() {
+    const today = todayKey();
+    const done = (C().completions[today] || []).length;
+    const j = C().journey || {};
+    const total = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk).length;
+    if ((total > 0 && done >= total) || j.advanced >= 1) return 'cheer';
+    if (done > 0) return 'happy';
+    return new Date().getHours() < 12 ? 'sleepy' : 'hungry';
+  },
+
+  _jazzourBubble(mood) {
+    const hearts = (C().feed || []).filter(f => f.heart && !f.seen);
+    if (hearts.length) return '❤️ والدك شاف إنجازك وأعجبه! اضغط عليّ';
+    const done = (C().completions[todayKey()] || []).length;
+    return {
+      sleepy: 'جزّور نائم… أنجز أول مهمة ليصحو! 💤',
+      hungry: 'جزّور جوعان للإنجازات! أطعمه مهمة 🥕',
+      happy: `رائع! ${done} ${done === 1 ? 'إنجاز' : 'إنجازات'} اليوم — جزّور سعيد!`,
+      cheer: 'يوم بطولي! جزّور يرقص فرحًا ⭐',
+    }[mood];
+  },
+
+  pokeJazzour() {
+    const el = document.getElementById('jz-char');
+    if (el) { el.classList.remove('jz-bounce'); void el.offsetWidth; el.classList.add('jz-bounce'); }
+    // قلوب الوالد غير المشاهدة — لحظة الانتماء
+    const hearts = (C().feed || []).filter(f => f.heart && !f.seen);
+    if (hearts.length) {
+      hearts.forEach(f => { f.seen = true; });
+      save();
+      this.celebrate('رسالة حب من والدك! ❤️',
+        hearts.slice(0, 4).map(f => `${f.e} ${esc(f.title)}`).join('<br />'),
+        ['❤️ شاف إنجازك وأعجبه'], '🥰');
+      speak('والدك شاف إنجازك وأعجبه!', 'ar-SA');
+      this.renderKMap();
+      return;
+    }
+    const lines = {
+      sleepy: ['أنا نعسان… أيقظني بإنجاز!', 'مهمة واحدة وأصحو!'],
+      hungry: ['أطعمني مهمة لذيذة!', 'بطني يقرقر… أنجز شيئًا!'],
+      happy: ['أنت رائع! كمّل!', 'أحبك يا بطل!', 'هيا نكمل المغامرة!'],
+      cheer: ['أنت أسطورة!', 'أفضل يوم في حياتي!', 'فخور فيك!'],
+    }[this.jazzourMood()];
+    speak(lines[Math.floor(Math.random() * lines.length)], 'ar-SA');
+  },
+
+  /* الزر الواحد: يأخذ الطفل لخطوته التالية بالتسلسل — لا حيرة ولا زحام */
+  nextAdventureStep() {
+    const today = todayKey();
+    if (C().lastDailyChest !== today) return this.showDailyChest();
+    if (C().mysteryBox) return this.openMystery();
+    const doneIds = new Set(C().completions[today] || []);
+    const pendingIds = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
+    const next = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
+      .filter(t => !t.mine || t.id === 'mine-' + today)
+      .find(t => !doneIds.has(t.id) && !pendingIds.has(t.id));
+    if (next) {
+      const node = document.getElementById('node-' + next.id);
+      if (node) {
+        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        node.classList.add('node-glow');
+        setTimeout(() => node.classList.remove('node-glow'), 2500);
+      }
+      speak('مهمتك التالية: ' + next.title, 'ar-SA');
+      return;
+    }
+    const qr = this._quranState();
+    if (!qr.claimed) return this.openQuranKids();
+    const wg = this._wordGameState(), mg = this._mathGameState(), bg = this._blurGameState(), sg = this._shadowGameState();
+    if (wg.arDone + wg.enDone + mg.done + bg.done + sg.done < WORDS_PER_DAY * 5) return this.openGamesHub();
+    this.celebrate('أنهيت كل شيء اليوم! 🏆', 'جزّور يرقص فرحًا — عد غدًا لمرحلة جديدة من الرحلة والحكاية', [], '🥕');
+  },
+
+  /* ── حكاية جزّور المسلسلة ── */
+  openStory(i) {
+    if (!STORY[i]) return;
+    const w = worldOf(i);
+    const last = i >= STORY.length - 1;
+    this.openModal(`
+      <div class="story-book" style="--wc:${w.color}">
+        <div class="story-head">
+          <img class="story-jz" src="avatars/jazzour-${last ? 'cheer' : 'happy'}.svg" alt="جزّور" />
+          <div>
+            <small>${w.emoji} حكاية جزّور — ${esc(w.name)}</small>
+            <h3>الفصل ${i + 1} من ${STORY.length}</h3>
+          </div>
+        </div>
+        <p class="story-text">${esc(STORY[i])}</p>
+        <div class="form-row">
+          <div><button class="btn-primary" data-say="${esc(STORY[i])}" onclick="App.sayText(this)">🔊 اسمع الحكاية</button></div>
+          <div><button class="btn-primary green" onclick="App.closeModal()">${last ? 'النهاية! 👑' : 'أكمل غدًا 🌙'}</button></div>
+        </div>
+        ${!last ? '<p class="muted" style="text-align:center;margin-top:8px">أنجز مرحلة الغد لتعرف البقية…</p>' : ''}
+      </div>`);
+  },
+
+  openStoryBook() {
+    const unlocked = Math.min((C().journey && C().journey.stage) || 0, STORY.length);
+    if (!unlocked) {
+      this.openModal(`
+        <div style="text-align:center">
+          <img src="avatars/jazzour-sleepy.svg" style="width:120px" alt="جزّور" />
+          <h3>حكاية جزّور 📖</h3>
+          <p class="muted">أنجز أول مرحلة في رحلة العوالم ليبدأ جزّور حكايته معك!</p>
+        </div>`);
+      return;
+    }
+    const rows = Array.from({ length: unlocked }, (_, i) => {
+      const w = worldOf(i);
+      return `<button class="video-row" onclick="App.openStory(${i})">
+        <span>${w.emoji}</span><span style="flex:1">الفصل ${i + 1}</span><small style="color:#8a86a8">${esc(w.name)}</small>
+      </button>`;
+    }).reverse().join('');
+    this.openModal(`
+      <h3 style="text-align:center">📖 حكاية جزّور</h3>
+      <p class="muted" style="text-align:center;margin-bottom:10px">فصل جديد مع كل مرحلة تقطعها — ${unlocked} من ${STORY.length}</p>
+      ${rows}`);
+  },
+
+  /* ── مكتبتي: فيديوهات واختبارات ورموز المعلم في مكان واحد ── */
+  openLibrary() {
+    const qHtml = S.quizzes.length ? `<h3 style="margin-top:10px">📝 اختبارات معلمي</h3>` + S.quizzes.map(q => {
+      const score = C().quizzesDone[q.id];
+      return `<button class="video-row" onclick="App.closeModal();App.playQuiz('${q.id}')">
+        <span>${score !== undefined ? '✅' : '📝'}</span>
+        <span style="flex:1">${esc(q.title)} <small style="color:#8a86a8">— 🏫 ${esc(q.teacher)}</small></span>
+        ${score !== undefined ? `<small style="font-weight:900;color:var(--green-dark)">${score}/${q.questions.length}</small>` : ''}
+      </button>`;
+    }).join('') : '';
+    const vHtml = S.videos.length ? `<h3 style="margin-top:10px">🎬 فيديوهاتي التعليمية</h3>` + S.videos.map(v => `
+      <button class="video-row" onclick="App.closeModal();App.watchVideo('${v.id}')">
+        <span>▶️</span><span>${esc(v.title)}</span>
+      </button>`).join('') : '';
+    this.openModal(`
+      <h3 style="text-align:center">🎒 مكتبتي</h3>
+      ${qHtml}${vHtml}
+      ${!qHtml && !vHtml ? '<p class="muted" style="text-align:center">لا يوجد محتوى بعد — اطلب من والدك أو معلمك إضافة فيديو أو اختبار</p>' : ''}
+      <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="App.closeModal();App.importCodeForm()">🏫 عندي رمز من معلمي</button>`);
+  },
+
+  /* ── مهمة أختارها أنا: استقلالية يومية بجرعة آمنة ── */
+  openMyPick() {
+    if (C().myPickDate === todayKey()) return;
+    this.openModal(`
+      <h3 style="text-align:center">🙋 مهمة أختارها أنا</h3>
+      <p class="muted" style="text-align:center;margin-bottom:10px">اختر مهمة واحدة تضيفها لخريطة يومك — أنت القائد!</p>
+      <div class="pick-grid">
+        ${KID_PICKS.map((p, i) => `
+          <button class="pick-tile" onclick="App.pickMyTask(${i})">
+            <span class="pk-emoji">${p.emoji}</span><span>${esc(p.title)}</span>
+          </button>`).join('')}
+      </div>`);
+  },
+
+  pickMyTask(i) {
+    const p = KID_PICKS[i];
+    if (!p || C().myPickDate === todayKey()) return;
+    C().tasks = C().tasks.filter(t => !t.mine);   // إزالة اختيارات الأيام السابقة
+    C().tasks.push({ id: 'mine-' + todayKey(), title: p.title, cat: p.cat, xp: 10, coins: 4, proof: 'self', mine: true });
+    C().myPickDate = todayKey();
+    save();
+    this.closeModal();
+    this.renderKMap();
+    speak('اختيار موفق! ' + p.title, 'ar-SA');
+    this.toast(`أضفت مهمتك: ${p.emoji} ${p.title}`);
+  },
+
+  /* ── قلب الوالد على إنجاز في شريط اليوم ── */
+  heartFeed(id) {
+    const f = (C().feed || []).find(x => x.id === id);
+    if (!f || f.heart) return;
+    f.heart = true;
+    f.seen = false;
+    save();
+    this.renderPTasks();
+    this.toast(`وصل قلبك إلى ${C().name} ❤️`);
   },
 
   /* ═══════════ رحلة البراعم: قرآن الأطفال الموجه ═══════════
@@ -2838,6 +3180,7 @@ const App = {
       c.xp += 15;
       c.coins += 5;
       c.lifetimeCoins += 5;
+      feedPush(c, '📖', `ختم سورة ${s.n} كاملة`);
       save();
       this.closeModal();
       this.refreshKidHeader();
@@ -2970,6 +3313,7 @@ const App = {
     c.coins += 8;
     c.lifetimeCoins += 8;
     c.hp = Math.min(100, c.hp + 10);
+    feedPush(c, '🌟', `أتم وِرد القرآن اليومي${qr.streak > 1 ? ` (سلسلة ${qr.streak} يوم)` : ''}`);
     save();
     this.closeModal();
     this.refreshKidHeader();
@@ -4127,6 +4471,11 @@ const App = {
     if (this._cQueue.length) {
       const next = this._cQueue.shift();
       setTimeout(() => this.celebrate(...next), 250);
+    } else if (this._storyToShow != null) {
+      // فصل الحكاية الجديد — يُقرأ بعد انتهاء كل الاحتفالات
+      const ch = this._storyToShow;
+      this._storyToShow = null;
+      setTimeout(() => this.openStory(ch), 300);
     }
   },
 

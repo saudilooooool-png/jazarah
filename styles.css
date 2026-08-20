@@ -848,3 +848,106 @@ b { font-weight: 700; }
 .kq-dots i { width: 9px; height: 9px; border-radius: 50%; background: #e5e1f5; }
 .kq-dots i.done { background: #1f8a70; }
 .kq-dots i.here { background: var(--gold); transform: scale(1.35); }
+
+/* ═══ جزّور: الرفيق الحي ═══ */
+.jz-scene { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.jz-char {
+  position: relative; flex: 0 0 auto; width: 128px; height: 148px;
+  background: none; border: none; padding: 0; cursor: pointer;
+}
+.jz-char img { width: 100%; height: 100%; }
+.jz-char.jz-bounce { animation: jzBounce 0.7s ease; }
+@keyframes jzBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-16px) scale(1.06); }
+  55% { transform: translateY(0) scale(0.96); }
+  75% { transform: translateY(-7px) scale(1.02); }
+}
+.jz-heart-badge {
+  position: absolute; top: -4px; left: -4px; background: #fff;
+  border: 2px solid #ff5da2; color: #ff2d78; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 900; padding: 3px 9px;
+  animation: jzPulse 1.2s infinite;
+}
+@keyframes jzPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.jz-bubble {
+  position: relative; flex: 1; background: #fff; border-radius: 18px;
+  padding: 14px 16px; font-weight: 800; font-size: 1rem; color: var(--ink);
+  box-shadow: 0 3px 10px rgba(60, 40, 20, 0.08);
+}
+.jz-bubble::before {
+  content: ''; position: absolute; right: -8px; top: 50%; margin-top: -8px;
+  border: 8px solid transparent; border-left-color: #fff; border-right: none;
+}
+.jz-cta { width: 100%; font-size: 1.15rem; margin-bottom: 6px; }
+
+/* شبكة الأركان المدمجة */
+.hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.hub-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: #fff; border: none; border-radius: 18px; padding: 14px 8px;
+  cursor: pointer; box-shadow: 0 3px 0 #eee6d8; font-family: inherit;
+  transition: transform 0.12s;
+}
+.hub-tile:active { transform: scale(0.97); }
+.hub-tile .ht-emoji { font-size: 1.9rem; }
+.hub-tile b { font-size: 0.95rem; color: var(--ink); }
+.hub-tile small { color: #8a86a8; font-weight: 700; font-size: 0.75rem; }
+
+/* مهمة أختارها أنا */
+.my-pick-node {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: linear-gradient(135deg, #f2ebff, #e4d6ff); border: 2px dashed var(--purple);
+  border-radius: 18px; padding: 14px; cursor: pointer; font-family: inherit;
+  text-align: right; color: var(--ink);
+}
+.my-pick-node .m-emoji { font-size: 1.8rem; }
+.pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pick-tile {
+  display: flex; align-items: center; gap: 8px; background: #f7f4ff;
+  border: 2px solid #e5ddfa; border-radius: 14px; padding: 10px;
+  cursor: pointer; font-family: inherit; font-weight: 800; font-size: 0.85rem;
+  color: var(--ink); text-align: right;
+}
+.pick-tile:active { border-color: var(--purple); }
+.pick-tile .pk-emoji { font-size: 1.4rem; }
+
+/* حكاية جزّور */
+.story-book { text-align: right; }
+.story-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.story-head small { color: var(--wc, #8a86a8); font-weight: 900; }
+.story-head h3 { margin: 0; }
+.story-jz { width: 78px; flex: 0 0 auto; }
+.story-text {
+  background: #fdf8ee; border-radius: 16px; padding: 16px; font-size: 1.1rem;
+  line-height: 1.9; font-weight: 700; color: #4a3a20; margin-bottom: 14px;
+  border-right: 5px solid var(--wc, var(--gold));
+}
+
+/* شريط يوم الطفل (جهة الوالد) */
+.feed-card { border: 3px solid #ffd9ec; }
+.feed-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 0;
+  border-bottom: 2px dashed #f3eee2;
+}
+.feed-row:last-child { border-bottom: none; }
+.feed-emoji { font-size: 1.4rem; flex: 0 0 auto; }
+.feed-thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 10px; flex: 0 0 auto; }
+.heart-btn {
+  flex: 0 0 auto; background: #fff; border: 2px solid #ffd0e4; border-radius: 999px;
+  font-size: 1.15rem; padding: 6px 10px; cursor: pointer; transition: transform 0.12s;
+}
+.heart-btn:active { transform: scale(1.2); }
+.heart-btn.on { border-color: #ff5da2; background: #fff0f7; }
+
+/* توهج المهمة التالية عند ضغط «أكمل مغامرتك» */
+.node-glow .node-circle { animation: nodeGlow 0.9s ease 3; }
+@keyframes nodeGlow {
+  0%, 100% { box-shadow: 0 6px 0 rgba(0, 0, 0, 0.08); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 201, 60, 0.45); transform: scale(1.12); }
+}
+
+@media (min-width: 700px) {
+  .jz-char { width: 150px; height: 172px; }
+  .hub-grid { grid-template-columns: repeat(4, 1fr); }
+}
