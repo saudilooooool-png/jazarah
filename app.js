@@ -485,6 +485,7 @@ function defaultChild(name, avatarBase, avatarBg) {
     lastBirthdayYear: null, // آخر سنة احتفلنا فيها بميلاده
     feed: [],               // يوميات الطفل { id, e, title, ts, img, heart, seen }
     myPickDate: null,       // تاريخ آخر «مهمة أختارها أنا»
+    mapMode: 'planet',      // عرض الرحلة: 'planet' كوكب تفاعلي | 'list' قائمة كلاسيكية
   };
 }
 
@@ -2835,7 +2836,21 @@ const App = {
   },
 
   /* ═══════════ رحلة العوالم: الخريطة الكبرى ═══════════ */
+  /* بوابة خريطة الرحلة: يفتح الوضع الذي يفضله الطفل — كوكب أو قائمة */
   openJourneyMap() {
+    if ((C().mapMode || 'planet') === 'planet') this.openPlanet();
+    else this.openJourneyList();
+  },
+
+  setMapMode(mode) {
+    C().mapMode = mode;
+    save();
+    this.closeModal();
+    this.closePlanet();
+    this.openJourneyMap();
+  },
+
+  openJourneyList() {
     const j = C().journey;
     const worlds = WORLDS.map((w, wi) => {
       const start = wi * STAGES_PER_WORLD;
@@ -2861,7 +2876,8 @@ const App = {
       <h3 style="text-align:center">🗺️ رحلة العوالم</h3>
       <p class="muted" style="text-align:center;margin-bottom:10px">كل يوم مجتهد = مرحلة · بوابة الزعيم 👾 تحتاج جهدًا مضاعفًا</p>
       <div class="jworlds">${worlds}</div>
-      <div class="form-row" style="margin-top:12px">
+      <button class="btn-primary" style="margin-top:12px;background:#2a2565;box-shadow:0 4px 0 #1a1640" onclick="App.setMapMode('planet')">🪐 جرّب وضع الكوكب التفاعلي</button>
+      <div class="form-row" style="margin-top:10px">
         <div><button class="btn-primary" onclick="App.closeModal();App.openStoryBook()">📖 حكاية جزّور</button></div>
         <div><button class="btn-primary purple" onclick="App.shareJourney()">📤 شارك موقعي</button></div>
       </div>`);
@@ -2882,6 +2898,197 @@ const App = {
     scr.style.background = `linear-gradient(180deg, ${w.grad[0]} 0%, ${w.grad[1]} 30%, #fff6e5 100%)`;
     const head = document.querySelector('.kid-header');
     if (head) head.style.background = w.grad[0] + 'd9';
+  },
+
+  /* ═══════════ كوكب جَزَرة: خريطة الرحلة التفاعلية ═══════════
+     كرة تُدار بالإصبع في كل الاتجاهات (وهم كوكب: نافذة دائرية فوق
+     خريطة واسعة + قصور ذاتي) — ضغطة على عالم تقرّب الكاميرا لمراحله */
+  PV_SIZE: 920,    // أبعاد خريطة الكوكب الداخلية
+  PLANET_POS: [    // مواقع الجزر الثمانية على الخريطة
+    { x: 200, y: 195 }, { x: 460, y: 120 }, { x: 715, y: 210 }, { x: 770, y: 470 },
+    { x: 560, y: 665 }, { x: 290, y: 720 }, { x: 135, y: 480 }, { x: 450, y: 400 },
+  ],
+  _pv: null,
+
+  openPlanet() {
+    if (document.getElementById('planet-view')) return;
+    const j = C().journey || { stage: 0 };
+    const wi = worldIndexOf(Math.min(j.stage, TOTAL_STAGES - 1));
+
+    const div = document.createElement('div');
+    div.id = 'planet-view';
+    div.innerHTML = `
+      <div class="pv-top">
+        <button class="pv-btn" onclick="App.closePlanet()">✕</button>
+        <b>🪐 كوكب جَزَرة</b>
+        <span>
+          <button class="pv-btn" title="حكاية جزّور" onclick="App.closePlanet();App.openStoryBook()">📖</button>
+          <button class="pv-btn" title="الوضع الكلاسيكي" onclick="App.setMapMode('list')">📋</button>
+        </span>
+      </div>
+      <div class="pv-stage">
+        <div class="pv-planet" id="pv-planet" onpointerdown="App.pvDown(event)">
+          <div class="pv-map" id="pv-map">${this._pvMapHTML(j)}</div>
+          <div class="pv-shine"></div>
+        </div>
+      </div>
+      <p class="pv-hint">اسحب الكوكب بإصبعك في كل الاتجاهات 🌍 واضغط عالمًا لتدخله</p>
+      <div class="pv-world" id="pv-world"></div>`;
+    document.body.appendChild(div);
+
+    // مركز البداية: عالم الطفل الحالي في منتصف النافذة
+    const vp = document.getElementById('pv-planet').clientWidth;
+    const p = this.PLANET_POS[wi];
+    this._pv = { x: this._pvClamp(vp / 2 - p.x, vp), y: this._pvClamp(vp / 2 - p.y, vp), vx: 0, vy: 0, vp, drag: null, raf: null };
+    this._pvApply();
+  },
+
+  closePlanet() {
+    const div = document.getElementById('planet-view');
+    if (!div) return;
+    if (this._pv && this._pv.raf) cancelAnimationFrame(this._pv.raf);
+    this._pv = null;
+    div.remove();
+  },
+
+  _pvClamp(v, vp) { return Math.min(0, Math.max(vp - this.PV_SIZE, v)); },
+  _pvApply() {
+    const m = document.getElementById('pv-map');
+    if (m && this._pv) m.style.transform = `translate(${this._pv.x}px, ${this._pv.y}px)`;
+  },
+
+  _pvMapHTML(j) {
+    const wi = worldIndexOf(Math.min(j.stage, TOTAL_STAGES - 1));
+    // خط الرحلة المنقط يربط العوالم بترتيبها
+    const pts = this.PLANET_POS.map(p => `${p.x},${p.y}`).join(' ');
+    const deco = [ // بقع قارية تعطي الكوكب ملمسًا
+      'left:60px;top:330px;width:220px;height:160px', 'left:510px;top:50px;width:240px;height:150px',
+      'left:600px;top:540px;width:220px;height:180px', 'left:240px;top:520px;width:170px;height:130px',
+    ].map(s => `<i class="pv-land" style="${s}"></i>`).join('');
+    const islands = WORLDS.map((w, i) => {
+      const start = i * STAGES_PER_WORLD;
+      const state = j.stage >= start + STAGES_PER_WORLD ? 'done' : (i === wi ? 'current' : (i < wi ? 'done' : 'locked'));
+      const stars = Math.max(0, Math.min(STAGES_PER_WORLD, j.stage - start));
+      const p = this.PLANET_POS[i];
+      return `
+        <button class="pv-isl ${state}" id="pv-isl-${i}" style="left:${p.x}px;top:${p.y}px;--wc:${w.color}" onclick="App.pvEnterWorld(${i})">
+          <span class="pv-blob" style="background:linear-gradient(160deg,${w.grad[0]},${w.grad[1]})">${state === 'locked' ? '☁️' : w.emoji}</span>
+          <b>${esc(w.name)}</b>
+          <small>${state === 'done' ? '⭐ مكتمل' : state === 'current' ? `${stars}/${STAGES_PER_WORLD} ⭐` : '🔒'}</small>
+          ${state === 'current' ? `<img class="pv-jz" src="avatars/jazzour-happy.svg" alt="" />` : ''}
+        </button>`;
+    }).join('');
+    return `
+      ${deco}
+      <svg class="pv-route" width="${this.PV_SIZE}" height="${this.PV_SIZE}" viewBox="0 0 ${this.PV_SIZE} ${this.PV_SIZE}">
+        <polyline points="${pts}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="5" stroke-dasharray="2 16" stroke-linecap="round"/>
+      </svg>
+      ${islands}`;
+  },
+
+  /* سحب الكوكب بقصور ذاتي */
+  pvDown(e) {
+    if (!this._pv) return;
+    e.preventDefault();
+    if (this._pv.raf) { cancelAnimationFrame(this._pv.raf); this._pv.raf = null; }
+    this._pv.drag = { x: e.clientX, y: e.clientY, moved: false };
+    this._pv.vx = 0; this._pv.vy = 0;
+    if (!this._pvBound) {
+      this._pvBound = true;
+      window.addEventListener('pointermove', ev => this.pvMove(ev), { passive: false });
+      window.addEventListener('pointerup', () => this.pvUp());
+      window.addEventListener('pointercancel', () => this.pvUp());
+    }
+  },
+
+  pvMove(e) {
+    const s = this._pv;
+    if (!s || !s.drag) return;
+    const dx = e.clientX - s.drag.x, dy = e.clientY - s.drag.y;
+    if (!s.drag.moved && Math.hypot(dx, dy) > 6) s.drag.moved = true;
+    if (!s.drag.moved) return;
+    e.preventDefault();
+    s.x = this._pvClamp(s.x + dx, s.vp);
+    s.y = this._pvClamp(s.y + dy, s.vp);
+    s.vx = dx; s.vy = dy;
+    s.drag.x = e.clientX; s.drag.y = e.clientY;
+    this._pvApply();
+  },
+
+  pvUp() {
+    const s = this._pv;
+    if (!s || !s.drag) return;
+    const wasDrag = s.drag.moved;
+    s.drag = null;
+    if (!wasDrag) return;
+    // امنع نقرة الجزيرة التي تلي نهاية السحبة مباشرة
+    s.suppressClick = true;
+    setTimeout(() => { if (this._pv) this._pv.suppressClick = false; }, 250);
+    // قصور ذاتي: الكوكب يواصل الدوران قليلًا ثم يهدأ
+    const glide = () => {
+      if (!this._pv) return;
+      s.vx *= 0.93; s.vy *= 0.93;
+      if (Math.abs(s.vx) < 0.4 && Math.abs(s.vy) < 0.4) { s.raf = null; return; }
+      s.x = this._pvClamp(s.x + s.vx, s.vp);
+      s.y = this._pvClamp(s.y + s.vy, s.vp);
+      this._pvApply();
+      s.raf = requestAnimationFrame(glide);
+    };
+    s.raf = requestAnimationFrame(glide);
+  },
+
+  /* دخول عالم: زوم من الكوكب إلى مسار المراحل العشر */
+  PV_PATH: [
+    { x: 74, y: 4 }, { x: 34, y: 12 }, { x: 64, y: 21 }, { x: 26, y: 30 }, { x: 58, y: 39 },
+    { x: 24, y: 49 }, { x: 62, y: 58 }, { x: 30, y: 67 }, { x: 58, y: 76 }, { x: 40, y: 87 },
+  ],
+
+  pvEnterWorld(i) {
+    const s = this._pv;
+    if (s && s.suppressClick) return;   // كانت سحبة لا ضغطة
+    const j = C().journey || { stage: 0 };
+    const wi = worldIndexOf(Math.min(j.stage, TOTAL_STAGES - 1));
+    if (i > wi) {
+      const el = document.getElementById('pv-isl-' + i);
+      if (el) { el.classList.remove('pv-shake'); void el.offsetWidth; el.classList.add('pv-shake'); }
+      this.toast('هذا العالم خلف الغيوم… أكمل العوالم قبله لفتحه 🔒');
+      return;
+    }
+    const w = WORLDS[i];
+    const start = i * STAGES_PER_WORLD;
+    const jNeed = stageNeedXP(j.stage);
+    const isCur = i === wi;
+    const nodes = this.PV_PATH.map((p, si) => {
+      const g = start + si;
+      const boss = si === STAGES_PER_WORLD - 1;
+      let cls = 'pw-node', inner = String(si + 1);
+      if (g < j.stage) { cls += ' done'; inner = boss ? '👾' : '⭐'; }
+      else if (g === j.stage) { cls += ' here'; inner = `<img src="avatars/jazzour-happy.svg" alt="جزّور" />`; }
+      else if (boss) { cls += ' boss'; inner = '👾'; }
+      return `<span class="${cls}" style="left:${p.x}%;top:${p.y}%">${inner}</span>`;
+    }).join('');
+    const line = this.PV_PATH.map(p => `${p.x + 5},${p.y + 3.5}`).join(' ');
+    document.getElementById('pv-world').innerHTML = `
+      <div class="pw-inner" style="background:linear-gradient(180deg,${w.grad[0]},${w.grad[1]})">
+        <div class="pw-head">
+          <button class="pv-btn dark" onclick="App.pvBack()">← الكوكب</button>
+          <b style="color:${w.color}">${w.emoji} ${esc(w.name)}</b>
+          <span class="pw-prog">${Math.max(0, Math.min(STAGES_PER_WORLD, j.stage - start))}/${STAGES_PER_WORLD} ⭐</span>
+        </div>
+        <div class="pw-path">
+          <svg viewBox="0 0 110 95" preserveAspectRatio="none"><polyline points="${line}" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.2" stroke-dasharray="0.5 3" stroke-linecap="round"/></svg>
+          ${nodes}
+        </div>
+        <p class="pw-foot">${isCur
+          ? (j.advanced >= 1 ? 'أنجزت مرحلة اليوم ✅ — عد غدًا لتكمل الطريق' : `اجمع ${jNeed} XP اليوم لتقطع المرحلة (${j.xpToday}/${jNeed})`)
+          : 'أتممت هذا العالم كاملًا — ما شاء الله! ⭐'}</p>
+      </div>`;
+    document.getElementById('planet-view').classList.add('pv-zoomed');
+  },
+
+  pvBack() {
+    const pv = document.getElementById('planet-view');
+    if (pv) pv.classList.remove('pv-zoomed');
   },
 
   /* ═══════════ جزّور: رفيق الرحلة الحي ═══════════ */
