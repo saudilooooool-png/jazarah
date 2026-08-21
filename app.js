@@ -3227,9 +3227,9 @@ const App = {
     const done = (C().completions[today] || []).length;
     const j = C().journey || {};
     const total = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk).length;
-    if ((total > 0 && done >= total) || j.advanced >= 1) return 'cheer';
+    if ((total > 0 && done >= total) || j.advanced >= 1) return 'excited';
     if (done > 0) return 'happy';
-    return new Date().getHours() < 12 ? 'sleepy' : 'hungry';
+    return new Date().getHours() < 12 ? 'sleepy' : 'curious';
   },
 
   _jazzourBubble(mood) {
@@ -3238,9 +3238,9 @@ const App = {
     const done = (C().completions[todayKey()] || []).length;
     return {
       sleepy: 'جزّور نائم… أنجز أول مهمة ليصحو! 💤',
-      hungry: 'جزّور جوعان للإنجازات! أطعمه مهمة 🥕',
+      curious: 'جزّور فضولي: ما أول إنجاز اليوم؟ 🤔',
       happy: `رائع! ${done} ${done === 1 ? 'إنجاز' : 'إنجازات'} اليوم — جزّور سعيد!`,
-      cheer: 'يوم بطولي! جزّور يرقص فرحًا ⭐',
+      excited: 'يوم بطولي! جزّور يرقص فرحًا ⭐',
     }[mood];
   },
 
@@ -3306,9 +3306,9 @@ const App = {
     }
     const lines = {
       sleepy: ['أنا نعسان… أيقظني بإنجاز!', 'مهمة واحدة وأصحو!'],
-      hungry: ['أطعمني مهمة لذيذة!', 'بطني يقرقر… أنجز شيئًا!'],
+      curious: ['وش خططنا اليوم؟', 'يا ترى بنسوي إيش؟'],
       happy: ['أنت رائع! كمّل!', 'أحبك يا بطل!', 'هيا نكمل المغامرة!'],
-      cheer: ['أنت أسطورة!', 'أفضل يوم في حياتي!', 'فخور فيك!'],
+      excited: ['أنت أسطورة!', 'أفضل يوم في حياتي!', 'فخور فيك!'],
     }[this.jazzourMood()];
     speak(lines[Math.floor(Math.random() * lines.length)], 'ar-SA');
   },
@@ -3348,7 +3348,7 @@ const App = {
     this.openModal(`
       <div class="story-book" style="--wc:${w.color}">
         <div class="story-head">
-          <img class="story-jz" src="avatars/jazzour-${last ? 'cheer' : 'happy'}.svg" alt="جزّور" />
+          <img class="story-jz" src="avatars/jazzour-${last ? 'excited' : 'happy'}.svg" alt="جزّور" />
           <div>
             <small>${w.emoji} حكاية جزّور — ${esc(w.name)}</small>
             <h3>الفصل ${i + 1} من ${STORY.length}</h3>

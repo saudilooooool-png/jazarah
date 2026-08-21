@@ -17,7 +17,7 @@ const ASSETS = [
   './icons/apple-touch-icon.png',
   // شخصيات الجزر + حالات جزّور
   ...Array.from({ length: 12 }, (_, i) => `./avatars/c${i + 1}.svg`),
-  ...['happy', 'sleepy', 'hungry', 'cheer'].map(m => `./avatars/jazzour-${m}.svg`),
+  ...['happy', 'curious', 'sleepy', 'surprised', 'excited'].map(m => `./avatars/jazzour-${m}.svg`),
   // المصحف يُخزن تلقائيًا عند أول فتح لركن القرآن (ملف كبير — لا يُحمل مسبقًا)
 ];
 
