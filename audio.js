@@ -4,13 +4,42 @@
    - ترجع إلى نطق النظام/المتصفح عند عدم توفر الملفات */
 'use strict';
 
+/* خطأ التشغيل بسبب غياب الملف (لا بسبب منع المتصفح للصوت قبل تفاعل المستخدم) */
+function audioIsMissing(e) {
+  return !e || (e.name !== 'NotAllowedError' && e.name !== 'AbortError');
+}
+
 const JazarahAudio = {
-  clips: {
-    cheer: 'audio/prompts/ar/cheer.mp3',
-    next: 'audio/prompts/ar/next.mp3',
-    heart: 'audio/prompts/ar/heart.mp3',
-    done: 'audio/prompts/ar/done.mp3',
+  /* عبارات جزّور الثابتة — تُسجَّل مرة واحدة وتوضع في audio/prompts/ar/<id>.mp3
+     أي ملف غير موجود يسقط تلقائيًا إلى نطق النظام بالنص نفسه (لا يتعطل شيء) */
+  CLIP_IDS: [
+    // الاحتفال والإنجاز
+    'cheer', 'done', 'allday', 'levelup', 'stage', 'world', 'boss',
+    // التحية والدخول والوداع
+    'hello', 'chest', 'wakeup', 'bye',
+    // التشجيع أثناء العمل
+    'next', 'keepgoing', 'almost', 'tryagain', 'wrong', 'right',
+    // الوالد
+    'heart', 'sent', 'approved',
+    // القرآن
+    'quran_start', 'quran_done', 'surah_done',
+    // الألعاب والمتجر
+    'game_start', 'shop', 'buy', 'notenough',
+    // وقت الشاشة
+    'screen_start', 'screen_end',
+    // لمس جزّور وسحبه
+    'poke1', 'poke2', 'poke3', 'poke4', 'poke5', 'drag1', 'drag2', 'drag3',
+    // الحكاية والمناسبات
+    'story_new', 'story_wait', 'birthday', 'mypick',
+  ],
+  get clips() {
+    if (!this._clips) {
+      this._clips = {};
+      this.CLIP_IDS.forEach(id => { this._clips[id] = `audio/prompts/ar/${id}.mp3`; });
+    }
+    return this._clips;
   },
+  missing: new Set(),   // ملفات ثبت غيابها — لا نعيد المحاولة
   cache: new Map(),
 
   /* شخصيات صوت جزّور — يختار الوالد ما يناسب طفله */
@@ -30,7 +59,7 @@ const JazarahAudio = {
 
   async playClip(name) {
     const src = this.clips[name];
-    if (!src) return false;
+    if (!src || this.missing.has(name)) return false;
     try {
       let audio = this.cache.get(name);
       if (!audio) {
@@ -42,6 +71,8 @@ const JazarahAudio = {
       await audio.play();
       return true;
     } catch (e) {
+      // الملف غير موجود أو تعذّر تشغيله — نعتمد نطق النظام من الآن فصاعدًا
+      if (audioIsMissing(e)) this.missing.add(name);
       return false;
     }
   },
@@ -163,3 +194,8 @@ if ('speechSynthesis' in window) {
 
 /* فحوص التطبيق تبحث عنها عبر window — التصريح بـ const لا يضعها هناك */
 window.JazarahAudio = JazarahAudio;
+
+/* نطق عبارة ثابتة بمعرّفها: يشغّل ملف جزّور المسجّل إن وُجد، وإلا ينطق النص */
+window.sayLine = function (id, text) {
+  JazarahAudio.speak(text, 'ar-SA', { clip: id });
+};

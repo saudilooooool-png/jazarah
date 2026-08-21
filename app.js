@@ -2832,7 +2832,7 @@ const App = {
         clearInterval(this._screenTimer);
         this._screenTimer = null;
         this.closeModal();
-        speak('انتهى وقت اللعب! سلّم الجهاز يا بطل', 'ar-SA');
+        sayLine('screen_end', 'انتهى وقت اللعب! سلّم الجهاز يا بطل');
         this.celebrate('انتهى وقت اللعب ⏰', 'أحسنت الالتزام! أنجز مهام أكثر لوقت أكثر', [], '🤝');
       }
     }, 1000);
@@ -3285,8 +3285,9 @@ const App = {
     s.el.classList.add('jz-return');
     s.el.style.transform = '';
     setTimeout(() => s.el.classList.remove('jz-return'), 700);
-    const lines = ['هيييه! رحلة ممتعة!', 'وأنا رجعت لمكاني!', 'مرة ثانية! مرة ثانية!', 'أنا أطير يا بطل!'];
-    speak(lines[Math.floor(Math.random() * lines.length)], 'ar-SA');
+    const lines = [['drag1', 'هيييه! رحلة ممتعة!'], ['drag2', 'مرة ثانية! مرة ثانية!'], ['drag3', 'أنا أطير يا بطل!']];
+    const pick = lines[Math.floor(Math.random() * lines.length)];
+    sayLine(pick[0], pick[1]);
   },
 
   pokeJazzour() {
@@ -3300,17 +3301,18 @@ const App = {
       this.celebrate('رسالة حب من والدك! ❤️',
         hearts.slice(0, 4).map(f => `${f.e} ${esc(f.title)}`).join('<br />'),
         ['❤️ شاف إنجازك وأعجبه'], '🥰');
-      speak('والدك شاف إنجازك وأعجبه!', 'ar-SA');
+      sayLine('heart', 'والدك شاف إنجازك وأعجبه!');
       this.renderKMap();
       return;
     }
     const lines = {
-      sleepy: ['أنا نعسان… أيقظني بإنجاز!', 'مهمة واحدة وأصحو!'],
-      curious: ['وش خططنا اليوم؟', 'يا ترى بنسوي إيش؟'],
-      happy: ['أنت رائع! كمّل!', 'أحبك يا بطل!', 'هيا نكمل المغامرة!'],
-      excited: ['أنت أسطورة!', 'أفضل يوم في حياتي!', 'فخور فيك!'],
+      sleepy: [['wakeup', 'أنا نعسان… أيقظني بإنجاز!'], ['poke3', 'هيا نكمل المغامرة!']],
+      curious: [['poke4', 'وش خططنا اليوم؟'], ['poke3', 'هيا نكمل المغامرة!']],
+      happy: [['poke1', 'أنت رائع! كمّل!'], ['poke2', 'أحبك يا بطل!'], ['poke3', 'هيا نكمل المغامرة!']],
+      excited: [['poke5', 'أنا فخور فيك!'], ['poke1', 'أنت رائع! كمّل!'], ['poke2', 'أحبك يا بطل!']],
     }[this.jazzourMood()];
-    speak(lines[Math.floor(Math.random() * lines.length)], 'ar-SA');
+    const pick = lines[Math.floor(Math.random() * lines.length)];
+    sayLine(pick[0], pick[1]);
   },
 
   /* الزر الواحد: يأخذ الطفل لخطوته التالية بالتسلسل — لا حيرة ولا زحام */
@@ -3430,7 +3432,7 @@ const App = {
     save();
     this.closeModal();
     this.renderKMap();
-    speak('اختيار موفق! ' + p.title, 'ar-SA');
+    sayLine('mypick', 'اختيار موفق! أنت القائد اليوم');
     this.toast(`أضفت مهمتك: ${p.emoji} ${p.title}`);
   },
 
