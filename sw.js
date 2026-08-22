@@ -1,7 +1,7 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v13';
+const CACHE = 'jazarah-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,17 @@ const ASSETS = [
   ...['hero', 'happy', 'thinking', 'wave', 'encourage', 'surprised',
      'excited', 'jump', 'celebrate', 'proud', 'sleep', 'super']
     .map(p => `./avatars/jazzour/${p}.webp`),
+  // عبارات جزّور المسجّلة — تعمل دون إنترنت
+  ...['cheer', 'done', 'allday', 'levelup', 'stage', 'world', 'boss',
+      'hello', 'chest', 'wakeup', 'bye',
+      'next', 'keepgoing', 'almost', 'tryagain', 'wrong', 'right',
+      'heart', 'sent', 'approved',
+      'quran_start', 'quran_done', 'surah_done',
+      'game_start', 'shop', 'buy', 'notenough',
+      'screen_start', 'screen_end',
+      'poke1', 'poke2', 'poke3', 'poke4', 'poke5', 'drag1', 'drag2', 'drag3',
+      'story_new', 'story_wait', 'birthday', 'mypick']
+    .map(id => `./audio/prompts/ar/${id}.mp3`),
   // المصحف يُخزن تلقائيًا عند أول فتح لركن القرآن (ملف كبير — لا يُحمل مسبقًا)
 ];
 
