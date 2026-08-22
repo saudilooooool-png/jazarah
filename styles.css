@@ -1120,3 +1120,227 @@ b { font-weight: 700; }
 .tone-tile small { color: #8a86a8; font-weight: 700; font-size: 0.78rem; }
 .tone-tile.on { border-color: var(--purple); background: #efe8ff; box-shadow: 0 3px 0 #d8ccf7; }
 @media (min-width: 700px) { .tone-grid { grid-template-columns: repeat(3, 1fr); } }
+
+
+/* ═══════════ مسار اليوم الموجّه للطفل ═══════════ */
+.guided-day {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 14px 16px 36px;
+}
+.guided-day__hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 2px 14px;
+}
+.guided-day__hero .jz-char {
+  flex: 0 0 84px;
+  width: 84px;
+  height: 84px;
+  display: grid;
+  place-items: center;
+}
+.guided-day__hero .jz-char img { width: 84px; height: 84px; object-fit: contain; }
+.guided-day__greeting { min-width: 0; flex: 1; }
+.eyebrow {
+  display: block;
+  color: #7a7497;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  margin-bottom: 4px;
+}
+.guided-day__bubble {
+  min-height: auto;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.next-mission {
+  background: linear-gradient(145deg, #fff8ec 0%, #ffffff 52%, #f7f1ff 100%);
+  border: 3px solid #ffd49d;
+  border-radius: 26px;
+  padding: 16px;
+  box-shadow: 0 7px 0 rgba(229, 115, 42, 0.18), 0 14px 22px rgba(45,42,74,0.08);
+  margin-bottom: 14px;
+}
+.next-mission__topline, .today-quest__title-row, .section-heading,
+.today-quest__actions, .entry-treasure, .discover-world summary {
+  display: flex;
+  align-items: center;
+}
+.next-mission__topline { justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.next-mission__label {
+  color: var(--carrot-dark);
+  font-size: 0.78rem;
+  font-weight: 900;
+  background: #fff1d9;
+  border-radius: 99px;
+  padding: 5px 10px;
+}
+.next-mission__today { color: #77718f; font-size: 0.76rem; font-weight: 800; }
+.next-mission__content { display: flex; align-items: center; gap: 12px; }
+.next-mission__icon {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ffae63, var(--carrot));
+  font-size: 1.9rem;
+  box-shadow: 0 4px 0 var(--carrot-dark);
+}
+.next-mission__copy { min-width: 0; flex: 1; }
+.next-mission__copy h2 { font-size: 1.16rem; font-weight: 900; line-height: 1.45; }
+.next-mission__copy p { color: #5f5a77; font-size: 0.82rem; font-weight: 700; line-height: 1.7; margin-top: 2px; }
+.next-mission__copy small { display: block; color: #8a86a8; font-size: 0.75rem; font-weight: 700; margin-top: 3px; }
+.next-mission__actions { display: flex; gap: 8px; align-items: stretch; margin-top: 15px; }
+.next-mission__actions .btn-primary { flex: 1; }
+.listen-pill, .quest-listen {
+  display: grid;
+  place-items: center;
+  background: #eef8ff;
+  color: #3d7ea6;
+  border: 2px solid #c7e9ff;
+  border-radius: 16px;
+  font-weight: 900;
+}
+.listen-pill { width: 49px; min-width: 49px; font-size: 0; }
+.listen-pill::before { content: '🔊'; font-size: 1.1rem; }
+.today-meter { margin-top: 15px; }
+.today-meter > div { display: flex; justify-content: space-between; color: #656077; font-size: 0.78rem; font-weight: 800; margin-bottom: 6px; }
+.today-meter b { color: var(--carrot-dark); }
+.today-meter i { display: block; height: 9px; overflow: hidden; background: #f0e9de; border-radius: 99px; }
+.today-meter em { display: block; height: 100%; background: linear-gradient(90deg, var(--carrot), var(--gold)); border-radius: inherit; transition: width .35s ease; }
+
+.entry-treasure {
+  width: 100%;
+  gap: 10px;
+  text-align: right;
+  background: linear-gradient(135deg, #edf8ff, #f8f4ff);
+  border: 2px dashed #a2cdee;
+  border-radius: 18px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+.entry-treasure__emoji { font-size: 1.75rem; }
+.entry-treasure > span:nth-child(2) { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.entry-treasure b { font-size: 0.87rem; }
+.entry-treasure small { color: #77718f; font-size: 0.72rem; font-weight: 700; margin-top: 1px; }
+.entry-treasure__action { color: #3977a3; font-size: 0.78rem; font-weight: 900; background: #fff; border-radius: 99px; padding: 5px 10px; }
+
+.today-quests { margin: 20px 0 16px; }
+.section-heading { justify-content: space-between; gap: 12px; margin: 0 2px 10px; }
+.section-heading h2 { font-size: 1.15rem; font-weight: 900; }
+.section-heading .eyebrow { color: #8a86a8; margin-bottom: 0; }
+.pending-summary { color: #976f17; background: #fff5d8; border-radius: 99px; font-size: 0.7rem; font-weight: 900; padding: 5px 9px; white-space: nowrap; }
+.today-quest-list { display: flex; flex-direction: column; gap: 10px; }
+.today-quest {
+  background: #fff;
+  border: 2px solid #eee9dc;
+  border-radius: 20px;
+  padding: 13px;
+  box-shadow: 0 3px 0 rgba(45,42,74,0.07);
+}
+.today-quest--ready { border-color: #dcebd7; }
+.today-quest--pending { background: #fffdf7; border-color: #f2d78d; }
+.today-quest--done { background: #f7fcf8; border-color: #bee3cb; opacity: .88; }
+.today-quest__main { display: flex; gap: 10px; align-items: flex-start; }
+.today-quest__emoji {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  border-radius: 14px;
+  background: #f3f7ff;
+  font-size: 1.35rem;
+}
+.today-quest--pending .today-quest__emoji { background: #fff4d9; }
+.today-quest--done .today-quest__emoji { background: #e4f6ea; }
+.today-quest__copy { min-width: 0; flex: 1; }
+.today-quest__title-row { gap: 6px; justify-content: space-between; }
+.today-quest h3 { font-size: 0.98rem; font-weight: 900; line-height: 1.5; }
+.status-chip { flex: 0 0 auto; font-size: 0.65rem; font-weight: 900; padding: 4px 7px; border-radius: 99px; }
+.status-chip--ready { color: #367756; background: #e4f6ea; }
+.status-chip--pending { color: #977019; background: #fff3d2; }
+.status-chip--done { color: #367756; background: #e2f5ea; }
+.today-quest__teacher { color: var(--purple); font-size: 0.72rem; font-weight: 900; margin-top: 2px; }
+.today-quest__note { color: #77718f; font-size: 0.73rem; font-weight: 700; line-height: 1.55; margin-top: 2px; }
+.today-quest__reward { color: var(--carrot-dark); font-size: 0.72rem; font-weight: 900; margin-top: 5px; }
+.today-quest__reward span { color: #b9b4cb; margin: 0 3px; }
+.today-quest__reward b { color: #bd8612; }
+.today-quest__actions { gap: 8px; margin-top: 11px; }
+.quest-listen { width: 40px; height: 38px; flex: 0 0 40px; border-radius: 13px; font-size: .95rem; }
+.quest-cta {
+  flex: 1;
+  min-height: 38px;
+  border-radius: 13px;
+  padding: 8px 12px;
+  color: #fff;
+  background: var(--green);
+  box-shadow: 0 3px 0 var(--green-dark);
+  font-size: 0.81rem;
+  font-weight: 900;
+}
+.quest-cta:active { transform: translateY(2px); box-shadow: none; }
+.quest-cta--pending { color: #8a7442; background: #f4edda; box-shadow: none; }
+.quest-cta--done { color: #4d8f67; background: #e1f3e7; box-shadow: none; }
+.quest-cta:disabled { cursor: default; }
+.self-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: right;
+  background: #f9f6ff;
+  border: 2px dashed #cdbaf5;
+  border-radius: 18px;
+  padding: 12px;
+}
+.self-choice > span:first-child { font-size: 1.45rem; }
+.self-choice > span:nth-child(2) { display: flex; flex: 1; flex-direction: column; }
+.self-choice b { color: #6849b3; font-size: 0.86rem; }
+.self-choice small { color: #8a86a8; font-size: 0.72rem; font-weight: 700; }
+.self-choice__arrow { color: var(--purple); font-size: 1.25rem; font-weight: 900; }
+.today-empty { text-align: center; background: #fff; border: 2px dashed #ded9cd; border-radius: 20px; padding: 20px; color: #77718f; font-size: .87rem; font-weight: 700; }
+.today-empty span { display: block; font-size: 2.2rem; margin-bottom: 5px; }
+
+.world-glance { margin-bottom: 14px; }
+.world-glance .journey-banner { margin: 0; }
+.discover-world {
+  background: #fff;
+  border: 2px solid #eee9dc;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 3px 0 rgba(45,42,74,0.06);
+}
+.discover-world summary { list-style: none; justify-content: space-between; gap: 10px; padding: 14px; cursor: pointer; }
+.discover-world summary::-webkit-details-marker { display: none; }
+.discover-world summary > span:first-child { display: flex; flex: 1; flex-direction: column; }
+.discover-world summary b { font-size: .98rem; font-weight: 900; }
+.discover-world summary small { color: #8a86a8; font-size: .72rem; font-weight: 700; margin-top: 2px; }
+.discover-world__chevron { color: var(--purple); font-size: 1.4rem; line-height: 1; transition: transform .2s ease; }
+.discover-world[open] .discover-world__chevron { transform: rotate(180deg); }
+.discover-world__body { background: #fcfbff; border-top: 1px solid #eee9dc; padding: 12px; }
+.discover-world__body .quran-card { margin-bottom: 12px; }
+.quran-card--friday { background: linear-gradient(135deg,#365f8c,#4a7ab5); box-shadow: 0 5px 0 #2a4a6e; }
+
+@media (min-width: 720px) {
+  .guided-day { max-width: 760px; padding-top: 20px; }
+  .today-quest-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .self-choice { grid-column: span 2; }
+}
+
+@media (max-width: 380px) {
+  .guided-day { padding-right: 12px; padding-left: 12px; }
+  .next-mission { padding: 13px; border-radius: 22px; }
+  .next-mission__copy h2 { font-size: 1.03rem; }
+  .today-quest { padding: 11px; }
+  .today-quest h3 { font-size: .9rem; }
+  .status-chip { display: none; }
+}

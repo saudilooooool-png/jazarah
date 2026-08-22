@@ -1076,8 +1076,8 @@ const App = {
       this.refreshKidHeader();
       this.renderKMap();
     } else if (C().lastDailyChest !== todayKey()) {
-      // صندوق الدخول اليومي — مرة واحدة يوميًا
-      this.showDailyChest();
+      // هدية الدخول أصبحت بطاقة اختيارية في مسار اليوم حتى لا تقطع على الطفل مهمته التالية.
+      this.renderKMap();
     }
   },
 
@@ -2408,200 +2408,183 @@ const App = {
     const today = todayKey();
     const doneIds = new Set(C().completions[today] || []);
     const pendingToday = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
+    const visibleTasks = C().tasks
+      .filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
+      .filter(t => !t.mine || t.id === 'mine-' + today);
     const nextStep = this._nextKidStep(doneIds, pendingToday);
-    const todayTotal = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk).length;
-    const todayDone = doneIds.size;
-
-    // مشهد جزّور: الرفيق الحي أول ما يستقبل الطفل — وجه واحد، فعل واحد
+    const todayTotal = visibleTasks.length;
+    const todayDone = visibleTasks.filter(t => doneIds.has(t.id)).length;
+    const todayPending = visibleTasks.filter(t => pendingToday.has(t.id)).length;
+    const progressPct = Math.min(100, Math.round((todayDone / Math.max(1, todayTotal)) * 100));
     const mood = this.jazzourMood();
     const heartsWaiting = (C().feed || []).filter(f => f.heart && !f.seen).length;
-    let html = `
-      <div class="jz-scene">
-        <button class="jz-char" id="jz-char" onpointerdown="App.jzDown(event)" aria-label="جزّور">
-          <img src="${this.jzSrc(this.MOOD_POSE[mood])}" alt="جزّور" draggable="false" />
-          ${heartsWaiting ? `<span class="jz-heart-badge">❤️ ${heartsWaiting}</span>` : ''}
-        </button>
-        <div class="jz-bubble">${this._jazzourBubble(mood)}</div>
-      </div>
-      <section class="next-step-card">
-        <div class="next-copy">
-          <span class="next-label">التالي لك الآن</span>
-          <h2>${esc(nextStep.title)}</h2>
-          <p>${esc(nextStep.desc)}</p>
-        </div>
-        <div class="next-actions">
-          <button class="btn-primary big" onclick="${nextStep.action}">${nextStep.cta}</button>
-          <button class="listen-pill" data-say="${esc(nextStep.say)}" onclick="App.sayText(this)">🔊 اسمع</button>
-        </div>
-        <div class="today-progress">
-          <span>تقدم اليوم</span>
-          <b>${todayDone}/${todayTotal || 1}</b>
-          <i><em style="width:${Math.min(100, Math.round((todayDone / Math.max(1, todayTotal)) * 100))}%"></em></i>
-        </div>
-      </section>`;
 
-    // صندوق المفاجأة
+    const taskState = (task) => {
+      if (doneIds.has(task.id)) return { key: 'done', badge: 'مكتملة', icon: '✅', cta: 'تم الإنجاز', disabled: true, note: 'أحسنت، تقدمت في مغامرتك.' };
+      if (pendingToday.has(task.id)) return { key: 'pending', badge: 'بانتظار الوالد', icon: '⏳', cta: 'أُرسل للمراجعة', disabled: true, note: 'سيصل التقدير بعد المراجعة.' };
+      if (task.proof === 'photo') return { key: 'ready', badge: 'تحتاج صورة', icon: '📸', cta: 'التقط دليلك', disabled: false, note: 'صورة بسيطة تثبت إنجازك.' };
+      if (task.proof === 'parent') return { key: 'ready', badge: 'تحتاج موافقة', icon: '👀', cta: 'اطلب موافقة والدي', disabled: false, note: 'سنرسل طلبًا قصيرًا لوالدك.' };
+      return { key: 'ready', badge: 'جاهزة الآن', icon: '⭐', cta: 'أنجزتها', disabled: false, note: 'أكملها ثم اضغط لتكسب مكافأتك.' };
+    };
+
+    let html = `
+      <section class="guided-day" aria-label="مسار اليوم">
+        <div class="guided-day__hero">
+          <button class="jz-char" id="jz-char" onpointerdown="App.jzDown(event)" aria-label="تحدث مع جزّور">
+            <img src="${this.jzSrc(this.MOOD_POSE[mood])}" alt="جزّور" draggable="false" />
+            ${heartsWaiting ? `<span class="jz-heart-badge">❤️ ${heartsWaiting}</span>` : ''}
+          </button>
+          <div class="guided-day__greeting">
+            <span class="eyebrow">رفيقك في ${esc(worldOf(C().journey.stage).name)}</span>
+            <div class="jz-bubble guided-day__bubble">${this._jazzourBubble(mood)}</div>
+          </div>
+        </div>
+
+        <section class="next-mission" aria-label="المهمة التالية">
+          <div class="next-mission__topline">
+            <span class="next-mission__label">التالي لك الآن</span>
+            <span class="next-mission__today">${todayDone}/${todayTotal || 1} مهام اليوم</span>
+          </div>
+          <div class="next-mission__content">
+            <div class="next-mission__icon">${nextStep.icon || '⭐'}</div>
+            <div class="next-mission__copy">
+              <h2>${esc(nextStep.title)}</h2>
+              <p>${esc(nextStep.desc)}</p>
+              ${nextStep.hint ? `<small>${esc(nextStep.hint)}</small>` : ''}
+            </div>
+          </div>
+          <div class="next-mission__actions">
+            <button class="btn-primary big" onclick="${nextStep.action}">${nextStep.cta}</button>
+            <button class="listen-pill" data-say="${esc(nextStep.say)}" onclick="App.sayText(this)">🔊 اسمع المهمة</button>
+          </div>
+          <div class="today-meter" aria-label="تقدم اليوم ${todayDone} من ${todayTotal || 1}">
+            <div><span>تقدم اليوم</span><b>${todayDone}/${todayTotal || 1}</b></div>
+            <i><em style="width:${progressPct}%"></em></i>
+          </div>
+        </section>`;
+
+    if (C().lastDailyChest !== today) {
+      html += `
+        <button class="entry-treasure" onclick="App.openDailyChest()">
+          <span class="entry-treasure__emoji">🎁</span>
+          <span><b>هدية دخولك جاهزة</b><small>افتحها متى أحببت — لن توقف مغامرتك</small></span>
+          <span class="entry-treasure__action">افتح</span>
+        </button>`;
+    }
+
     if (C().mysteryBox) {
       html += `
         <button class="mystery-node" onclick="App.openMystery()">
           <span class="m-emoji">📦</span>
-          <span><b>صندوق مفاجأة هبط في خريطتك!</b><br /><small>اضغط لفتحه الآن 🎉</small></span>
+          <span><b>صندوق مفاجأة في عالمك</b><br /><small>هدية إضافية، افتحها عندما تكون مستعدًا</small></span>
         </button>`;
     }
 
-    // تحدي الزعيم
-    if (S.boss && !S.boss.defeated) {
-      const pct = Math.min(100, Math.round(S.boss.progress / S.boss.target * 100));
-      html += `
-        <div class="boss-card">
-          <span class="boss-emoji">👾</span>
-          <h3>تحدي العائلة: ${esc(S.boss.title)}</h3>
-          <div class="progressbar"><i style="width:${pct}%"></i></div>
-          <p>${S.boss.progress} / ${S.boss.target} ⚔️</p>
-          <p class="boss-reward">🏆 ${esc(S.boss.reward)}</p>
-          <button class="boss-hit-btn" onclick="App.kidBossHit()">اضرب وحش الكسل! ⚔️</button>
-        </div>`;
-    }
-
-    // وضع الويكند: تحية + سورة الكهف يوم الجمعة
-    if (isWeekend()) {
-      html += `<div class="weekend-banner">🏖️ ${isFriday() ? 'جمعة مباركة!' : 'سبت سعيد!'} — لا دروس اليوم، استمتع بنشاطات العائلة</div>`;
-      if (isFriday()) {
-        html += `
-          <button class="quran-card" style="background:linear-gradient(135deg,#365f8c,#4a7ab5);box-shadow:0 5px 0 #2a4a6e" onclick="App.openQuranFull(17)">
-            <span class="wg-emoji">🕌</span>
-            <span class="wg-info"><b>سنة الجمعة: سورة الكهف</b><small>اقرأها الآن من مصحف جَزَرة — وتُحسب في وردك</small></span>
-            <span class="wg-reward">📖</span>
-          </button>`;
-      }
-    }
-
-    // عداد التقويم المدرسي المركزي (يديره صاحب التطبيق)
-    if (typeof Meta !== 'undefined') {
-      const ev = Meta.nextEvent();
-      if (ev) {
-        const days = Meta.daysTo(ev);
-        html += `
-          <div class="countdown-card">
-            <span class="cd-emoji">${ev.kind === 'long_weekend' ? '🎈' : ev.kind === 'eid' ? '🌙' : '🏖️'}</span>
-            <span class="cd-info">
-              <b>${days === 0 ? esc(ev.title) + ' اليوم! 🎉' : 'باقي ' + days + ' يوم على ' + esc(ev.title)}</b>
-              ${days > 0 && days <= 21 ? `<small>تحدي ما قبل الإجازة: كم مرحلة تقطع قبلها؟ 🗺️</small>` : ''}
-            </span>
-          </div>`;
-      }
-    }
-
-    // لافتة رحلة العوالم — هوية التقدم الأساسية
-    journeyUpdate(C());
-    const j = C().journey;
-    const jw = worldOf(j.stage);
-    const jNeed = stageNeedXP(j.stage);
-    const jDone = j.advanced >= 1 || j.stage >= TOTAL_STAGES;
-    const jPct = Math.min(100, Math.round(j.xpToday / jNeed * 100));
     html += `
-      <button class="journey-banner" style="--wc:${jw.color}" onclick="App.openJourneyMap()">
-        <span class="jb-emoji">${jw.emoji}</span>
-        <span class="jb-info">
-          <b>${esc(jw.name)} — المرحلة ${Math.min(j.stage + 1, TOTAL_STAGES)} من ${TOTAL_STAGES}</b>
-          <small>${j.stage >= TOTAL_STAGES ? 'أكملت الرحلة كلها! 👑'
-            : jDone ? 'أنجزت مرحلة اليوم ✅ — عد غدًا لمواصلة الرحلة'
-            : isBossStage(j.stage) ? `بوابة الزعيم! 👾 اجمع ${jNeed} XP اليوم (${j.xpToday}/${jNeed})`
-            : `اجمع ${jNeed} XP اليوم لتتقدم (${j.xpToday}/${jNeed})`}</small>
-          <span class="quran-bar"><i style="width:${jDone ? 100 : jPct}%"></i></span>
-        </span>
-        <span class="jb-map">🗺️</span>
-      </button>`;
-
-    // ركن القرآن — الورد اليومي (أهم الأهداف: يتصدر الخريطة)
-    const qr = this._quranState();
-    const qTarget = (C().quranDaily || 5) * 60;
-    const qPct = Math.min(100, Math.round(qr.seconds / qTarget * 100));
-    html += `
-      <button class="quran-card" onclick="App.openQuranKids()">
-        <span class="wg-emoji">📖</span>
-        <span class="wg-info">
-          <b>وِردي من القرآن</b>
-          <small>${qr.claimed ? `أتممت وردك اليوم 🌟 · سلسلة ${qr.streak} يوم 🔥` : `اقرأ ${C().quranDaily || 5} دقائق داخل التطبيق — ${qPct}%`}</small>
-          <span class="quran-bar"><i style="width:${qPct}%"></i></span>
-        </span>
-        <span class="wg-reward">${qr.claimed ? '✅' : '🥕 +8'}</span>
-      </button>`;
-
-    // شبكة الأركان — أربعة أبواب مدمجة بدل بطاقات مكدسة (يكتشفها لا تُعرض كلها)
-    const wg = this._wordGameState();
-    const mg = this._mathGameState();
-    const bg = this._blurGameState();
-    const sg = this._shadowGameState();
-    const gamesDone = wg.arDone + wg.enDone + mg.done + bg.done + sg.done;
-    const gamesTotal = WORDS_PER_DAY * 5;   // كلمات×2 + حساب + ضبابية + ظل
-    const stBal = (C().screenTime && C().screenTime.balance) || 0;
-    const libCount = S.quizzes.length + S.videos.length;
-    const chapters = Math.min((C().journey && C().journey.stage) || 0, STORY.length);
-    html += `
-      <div class="hub-grid">
-        <button class="hub-tile" onclick="App.openGamesHub()">
-          <span class="ht-emoji">🎮</span><b>الألعاب</b>
-          <small>${gamesDone >= gamesTotal ? 'أتممتها اليوم 🌟' : gamesDone + '/' + gamesTotal + ' اليوم'}</small>
-        </button>
-        <button class="hub-tile" onclick="App.openStoryBook()">
-          <span class="ht-emoji">📖</span><b>حكاية جزّور</b>
-          <small>${chapters ? chapters + ' من ' + STORY.length + ' فصلًا' : 'تبدأ بأول مرحلة'}</small>
-        </button>
-        <button class="hub-tile" onclick="App.openScreenTime()">
-          <span class="ht-emoji">⏱️</span><b>وقت الشاشة</b>
-          <small>${stBal > 0 ? stBal + ' دقيقة ▶️' : 'أنجز لتكسب دقائق'}</small>
-        </button>
-        <button class="hub-tile" onclick="App.openLibrary()">
-          <span class="ht-emoji">🎒</span><b>مكتبتي</b>
-          <small>${libCount ? libCount + ' فيديو واختبار' : 'رموز معلمي هنا'}</small>
-        </button>
-      </div>`;
-
-    html += `<h2 class="map-title" style="margin-top:14px">🗺️ مهام اليوم</h2>
-      <p class="map-sub">${dayNameOffset(0)} — أكمل المراحل واجمع الكنوز!</p>`;
-
-    if (C().tasks.length === 0) {
-      html += `<div class="map-empty"><div class="big-emoji">🗺️</div><p class="muted">الخريطة فارغة… اطلب من والدك إضافة مهام المغامرة!</p></div>`;
-    } else {
-      // وضع الويكند: الجمعة والسبت بلا دراسة (إلا ما وسمه الوالد) — واختيارات الأيام السابقة تُخفى
-      const visibleTasks = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
-        .filter(t => !t.mine || t.id === 'mine-' + today);
-      html += '<div class="map-path">';
-      visibleTasks.forEach((t, i) => {
-        const done = doneIds.has(t.id);
-        const pending = pendingToday.has(t.id);
-        const et = effectiveTask(t, today);
-        const side = i % 2 === 0 ? 'side-left' : 'side-right';
-        html += `
-          <div class="map-node ${side} ${done ? 'done' : ''} ${pending ? 'pending' : ''} ${et.golden && !done && !pending ? 'golden' : ''}" id="node-${t.id}">
-            <button class="node-circle" onclick="App.completeTask('${t.id}')" ${done || pending ? 'disabled' : ''}>
-              ${done ? '⭐' : (pending ? '⏳' : CATEGORIES[t.cat].emoji)}
-            </button>
-            <div class="node-card">
-              <button class="say-btn" title="اسمع المهمة" onclick="App.sayTask('${t.id}')">🔊</button>
-              <div class="n-title">${et.golden && !done ? '✨ ' : ''}${esc(t.title)}${t.mine ? ' <small style="color:#9b6dff">🙋 اختياري</small>' : ''}</div>
-              ${t.teacher ? `<div class="n-teacher">🏫 من ${esc(t.teacher)}</div>` : ''}
-              <div class="n-reward">${pending ? '👀 بانتظار تأكيد والدك…'
-                : `✨ ${et.xp} XP &nbsp; 🥕 ${et.coins}${et.golden ? ' &nbsp; <b style="color:#cf9a1d">مهمة اليوم الذهبية ×2</b>' : ''}${t.proof !== 'self' ? ' &nbsp; ' + PROOF_MODES[t.proof].emoji : ''}`}</div>
+        <section class="today-quests" aria-labelledby="today-quests-title">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">خطوات صغيرة، تقدم كبير</span>
+              <h2 id="today-quests-title">مهام اليوم</h2>
             </div>
-          </div>
-          ${i < visibleTasks.length - 1 ? '<div class="path-connector"></div>' : ''}`;
+            ${todayPending ? `<span class="pending-summary">${todayPending} بانتظار المراجعة</span>` : ''}
+          </div>`;
+
+    if (visibleTasks.length === 0) {
+      html += `<div class="today-empty"><span>🗺️</span><p>لا توجد مهام اليوم. اطلب من والدك أن يجهز لك مغامرة جديدة.</p></div>`;
+    } else {
+      html += '<div class="today-quest-list">';
+      visibleTasks.forEach((task) => {
+        const state = taskState(task);
+        const reward = effectiveTask(task, today);
+        html += `
+          <article class="today-quest today-quest--${state.key}">
+            <div class="today-quest__main">
+              <span class="today-quest__emoji">${state.icon}</span>
+              <div class="today-quest__copy">
+                <div class="today-quest__title-row">
+                  <h3>${reward.golden && state.key === 'ready' ? '✨ ' : ''}${esc(task.title)}</h3>
+                  <span class="status-chip status-chip--${state.key}">${state.badge}</span>
+                </div>
+                ${task.teacher ? `<p class="today-quest__teacher">🏫 من ${esc(task.teacher)}</p>` : ''}
+                <p class="today-quest__note">${state.note}</p>
+                <div class="today-quest__reward">✨ ${reward.xp} XP <span>•</span> 🥕 ${reward.coins}${reward.golden ? ' <b>×2 اليوم</b>' : ''}</div>
+              </div>
+            </div>
+            <div class="today-quest__actions">
+              <button class="quest-listen" title="اسمع المهمة" aria-label="اسمع مهمة ${esc(task.title)}" onclick="App.sayTask('${task.id}')">🔊</button>
+              <button class="quest-cta quest-cta--${state.key}" onclick="App.completeTask('${task.id}')" ${state.disabled ? 'disabled' : ''}>${state.cta}</button>
+            </div>
+          </article>`;
       });
-      // «مهمة أختارها أنا» — محطة الاستقلالية اليومية في آخر الخريطة
       if (C().myPickDate !== today) {
-        html += `<div class="path-connector"></div>
-          <button class="my-pick-node" onclick="App.openMyPick()">
-            <span class="m-emoji">🙋</span>
-            <span><b>مهمة أختارها أنا</b><br /><small>اختر بنفسك مهمة اليوم الإضافية — أنت القائد!</small></span>
+        html += `
+          <button class="self-choice" onclick="App.openMyPick()">
+            <span>🙋</span>
+            <span><b>أختار مهمة بنفسي</b><small>لأنك قائد مغامرتك أيضًا</small></span>
+            <span class="self-choice__arrow">←</span>
           </button>`;
       }
       html += '</div>';
     }
+    html += '</section>';
 
-    // مشاركة إنجاز اليوم مع الوالد البعيد
+    journeyUpdate(C());
+    const journey = C().journey;
+    const world = worldOf(journey.stage);
+    const journeyNeed = stageNeedXP(journey.stage);
+    const journeyDone = journey.advanced >= 1 || journey.stage >= TOTAL_STAGES;
+    const journeyPct = Math.min(100, Math.round(journey.xpToday / journeyNeed * 100));
+    const quran = this._quranState();
+    const qTarget = (C().quranDaily || 5) * 60;
+    const qPct = Math.min(100, Math.round(quran.seconds / qTarget * 100));
+    const wordGame = this._wordGameState();
+    const mathGame = this._mathGameState();
+    const blurGame = this._blurGameState();
+    const shadowGame = this._shadowGameState();
+    const gamesDone = wordGame.arDone + wordGame.enDone + mathGame.done + blurGame.done + shadowGame.done;
+    const gamesTotal = WORDS_PER_DAY * 5;
+    const screenTime = (C().screenTime && C().screenTime.balance) || 0;
+    const libraryCount = S.quizzes.length + S.videos.length;
+    const chapters = Math.min((C().journey && C().journey.stage) || 0, STORY.length);
+
     html += `
-      <button class="btn-primary purple" style="margin-top:6px" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>`;
+        <section class="world-glance" aria-label="تقدم العالم">
+          <button class="journey-banner" style="--wc:${world.color}" onclick="App.openJourneyMap()">
+            <span class="jb-emoji">${world.emoji}</span>
+            <span class="jb-info">
+              <b>${esc(world.name)} — المرحلة ${Math.min(journey.stage + 1, TOTAL_STAGES)} من ${TOTAL_STAGES}</b>
+              <small>${journey.stage >= TOTAL_STAGES ? 'أكملت الرحلة كلها! 👑' : journeyDone ? 'أنجزت مرحلة اليوم ✅' : `اجمع ${journeyNeed} XP اليوم لتتقدم (${journey.xpToday}/${journeyNeed})`}</small>
+              <span class="quran-bar"><i style="width:${journeyDone ? 100 : journeyPct}%"></i></span>
+            </span>
+            <span class="jb-map">🗺️</span>
+          </button>
+        </section>
+
+        <details class="discover-world">
+          <summary>
+            <span><b>استكشف عالمي</b><small>القرآن، القصة، الألعاب، المكتبة والمكافآت</small></span>
+            <span class="discover-world__chevron">⌄</span>
+          </summary>
+          <div class="discover-world__body">
+            <button class="quran-card" onclick="App.openQuranKids()">
+              <span class="wg-emoji">📖</span>
+              <span class="wg-info"><b>وِردي من القرآن</b><small>${quran.claimed ? `أتممت وردك اليوم 🌟 · سلسلة ${quran.streak} يوم` : `اقرأ ${C().quranDaily || 5} دقائق — ${qPct}%`}</small><span class="quran-bar"><i style="width:${qPct}%"></i></span></span>
+              <span class="wg-reward">${quran.claimed ? '✅' : '🥕 +8'}</span>
+            </button>
+            <div class="hub-grid">
+              <button class="hub-tile" onclick="App.openGamesHub()"><span class="ht-emoji">🎮</span><b>الألعاب</b><small>${gamesDone >= gamesTotal ? 'أتممتها اليوم 🌟' : gamesDone + '/' + gamesTotal + ' اليوم'}</small></button>
+              <button class="hub-tile" onclick="App.openStoryBook()"><span class="ht-emoji">📖</span><b>حكاية جزّور</b><small>${chapters ? chapters + ' من ' + STORY.length + ' فصلًا' : 'تبدأ بأول مرحلة'}</small></button>
+              <button class="hub-tile" onclick="App.openScreenTime()"><span class="ht-emoji">⏱️</span><b>وقت الشاشة</b><small>${screenTime > 0 ? screenTime + ' دقيقة ▶️' : 'أنجز لتكسب دقائق'}</small></button>
+              <button class="hub-tile" onclick="App.openLibrary()"><span class="ht-emoji">🎒</span><b>مكتبتي</b><small>${libraryCount ? libraryCount + ' فيديو واختبار' : 'رموز معلمي هنا'}</small></button>
+            </div>
+            ${isWeekend() ? `<div class="weekend-banner">🏖️ ${isFriday() ? 'جمعة مباركة!' : 'سبت سعيد!'} — لا دروس اليوم، استمتع بنشاطات العائلة</div>` : ''}
+            ${isFriday() ? `<button class="quran-card quran-card--friday" onclick="App.openQuranFull(17)"><span class="wg-emoji">🕌</span><span class="wg-info"><b>سنة الجمعة: سورة الكهف</b><small>اقرأها الآن من مصحف جَزَرة</small></span><span class="wg-reward">📖</span></button>` : ''}
+            ${S.boss && !S.boss.defeated ? `<div class="boss-card"><span class="boss-emoji">👾</span><h3>تحدي العائلة: ${esc(S.boss.title)}</h3><div class="progressbar"><i style="width:${Math.min(100, Math.round(S.boss.progress / S.boss.target * 100))}%"></i></div><p>${S.boss.progress} / ${S.boss.target} ⚔️</p><p class="boss-reward">🏆 ${esc(S.boss.reward)}</p><button class="boss-hit-btn" onclick="App.kidBossHit()">اضرب وحش الكسل! ⚔️</button></div>` : ''}
+            <button class="btn-primary purple" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>
+          </div>
+        </details>
+      </section>`;
 
     document.getElementById('ktab-map').innerHTML = html;
   },
@@ -2620,12 +2603,14 @@ const App = {
   },
 
   _nextKidStep(doneIds, pendingToday) {
-    const qr = this._quranState();
-    if (!qr.claimed) {
+    const quran = this._quranState();
+    if (!quran.claimed) {
       return {
         title: 'ورد القرآن',
         desc: `اقرأ ${C().quranDaily || 5} دقائق مع جزّور.`,
+        hint: 'خطوة هادئة قبل بقية المغامرة.',
         cta: 'ابدأ القرآن 📖',
+        icon: '📖',
         action: 'App.openQuranKids()',
         say: `ابدأ ورد القرآن. اقرأ ${C().quranDaily || 5} دقائق مع جزّور.`,
       };
@@ -2636,30 +2621,38 @@ const App = {
       .filter(t => !t.mine || t.id === 'mine-' + today)
       .find(t => !doneIds.has(t.id) && !pendingToday.has(t.id));
     if (nextTask) {
-      const et = effectiveTask(nextTask, today);
+      const reward = effectiveTask(nextTask, today);
+      const isPhoto = nextTask.proof === 'photo';
+      const needsParent = nextTask.proof === 'parent';
       return {
         title: nextTask.title,
-        desc: `${CATEGORIES[nextTask.cat].name} · ${et.coins} جزرات`,
-        cta: 'أنجز المهمة ⭐',
+        desc: `${CATEGORIES[nextTask.cat].name} · تكسب ${reward.coins} جزرًا و${reward.xp} XP`,
+        hint: isPhoto ? 'التقط صورة بعد الإنجاز.' : needsParent ? 'سنرسل طلب مراجعة لوالدك.' : 'أكملها ثم أكد إنجازك.',
+        cta: isPhoto ? 'التقط دليلك 📸' : needsParent ? 'اطلب موافقة والدي 📨' : 'أنجزتها ✅',
+        icon: isPhoto ? '📸' : needsParent ? '👀' : CATEGORIES[nextTask.cat].emoji,
         action: `App.completeTask('${nextTask.id}')`,
         say: `مهمتك الآن: ${nextTask.title}.`,
       };
     }
-    const wg = this._wordGameState();
-    const mg = this._mathGameState();
-    if (wg.arDone < WORDS_PER_DAY || wg.enDone < WORDS_PER_DAY || mg.done < 3) {
+    const wordGame = this._wordGameState();
+    const mathGame = this._mathGameState();
+    if (wordGame.arDone < WORDS_PER_DAY || wordGame.enDone < WORDS_PER_DAY || mathGame.done < 3) {
       return {
         title: 'ألعاب اليوم',
         desc: 'كلمات وحساب خفيفة تكسبك جزرًا إضافية.',
+        hint: 'اختر لعبة صغيرة وارجع لمغامرتك.',
         cta: 'افتح الألعاب 🎮',
+        icon: '🎮',
         action: 'App.openGamesHub()',
         say: 'افتح ألعاب اليوم. كلمات وحساب خفيفة.',
       };
     }
     return {
       title: 'يومك مكتمل',
-      desc: 'أحسنت! شارك إنجازك أو اختر شكلك.',
+      desc: 'أحسنت! أنهيت خطوات اليوم بتركيز.',
+      hint: 'شارك إنجازك مع والدك أو استكشف عالمك.',
       cta: 'شارك اليوم 📤',
+      icon: '🏆',
       action: 'App.shareDayReport()',
       say: 'أحسنت. يومك مكتمل يا بطل.',
     };
