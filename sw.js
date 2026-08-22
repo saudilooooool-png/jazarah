@@ -1,7 +1,7 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v12';
+const CACHE = 'jazarah-v13';
 const ASSETS = [
   './',
   './index.html',
@@ -17,7 +17,9 @@ const ASSETS = [
   './icons/apple-touch-icon.png',
   // شخصيات الجزر + حالات جزّور
   ...Array.from({ length: 12 }, (_, i) => `./avatars/c${i + 1}.svg`),
-  ...['happy', 'curious', 'sleepy', 'surprised', 'excited'].map(m => `./avatars/jazzour-${m}.svg`),
+  ...['hero', 'happy', 'thinking', 'wave', 'encourage', 'surprised',
+     'excited', 'jump', 'celebrate', 'proud', 'sleep', 'super']
+    .map(p => `./avatars/jazzour/${p}.webp`),
   // المصحف يُخزن تلقائيًا عند أول فتح لركن القرآن (ملف كبير — لا يُحمل مسبقًا)
 ];
 

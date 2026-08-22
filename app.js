@@ -2418,7 +2418,7 @@ const App = {
     let html = `
       <div class="jz-scene">
         <button class="jz-char" id="jz-char" onpointerdown="App.jzDown(event)" aria-label="جزّور">
-          <img src="avatars/jazzour-${mood}.svg" alt="جزّور" draggable="false" />
+          <img src="${this.jzSrc(this.MOOD_POSE[mood])}" alt="جزّور" draggable="false" />
           ${heartsWaiting ? `<span class="jz-heart-badge">❤️ ${heartsWaiting}</span>` : ''}
         </button>
         <div class="jz-bubble">${this._jazzourBubble(mood)}</div>
@@ -3102,7 +3102,7 @@ const App = {
           <span class="pv-blob" style="background:linear-gradient(160deg,${w.grad[0]},${w.grad[1]})">${state === 'locked' ? '☁️' : w.emoji}</span>
           <b>${esc(w.name)}</b>
           <small>${state === 'done' ? '⭐ مكتمل' : state === 'current' ? `${stars}/${STAGES_PER_WORLD} ⭐` : '🔒'}</small>
-          ${state === 'current' ? `<img class="pv-jz" src="avatars/jazzour-happy.svg" alt="" />` : ''}
+          ${state === 'current' ? `<img class="pv-jz" src="avatars/jazzour/hero.webp" alt="" />` : ''}
         </button>`;
     }).join('');
     return `
@@ -3190,7 +3190,7 @@ const App = {
       const boss = si === STAGES_PER_WORLD - 1;
       let cls = 'pw-node', inner = String(si + 1);
       if (g < j.stage) { cls += ' done'; inner = boss ? '👾' : '⭐'; }
-      else if (g === j.stage) { cls += ' here'; inner = `<img src="avatars/jazzour-happy.svg" alt="جزّور" />`; }
+      else if (g === j.stage) { cls += ' here'; inner = `<img src="avatars/jazzour/hero.webp" alt="جزّور" />`; }
       else if (boss) { cls += ' boss'; inner = '👾'; }
       return `<span class="${cls}" style="left:${p.x}%;top:${p.y}%">${inner}</span>`;
     }).join('');
@@ -3220,6 +3220,29 @@ const App = {
 
   /* ═══════════ جزّور: رفيق الرحلة الحي ═══════════ */
   _storyToShow: null,
+
+  /* وضعيات جزّور الرسمية (12 صورة من شيت الشخصية المعتمد) */
+  JZ_POSES: ['hero', 'happy', 'thinking', 'wave', 'encourage', 'surprised',
+             'excited', 'jump', 'celebrate', 'proud', 'sleep', 'super'],
+  /* المزاج اليومي ← الوضعية التي تمثله */
+  MOOD_POSE: { sleepy: 'sleep', curious: 'thinking', happy: 'happy', excited: 'excited' },
+
+  jzSrc(pose) { return `avatars/jazzour/${this.JZ_POSES.includes(pose) ? pose : 'hero'}.webp`; },
+
+  /* تبديل وضعية مؤقت كردّ فعل — لغة الحركة الأساسية مع الصور الثابتة */
+  jzReact(pose, ms = 1100) {
+    const img = document.querySelector('#jz-char img');
+    if (!img) return;
+    clearTimeout(this._jzReactT);
+    const back = img.dataset.base || img.getAttribute('src');
+    img.dataset.base = back;
+    img.setAttribute('src', this.jzSrc(pose));
+    img.parentElement.classList.add('jz-react');
+    this._jzReactT = setTimeout(() => {
+      img.setAttribute('src', img.dataset.base || back);
+      img.parentElement.classList.remove('jz-react');
+    }, ms);
+  },
 
   /* مزاج جزّور يعكس يوم الطفل — الرعاية تقلب المعادلة: هو من ينتظر الطفل */
   jazzourMood() {
@@ -3287,6 +3310,7 @@ const App = {
     setTimeout(() => s.el.classList.remove('jz-return'), 700);
     const lines = [['drag1', 'هيييه! رحلة ممتعة!'], ['drag2', 'مرة ثانية! مرة ثانية!'], ['drag3', 'أنا أطير يا بطل!']];
     const pick = lines[Math.floor(Math.random() * lines.length)];
+    this.jzReact('jump', 900);
     sayLine(pick[0], pick[1]);
   },
 
@@ -3301,6 +3325,7 @@ const App = {
       this.celebrate('رسالة حب من والدك! ❤️',
         hearts.slice(0, 4).map(f => `${f.e} ${esc(f.title)}`).join('<br />'),
         ['❤️ شاف إنجازك وأعجبه'], '🥰');
+      this.jzReact('proud', 1800);
       sayLine('heart', 'والدك شاف إنجازك وأعجبه!');
       this.renderKMap();
       return;
@@ -3312,6 +3337,8 @@ const App = {
       excited: [['poke5', 'أنا فخور فيك!'], ['poke1', 'أنت رائع! كمّل!'], ['poke2', 'أحبك يا بطل!']],
     }[this.jazzourMood()];
     const pick = lines[Math.floor(Math.random() * lines.length)];
+    const react = { sleepy: 'surprised', curious: 'thinking', happy: 'wave', excited: 'celebrate' }[this.jazzourMood()];
+    this.jzReact(react);
     sayLine(pick[0], pick[1]);
   },
 
@@ -3350,7 +3377,7 @@ const App = {
     this.openModal(`
       <div class="story-book" style="--wc:${w.color}">
         <div class="story-head">
-          <img class="story-jz" src="avatars/jazzour-${last ? 'excited' : 'happy'}.svg" alt="جزّور" />
+          <img class="story-jz" src="avatars/jazzour/${last ? 'super' : 'hero'}.webp" alt="جزّور" />
           <div>
             <small>${w.emoji} حكاية جزّور — ${esc(w.name)}</small>
             <h3>الفصل ${i + 1} من ${STORY.length}</h3>
@@ -3370,7 +3397,7 @@ const App = {
     if (!unlocked) {
       this.openModal(`
         <div style="text-align:center">
-          <img src="avatars/jazzour-sleepy.svg" style="width:120px" alt="جزّور" />
+          <img src="avatars/jazzour/sleep.webp" style="width:120px" alt="جزّور" />
           <h3>حكاية جزّور 📖</h3>
           <p class="muted">أنجز أول مرحلة في رحلة العوالم ليبدأ جزّور حكايته معك!</p>
         </div>`);

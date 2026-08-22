@@ -862,7 +862,28 @@ b { font-weight: 700; }
   position: relative; flex: 0 0 auto; width: 128px; height: 148px;
   background: none; border: none; padding: 0; cursor: pointer;
 }
-.jz-char img { width: 100%; height: 100%; }
+.jz-char img {
+  width: 100%; height: 100%; object-fit: contain; object-position: bottom;
+  /* دليل الحركة: تنفس هادئ كل 3 ثوانٍ بارتفاع 4px بمنحنى ease-in-out */
+  animation: jzBreathe 3s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  will-change: transform;
+}
+@keyframes jzBreathe {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-4px) scaleY(1.012); }
+}
+/* لحظة ردّ الفعل: نبضة تكبير قصيرة (0.4s كحد أقصى حسب الدليل) */
+.jz-char.jz-react img { animation: jzPop 0.4s cubic-bezier(0.34, 1.7, 0.5, 1); }
+@keyframes jzPop {
+  0% { transform: translateY(0) scale(0.94); }
+  60% { transform: translateY(-8px) scale(1.06); }
+  100% { transform: translateY(0) scale(1); }
+}
+/* أثناء السحب لا تنفّس — الإصبع هو من يحرّكه */
+.jz-char.jz-drag img { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .jz-char img, .jz-char.jz-react img { animation: none; }
+}
 .jz-char.jz-bounce { animation: jzBounce 0.7s ease; }
 @keyframes jzBounce {
   0%, 100% { transform: translateY(0) scale(1); }
