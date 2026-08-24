@@ -1,7 +1,7 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v16';
+const CACHE = 'jazarah-v17';
 const ASSETS = [
   './',
   './index.html',
@@ -67,6 +67,10 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(c => c.put(e.request, copy));
       }
       return res;
-    }).catch(() => caches.match(e.request))
+    }).catch(() =>
+      // الأصوات تُطلب بلاحقة ?v= لكسر كاش المتصفح، والمخزَّن بلا لاحقة —
+      // ignoreSearch يجعلهما يتطابقان فتعمل الأصوات دون إنترنت
+      caches.match(e.request, { ignoreSearch: true })
+    )
   );
 });
