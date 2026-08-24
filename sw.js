@@ -1,7 +1,7 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v15';
+const CACHE = 'jazarah-v16';
 const ASSETS = [
   './',
   './index.html',
@@ -32,6 +32,13 @@ const ASSETS = [
       'poke1', 'poke2', 'poke3', 'poke4', 'poke5', 'drag1', 'drag2', 'drag3',
       'story_new', 'story_wait', 'birthday', 'mypick']
     .map(id => `./audio/prompts/ar/${id}.mp3`),
+  // العبارات الملحقة والمجموعات المعدودة (٨ عوالم + ٣٨ سورة)
+  ...['focus_end', 'world_enter', 'proud', 'task_next', 'reward_line']
+    .map(id => `./audio/prompts/ar/${id}.mp3`),
+  ...Array.from({ length: 8 }, (_, i) => `./audio/prompts/ar/w_${i}.mp3`),
+  ...[1, 114, 113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
+      100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83,
+      82, 81, 80, 79, 78].map(n => `./audio/prompts/ar/sura_${n}.mp3`),
   // المصحف يُخزن تلقائيًا عند أول فتح لركن القرآن (ملف كبير — لا يُحمل مسبقًا)
 ];
 
