@@ -1,6 +1,6 @@
 {
   "total": 44,
-  "ready": 0,
+  "ready": 12,
   "assets": [
     {
       "id": "wood",
@@ -8,7 +8,8 @@
       "path": "farm/resources/wood.png",
       "batch": 1,
       "want": "512×512",
-      "have": false
+      "have": true,
+      "got": "512×512"
     },
     {
       "id": "stone",
@@ -16,7 +17,8 @@
       "path": "farm/resources/stone.png",
       "batch": 1,
       "want": "512×512",
-      "have": false
+      "have": true,
+      "got": "512×512"
     },
     {
       "id": "water",
@@ -24,7 +26,8 @@
       "path": "farm/resources/water.png",
       "batch": 1,
       "want": "512×512",
-      "have": false
+      "have": true,
+      "got": "512×512"
     },
     {
       "id": "light",
@@ -32,7 +35,8 @@
       "path": "farm/resources/light.png",
       "batch": 1,
       "want": "512×512",
-      "have": false
+      "have": true,
+      "got": "512×512"
     },
     {
       "id": "seed",
@@ -40,7 +44,8 @@
       "path": "farm/resources/seed.png",
       "batch": 1,
       "want": "512×512",
-      "have": false
+      "have": true,
+      "got": "512×512"
     },
     {
       "id": "home",
@@ -48,7 +53,8 @@
       "path": "farm/buildings/home.png",
       "batch": 1,
       "want": "1024×1024",
-      "have": false
+      "have": true,
+      "got": "1024×1024"
     },
     {
       "id": "field",
@@ -56,7 +62,8 @@
       "path": "farm/buildings/field.png",
       "batch": 1,
       "want": "1024×1024",
-      "have": false
+      "have": true,
+      "got": "1024×1024"
     },
     {
       "id": "well",
@@ -64,7 +71,8 @@
       "path": "farm/buildings/well.png",
       "batch": 1,
       "want": "1024×1024",
-      "have": false
+      "have": true,
+      "got": "1024×1024"
     },
     {
       "id": "barn",
@@ -72,7 +80,8 @@
       "path": "farm/buildings/barn.png",
       "batch": 1,
       "want": "1024×1024",
-      "have": false
+      "have": true,
+      "got": "1024×1024"
     },
     {
       "id": "scaffold",
@@ -80,7 +89,8 @@
       "path": "farm/buildings/scaffold.png",
       "batch": 1,
       "want": "1024×1024",
-      "have": false
+      "have": true,
+      "got": "1024×1024"
     },
     {
       "id": "egg_brown",
@@ -88,7 +98,8 @@
       "path": "farm/companions/egg_brown.png",
       "batch": 1,
       "want": "1024×1024",
-      "have": false
+      "have": true,
+      "got": "1024×1024"
     },
     {
       "id": "land_farm",
@@ -96,7 +107,8 @@
       "path": "farm/land/land_farm.png",
       "batch": 1,
       "want": "1600×2400",
-      "have": false
+      "have": true,
+      "got": "1600×2400"
     },
     {
       "id": "masjid",
