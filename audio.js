@@ -25,6 +25,7 @@ const JazarahAudio = {
 
   /* عبارات جزّور الثابتة — لا تُفعل إلا بعد اعتماد النسخة الموحدة الجديدة. */
   APPROVED_CLIP_VERSION: 'jazour-v1',
+  ASSET_VERSION: 'jazour-v3',
 
   CLIP_IDS: [
     'cheer', 'done', 'allday', 'levelup', 'stage', 'world', 'boss',
@@ -38,10 +39,14 @@ const JazarahAudio = {
     'story_new', 'story_wait', 'birthday', 'mypick',
   ],
 
+  clipSource(id) {
+    return `audio/prompts/ar/${encodeURIComponent(id)}.mp3?v=${this.ASSET_VERSION}`;
+  },
+
   get clips() {
     if (!this._clips) {
       this._clips = {};
-      this.CLIP_IDS.forEach(id => { this._clips[id] = `audio/prompts/ar/${id}.mp3`; });
+      this.CLIP_IDS.forEach(id => { this._clips[id] = this.clipSource(id); });
     }
     return this._clips;
   },
@@ -121,7 +126,9 @@ const JazarahAudio = {
   },
 
   async playClip(name) {
-    const src = this.clips[name];
+    // السجل المركزي قد يضيف عبارات أو مجموعات جديدة بعد بناء التطبيق؛
+    // كل معرف صالح يستخدم المسار الموحد نفسه، فلا نعود محصورين في القائمة القديمة.
+    const src = this.clips[name] || this.clipSource(name);
     if (!this.areClipsApproved() || !src || this.missing.has(name)) return false;
     try {
       let audio = this.clipCache.get(name);

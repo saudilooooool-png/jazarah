@@ -70,7 +70,9 @@ fs.writeFileSync(path.join(ROOT, 'audio', 'manifest.json'),
     lines: rows,
   }, null, 2) + '\n', 'utf8');
 
-const csv = 'id,text\n' + missing.map(m => `${m.id},"${m.text.replace(/"/g, '""')}"`).join('\n') + '\n';
+const csv = 'id,text\n' + (missing.length
+  ? missing.map(m => `${m.id},"${m.text.replace(/"/g, '""')}"`).join('\n') + '\n'
+  : '');
 fs.writeFileSync(path.join(ROOT, 'audio', 'to-record.csv'), csv, 'utf8');
 
 /* ─── التقرير ─── */
