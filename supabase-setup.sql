@@ -51,3 +51,29 @@ end $$;
 
 grant execute on function public.family_pull(text) to anon, authenticated;
 grant execute on function public.family_push(text, jsonb) to anon, authenticated;
+
+-- كتابة متفائلة: تمنع جهازًا متأخرًا من استبدال آخر تحديث دون أن يعيد الدمج.
+create or replace function public.family_push_cas(
+  code text,
+  new_state jsonb,
+  expected_updated_at timestamptz default null
+)
+returns table(ok boolean, state jsonb, updated_at timestamptz)
+language plpgsql security definer set search_path = public as $$
+declare
+  f_id uuid;
+  f_state jsonb;
+  f_updated_at timestamptz;
+begin
+  select id, state, updated_at into f_id, f_state, f_updated_at
+  from public.families where join_code = code for update;
+  if f_id is null then raise exception 'family not found'; end if;
+  if expected_updated_at is null or f_updated_at = expected_updated_at then
+    update public.families set state = new_state where id = f_id
+    returning families.state, families.updated_at into f_state, f_updated_at;
+    return query select true, f_state, f_updated_at;
+  end if;
+  return query select false, f_state, f_updated_at;
+end $$;
+
+grant execute on function public.family_push_cas(text, jsonb, timestamptz) to anon, authenticated;

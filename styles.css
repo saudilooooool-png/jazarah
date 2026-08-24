@@ -1458,3 +1458,68 @@ b { font-weight: 700; }
   .routine-manager-card { align-items: flex-start; flex-direction: column; }
   .routine-manager-card > button { width: 100%; }
 }
+
+
+/* ═══════════ الحزمة التالية: تذكيرات لطيفة، عالم جزّور، ومراجعة الأسبوع ═══════════ */
+.reminder-manager-card { align-items: flex-start; background: linear-gradient(135deg, #fff8ef, #fff); border-color: #f2d9b8; }
+.reminder-manager-card.on { border-color: #f0ba70; }
+.reminder-manager-card .muted { flex: 1; color: #85776a; font-size: .69rem; line-height: 1.55; margin: 0; }
+.reminder-manager-modal, .weekly-review-modal, .weekly-split-modal, .school-summary-modal { direction: rtl; padding: 2px 1px; }
+.reminder-main-toggle, .reminder-slot__toggle { display: flex; align-items: center; gap: 8px; color: #504a5d; font-size: .78rem; font-weight: 800; }
+.reminder-main-toggle { border-radius: 14px; background: #fff5e7; padding: 11px; margin: 12px 0; }
+.reminder-main-toggle input, .reminder-slot__toggle input { width: 18px; height: 18px; accent-color: #e89a36; }
+.reminder-slot-list { display: flex; flex-direction: column; gap: 9px; }
+.reminder-slot { border: 2px solid #eee6dc; border-radius: 16px; background: #fff; padding: 11px; }
+.reminder-slot .form-row { margin-top: 9px; }
+.reminder-slot label:not(.reminder-slot__toggle) { color: #776f82; font-size: .67rem; font-weight: 800; }
+
+.world-bloom-card { overflow: hidden; position: relative; margin: 12px 0; border: 2px solid #c9e6d0; border-radius: 20px; background: linear-gradient(135deg, #f0fbf2, #fffdf3); box-shadow: 0 5px 0 rgba(70, 143, 89, .1); padding: 13px; }
+.world-bloom-card::after { content: '✦'; position: absolute; left: 14px; top: 8px; color: #cfb03f; font-size: 1.5rem; opacity: .55; }
+.world-bloom-card__top { display: flex; align-items: center; gap: 9px; }
+.world-bloom-card__top > span { width: 45px; height: 45px; display: grid; place-items: center; border-radius: 15px; background: #fff; box-shadow: 0 3px 0 rgba(52, 123, 68, .12); font-size: 1.5rem; }
+.world-bloom-card__top > div { flex: 1; }
+.world-bloom-card__top p { color: #58906a; font-size: .66rem; font-weight: 900; margin: 0; }
+.world-bloom-card__top h3 { color: #355a3e; font-size: .94rem; font-weight: 900; margin: 2px 0 0; }
+.world-bloom-card__top > b { min-width: 30px; border-radius: 11px; background: #e1f4e5; color: #3a8a52; font-size: .82rem; padding: 7px 5px; text-align: center; }
+.world-bloom-card > p { color: #65776b; font-size: .72rem; font-weight: 700; line-height: 1.55; margin: 9px 0 6px; }
+.world-bloom-card__meter { height: 7px; overflow: hidden; border-radius: 99px; background: #dcefe0; }
+.world-bloom-card__meter i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5bbd74, #f0c456); transition: width .28s ease; }
+.world-bloom-card small { display: block; color: #729078; font-size: .64rem; font-weight: 800; margin-top: 5px; }
+
+.weekly-review-card { border-color: #d9d0f6; background: linear-gradient(135deg, #f7f4ff, #fff); }
+.weekly-review-card__top { display: flex; align-items: center; gap: 9px; }
+.weekly-review-card__top > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; background: #eae4ff; font-size: 1.3rem; }
+.weekly-review-card__top > div { flex: 1; }
+.weekly-review-card__top h3 { color: #5a468d; font-size: .92rem; margin: 0; }
+.weekly-review-card__top p { color: #7e7598; font-size: .7rem; font-weight: 700; line-height: 1.5; margin: 3px 0 0; }
+.weekly-review-card__recommend { display: flex; flex-direction: column; gap: 3px; margin: 10px 0; border-radius: 13px; background: #fff; color: #635b77; padding: 9px; }
+.weekly-review-card__recommend b { color: #5d469b; font-size: .74rem; }
+.weekly-review-card__recommend small { color: #817991; font-size: .67rem; font-weight: 700; line-height: 1.45; }
+.weekly-review-card > button { font-size: .72rem; }
+.weekly-review-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 12px 0; }
+.weekly-review-stats > div { display: flex; flex-direction: column; align-items: center; border-radius: 14px; background: #f7f4ff; padding: 10px 5px; }
+.weekly-review-stats b { color: #654aa2; font-size: 1.05rem; }
+.weekly-review-stats span { color: #83789d; font-size: .64rem; font-weight: 800; margin-top: 2px; }
+.weekly-review-bars { height: 70px; display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; direction: rtl; margin: 10px 2px 16px; }
+.weekly-review-bars i { min-width: 20px; display: flex; flex: 1; align-items: center; justify-content: flex-start; flex-direction: column; border-radius: 9px 9px 3px 3px; background: linear-gradient(#9e82e7, #6c4db6); color: #fff; font-style: normal; transition: height .2s ease; }
+.weekly-review-bars small { font-size: .6rem; font-weight: 900; padding-top: 3px; }
+.weekly-review-bars em { color: #766d88; font-size: .59rem; font-style: normal; font-weight: 800; transform: translateY(16px); }
+.weekly-review-action { display: flex; gap: 9px; margin-top: 13px; border-radius: 15px; background: #fff9e9; padding: 11px; }
+.weekly-review-action > span { font-size: 1.2rem; }
+.weekly-review-action > div { flex: 1; }
+.weekly-review-action b { color: #725d36; font-size: .78rem; }
+.weekly-review-action p { color: #887758; font-size: .7rem; font-weight: 700; line-height: 1.5; margin: 3px 0 0; }
+.privacy-snapshot { margin-top: 10px; border: 1px dashed #c7ced9; border-radius: 13px; background: #fafcff; color: #5e6d80; padding: 10px; }
+.privacy-snapshot b { font-size: .75rem; }
+.privacy-snapshot p { font-size: .68rem; font-weight: 700; line-height: 1.55; margin: 4px 0; }
+.privacy-snapshot small { color: #78889a; font-size: .62rem; font-weight: 700; line-height: 1.5; }
+.school-summary-preview { margin: 12px 0; border-radius: 15px; background: #f2f9ff; color: #4a6378; padding: 11px; }
+.school-summary-preview > b { color: #3d7195; font-size: .8rem; }
+.school-summary-preview p, .school-summary-preview li { font-size: .72rem; font-weight: 700; line-height: 1.55; }
+.school-summary-preview ul { margin: 6px 0 0; padding-right: 18px; }
+
+@media (max-width: 390px) {
+  .reminder-slot .form-row, .weekly-review-stats { grid-template-columns: 1fr; flex-direction: column; }
+  .weekly-review-stats { display: flex; }
+  .weekly-review-stats > div { flex-direction: row; justify-content: space-between; padding: 8px 10px; }
+}

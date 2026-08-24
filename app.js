@@ -558,6 +558,9 @@ function defaultChild(name, avatarBase, avatarBg) {
     mapMode: 'planet',      // عرض الرحلة: 'planet' كوكب تفاعلي | 'list' قائمة كلاسيكية
     routines: [],            // روتينات بصرية يضبطها الوالد
     routineProgress: { date: null, byRoutine: {} },
+    reminders: { enabled: false, slots: [] }, // حتى تذكيرين اختياريين في اليوم، مرتبطين بروتين الطفل
+    worldBloom: { earned: 0, restored: 0, lastMilestone: 0 }, // أثر إنجازات الطفل في عالم جزّور
+    weeklyReview: { actions: {}, seenWeeks: {} }, // قرارات مراجعة الأسبوع المحلية
   };
 }
 
@@ -965,6 +968,149 @@ function save() {
   if (typeof Sync !== 'undefined' && Sync.isConfigured()) Sync.pushSoon();
 }
 
+/* ─── تذكيرات انتقالية هادئة: اختيارية، محلية، وبحد أقصى تذكيرين يوميًا ─── */
+const ReminderEngine = {
+  maxSlots: 2,
+  _tickTimer: null,
+
+  normalize(child) {
+    if (!child.reminders || typeof child.reminders !== 'object') child.reminders = { enabled: false, slots: [] };
+    child.reminders.enabled = !!child.reminders.enabled;
+    child.reminders.slots = Array.isArray(child.reminders.slots) ? child.reminders.slots.slice(0, this.maxSlots) : [];
+    child.reminders.slots = child.reminders.slots.map((slot, index) => Object.assign({
+      id: 'r' + index, enabled: false, routineId: '', time: index ? '19:00' : '07:00', kind: index ? 'gentle' : 'start',
+    }, slot));
+    return child.reminders;
+  },
+
+  activeSlots(child) {
+    const cfg = this.normalize(child);
+    if (!cfg.enabled) return [];
+    return cfg.slots.filter(s => s.enabled && /^([01]\d|2[0-3]):[0-5]\d$/.test(s.time || '')).slice(0, this.maxSlots);
+  },
+
+  plugin() {
+    return window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications;
+  },
+
+  nativeId(child, slot, index) {
+    const childIndex = Math.max(0, S.children.findIndex(c => c.id === child.id));
+    return 7100 + childIndex * 10 + index;
+  },
+
+  routineFor(child, slot) {
+    return (child.routines || []).find(r => r.id === slot.routineId) || (child.routines || [])[0] || null;
+  },
+
+  copy(child, slot) {
+    const routine = this.routineFor(child, slot);
+    const title = routine ? routine.title : 'روتينك';
+    return slot.kind === 'gentle'
+      ? { title: 'جزّور معك بهدوء', body: `هل تحتاج خطوة صغيرة لإكمال ${title}؟` }
+      : { title: 'حان وقت روتينك', body: `${child.name}، نبدأ ${title} بخطوة واحدة فقط.` };
+  },
+
+  async requestPermission() {
+    const p = this.plugin();
+    if (!p) return { native: false, granted: false };
+    let permission = await p.checkPermissions();
+    if (permission.display !== 'granted') permission = await p.requestPermissions();
+    return { native: true, granted: permission.display === 'granted' };
+  },
+
+  async scheduleChild(child) {
+    const p = this.plugin();
+    if (!p) return { native: false, scheduled: 0 };
+    const allIds = [0, 1].map(i => this.nativeId(child, { id: 'r' + i }, i));
+    try { await p.cancel({ notifications: allIds.map(id => ({ id })) }); } catch (e) { /* لا توجد تذكيرات سابقة */ }
+    const slots = this.activeSlots(child);
+    if (!slots.length) return { native: true, scheduled: 0 };
+    const permission = await this.requestPermission();
+    if (!permission.granted) throw new Error('لم يُمنح إذن الإشعارات. يمكنك تفعيله من إعدادات الجهاز متى رغبت.');
+    const notifications = slots.map((slot, index) => {
+      const [hour, minute] = slot.time.split(':').map(Number);
+      const copy = this.copy(child, slot);
+      return {
+        id: this.nativeId(child, slot, index),
+        title: copy.title,
+        body: copy.body,
+        channelId: 'jazour-routines',
+        autoCancel: true,
+        extra: { childId: child.id, routineId: (this.routineFor(child, slot) || {}).id || '', reminderSlot: slot.id },
+        schedule: { on: { hour, minute }, allowWhileIdle: true, isExactNotification: false },
+      };
+    });
+    try { await p.createChannel({ id: 'jazour-routines', name: 'تذكيرات جزّور الهادئة', description: 'تذكيرات روتين اختيارية', importance: 3, visibility: 1, sound: 'default', vibration: true }); } catch (e) { /* القناة موجودة أو لا يدعمها الجهاز */ }
+    await p.schedule({ notifications });
+    return { native: true, scheduled: notifications.length };
+  },
+
+  async scheduleAll() {
+    const results = [];
+    for (const child of S.children) results.push(await this.scheduleChild(child));
+    return results;
+  },
+
+  startForegroundChecks() {
+    clearInterval(this._tickTimer);
+    this.tick();
+    this._tickTimer = setInterval(() => this.tick(), 30000);
+  },
+
+  tick() {
+    const child = C();
+    if (!child) return;
+    const now = new Date();
+    const hhmm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const seenKey = 'jazarah_reminders_seen_' + todayKey();
+    let seen = [];
+    try { seen = JSON.parse(sessionStorage.getItem(seenKey) || '[]'); } catch (e) { seen = []; }
+    const due = this.activeSlots(child).find(slot => slot.time === hhmm && !seen.includes(child.id + ':' + slot.id));
+    if (!due) return;
+    seen.push(child.id + ':' + due.id);
+    sessionStorage.setItem(seenKey, JSON.stringify(seen));
+    const copy = this.copy(child, due);
+    if (window.App && App.toast) App.toast('🔔 ' + copy.body);
+    const routine = this.routineFor(child, due);
+    if (routine && routine.audio) speak(copy.body, 'ar-SA');
+  },
+};
+
+/* ─── حلقة عالم جزّور: أثر مرئي لكل مهمة، بلا اقتصاد إضافي أو ضغط على الطفل ─── */
+const WORLD_BLOOM_STEPS = [
+  { needed: 0, emoji: '🌱', title: 'بذرة البداية', note: 'كل إنجاز يضيف نورًا صغيرًا إلى عالم جزّور.' },
+  { needed: 2, emoji: '🌿', title: 'نبتة الأمل', note: 'بدأت البذرة تكبر بفضل خطواتك.' },
+  { needed: 5, emoji: '🪴', title: 'ركن أخضر', note: 'عالم جزّور أصبح أكثر دفئًا.' },
+  { needed: 9, emoji: '🌉', title: 'جسر المغامرة', note: 'ترمم جسرًا يقرّبك من رحلة جديدة.' },
+  { needed: 15, emoji: '🏡', title: 'واحة جزّور', note: 'بنيت مكانًا جميلًا بالاستمرار الهادئ.' },
+  { needed: 24, emoji: '✨', title: 'عالم مضيء', note: 'العالم يلمع لأنك واصلت المحاولة.' },
+];
+
+function worldBloomStatus(child) {
+  child.worldBloom = Object.assign({ earned: 0, restored: 0, lastMilestone: 0 }, child.worldBloom || {});
+  const earned = Math.max(0, Number(child.worldBloom.earned) || 0);
+  let index = 0;
+  for (let i = 0; i < WORLD_BLOOM_STEPS.length; i++) if (earned >= WORLD_BLOOM_STEPS[i].needed) index = i;
+  const stage = WORLD_BLOOM_STEPS[index];
+  const next = WORLD_BLOOM_STEPS[index + 1] || null;
+  const within = next ? Math.max(0, earned - stage.needed) : 1;
+  const span = next ? Math.max(1, next.needed - stage.needed) : 1;
+  return { earned, index, stage, next, percent: next ? Math.min(100, Math.round(within / span * 100)) : 100 };
+}
+
+function advanceWorldBloom(child) {
+  const before = worldBloomStatus(child);
+  child.worldBloom.earned = before.earned + 1;
+  const after = worldBloomStatus(child);
+  if (after.index > before.index) {
+    child.worldBloom.restored = after.index;
+    child.worldBloom.lastMilestone = after.earned;
+    feedPush(child, after.stage.emoji, `رمم في عالم جزّور: ${after.stage.title}`);
+    return after;
+  }
+  return null;
+}
+
 const PROOF_MODES = {
   self:   { emoji: '🤝', name: 'ثقة — يؤكد البطل بنفسه',   short: 'ثقة' },
   parent: { emoji: '👀', name: 'تأكيد الوالد قبل الصرف',    short: 'تأكيد الوالد' },
@@ -1052,13 +1198,15 @@ function grantCompletion(t, dateKey) {
     if (allDone) { bonus = 10; C().coins += bonus; C().lifetimeCoins += bonus; }
   }
 
+  // عالم جزّور يتغير بصريًا مع الإنجاز، بلا عملات أو XP إضافية.
+  const worldBloom = advanceWorldBloom(C());
   // يوميات الطفل — يظهر الإنجاز في شريط يوم الوالد
   feedPush(C(), (CATEGORIES[t.cat] && CATEGORIES[t.cat].emoji) || '⭐', t.title ? 'أنجز: ' + t.title : 'أنجز مهمة');
   const newLevel = levelOf(C().xp);
   if (newLevel > prevLevel) feedPush(C(), '🆙', `ترقّى للمستوى ${newLevel}!`);
 
   save();
-  return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel };
+  return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel, worldBloom };
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1119,6 +1267,7 @@ const App = {
     this._applyWorldTheme();
     this.kidTab('map');
     this.refreshKidHeader();
+    ReminderEngine.startForegroundChecks();
     // عيد ميلاد البطل؟ 🎂 — الاحتفال الأهم يتقدم الجميع
     const c = C();
     const thisYear = new Date().getFullYear();
@@ -1607,9 +1756,67 @@ const App = {
       S.onboarding.supports = [...supports];
     }
     save();
+    ReminderEngine.scheduleChild(C()).catch(() => {});
     this.closeModal();
     this.renderPTasks();
     this.toast('تم حفظ الروتين — سيظهر للبطل في مسار اليوم 🧩');
+  },
+
+  reminderManagerCardHtml() {
+    const routine = this.activeRoutine();
+    const cfg = ReminderEngine.normalize(C());
+    const active = ReminderEngine.activeSlots(C());
+    if (!routine) return `<div class="card reminder-manager-card empty"><div class="routine-manager-title"><span>🔔</span><div><h3>تذكيرات هادئة</h3><p>جهّز روتينًا أولًا، ثم اختر وقتًا أو وقتين فقط لتذكير الطفل بلطف.</p></div></div></div>`;
+    const mode = ReminderEngine.plugin() ? 'ستطلب إذن الإشعارات على هذا الجهاز عند الحفظ.' : 'يظهر التنبيه داخل التطبيق عند فتحه؛ التذكير خارج التطبيق يتاح في نسخة الهاتف.';
+    return `<div class="card reminder-manager-card ${cfg.enabled ? 'on' : ''}">
+      <div class="routine-manager-title"><span>🔔</span><div><h3>تذكيرات جزّور الهادئة</h3><p>${cfg.enabled ? `${active.length} من ${ReminderEngine.maxSlots} تذكيرين مفعّلين` : 'متوقفة — لا تنبيه افتراضيًا'}</p></div></div>
+      <p class="muted">${mode}</p>
+      <button class="btn-ghost" onclick="App.openReminderManager()">${cfg.enabled ? 'تعديل التذكيرات' : 'ضبط تذكير هادئ'}</button>
+    </div>`;
+  },
+
+  openReminderManager() {
+    const routine = this.activeRoutine();
+    if (!routine) { this.toast('جهّز روتينًا بصريًا أولًا'); return; }
+    const cfg = ReminderEngine.normalize(C());
+    const slots = [0, 1].map(index => Object.assign({ id: 'r' + index, enabled: false, routineId: routine.id, time: index ? '19:00' : '07:00', kind: index ? 'gentle' : 'start' }, cfg.slots[index] || {}));
+    const rows = slots.map((slot, index) => `<div class="reminder-slot">
+      <label class="reminder-slot__toggle"><input id="reminder-on-${index}" type="checkbox" ${slot.enabled ? 'checked' : ''} /> <b>${index ? 'تذكير لطيف ثانٍ' : 'وقت بدء الروتين'}</b></label>
+      <div class="form-row"><div><label>الوقت</label><input id="reminder-time-${index}" type="time" value="${esc(slot.time)}" /></div><div><label>الرسالة</label><select id="reminder-kind-${index}"><option value="start" ${slot.kind === 'start' ? 'selected' : ''}>نبدأ بخطوة واحدة</option><option value="gentle" ${slot.kind === 'gentle' ? 'selected' : ''}>تذكير هادئ فقط</option></select></div></div>
+    </div>`).join('');
+    this.openModal(`<section class="reminder-manager-modal"><h3>🔔 تذكيرات جزّور</h3>
+      <p class="muted">اختر وقتًا أو وقتين فقط. لا تظهر التذكيرات كعقوبة، ويمكن إيقافها في أي وقت. ترتبط حاليًا بـ«${esc(routine.title)}».</p>
+      <label class="reminder-main-toggle"><input id="reminder-enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''} /> <b>فعّل التذكيرات على هذا الجهاز</b></label>
+      <div class="reminder-slot-list">${rows}</div>
+      <p class="muted">على نسخة الهاتف، سيطلب التطبيق إذن الإشعارات عند الحفظ. على الويب، يعمل تنبيه لطيف فقط أثناء فتح التطبيق.</p>
+      <div class="form-row" style="margin-top:14px"><div><button class="btn-ghost" onclick="App.closeModal()">إلغاء</button></div><div><button class="btn-primary green" onclick="App.saveReminderManager()">حفظ التذكيرات</button></div></div>
+    </section>`);
+  },
+
+  async saveReminderManager() {
+    const routine = this.activeRoutine();
+    if (!routine) return;
+    const enabled = !!document.getElementById('reminder-enabled').checked;
+    const slots = [0, 1].map(index => ({
+      id: 'r' + index,
+      enabled: !!document.getElementById('reminder-on-' + index).checked,
+      routineId: routine.id,
+      time: document.getElementById('reminder-time-' + index).value || (index ? '19:00' : '07:00'),
+      kind: document.getElementById('reminder-kind-' + index).value || 'start',
+    }));
+    if (enabled && !slots.some(s => s.enabled)) { this.toast('فعّل وقتًا واحدًا على الأقل أو أوقف التذكيرات'); return; }
+    C().reminders = { enabled, slots };
+    save();
+    try {
+      const result = await ReminderEngine.scheduleChild(C());
+      this.closeModal();
+      this.renderPTasks();
+      this.toast(enabled ? (result.native ? `تم ضبط ${result.scheduled} تذكير محلي بهدوء 🔔` : 'تم الحفظ — سيظهر التنبيه عند فتح التطبيق 🔔') : 'تم إيقاف التذكيرات');
+    } catch (e) {
+      this.closeModal();
+      this.renderPTasks();
+      this.toast('تم حفظ التوقيت، لكن ' + (e.message || 'الإشعار يحتاج إذن الجهاز'));
+    }
   },
 
   parentDecisions() {
@@ -1779,6 +1986,7 @@ const App = {
     document.getElementById('ptab-tasks').innerHTML = `
       ${this.familyPlanCardHtml()}
       ${this.routineManagerCardHtml()}
+      ${this.reminderManagerCardHtml()}
       ${this.parentDecisionInboxHtml()}
       ${reviewHtml}
       ${feedHtml}
@@ -1792,6 +2000,7 @@ const App = {
         <div><button class="btn-primary green" onclick="App.taskForm()">✏️ مهمة مخصصة</button></div>
       </div>
       <button class="btn-primary purple" style="margin-top:10px" onclick="App.importCodeForm()">🏫 إضافة رمز من المعلم</button>
+      <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="App.openSchoolSummary()">🏫 أنشئ ملخصًا تعليميًا محدودًا للمعلم</button>
       <div class="card tip-card" style="margin-top:14px">
         <h3>💡 نصيحة اليوم</h3>
         <p>${PARENT_TIPS[dayOfYear() % PARENT_TIPS.length]}</p>
@@ -2352,6 +2561,142 @@ const App = {
     return false;
   },
 
+  /* ── مراجعة الأسبوع: تلخيص محلي وخطوة واحدة قابلة للتعديل، بلا تصنيف أو تشخيص ── */
+  weeklyReviewKey() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay());
+    return todayKey(d);
+  },
+
+  weeklyReviewSummary() {
+    const c = C();
+    c.weeklyReview = Object.assign({ actions: {}, seenWeeks: {} }, c.weeklyReview || {});
+    const dayCounts = [];
+    const catCounts = {};
+    let total = 0, activeDays = 0, previous = 0;
+    const currentTasks = new Map((c.tasks || []).map(t => [t.id, t]));
+    for (let i = 0; i < 7; i++) {
+      const ids = c.completions[dayKeyOffset(-i)] || [];
+      dayCounts.push(ids.length);
+      total += ids.length;
+      if (ids.length) activeDays++;
+      for (const id of ids) {
+        const task = currentTasks.get(id);
+        const cat = (task && task.cat) || (c.taskArchive || {})[id];
+        if (cat) catCounts[cat] = (catCounts[cat] || 0) + 1;
+      }
+    }
+    for (let i = 7; i < 14; i++) previous += (c.completions[dayKeyOffset(-i)] || []).length;
+    const key = this.weeklyReviewKey();
+    const cfg = ReminderEngine.normalize(c);
+    const rec = (() => {
+      if (c.weeklyReview.actions[key]) return { kind: 'done', title: 'اعتمدتم خطوة هذا الأسبوع', desc: 'يمكنكم العودة للخطة وتعديلها متى احتجتم.' };
+      if (c.autopilot && c.autopilot.enabled && c.autopilot.count > 3 && total <= 3) return { kind: 'lighter', title: 'خففوا قائمة المساعد إلى 3 مهام', desc: 'الأسبوع الهادئ يحتاج بداية أصغر، لا ضغطًا أكبر.' };
+      if (this.activeRoutine() && !ReminderEngine.activeSlots(c).length) return { kind: 'timing', title: 'اختاروا وقت تذكير هادئ للروتين', desc: 'وقت واحد واضح قد يجعل البدء أسهل من تكرار الطلبات.' };
+      if (total <= 2 && c.tasks.length > 3) return { kind: 'split', title: 'قسّموا مهمة واحدة إلى خطوتين', desc: 'تحويل المهمة الكبيرة إلى خطوتين يجعل البداية أوضح.' };
+      return { kind: 'keep', title: 'استمروا على الخطة الحالية', desc: 'الإيقاع الحالي متوازن؛ لا تحتاجون تغييرًا لمجرد التغيير.' };
+    })();
+    const totalPhotos = S.children.reduce((sum, child) => sum + (child.pendingProofs || []).filter(p => !!p.photo).length + (child.feed || []).filter(f => !!f.img).length, 0);
+    return { key, total, previous, activeDays, dayCounts, catCounts, recommendation: rec, photos: totalPhotos, cloud: typeof Sync !== 'undefined' && Sync.isConfigured() };
+  },
+
+  weeklyReviewCardHtml() {
+    const s = this.weeklyReviewSummary();
+    const trend = s.previous ? (s.total >= s.previous ? 'مستقر أو أفضل من الأسبوع السابق' : 'أقل من الأسبوع السابق — وهذا لا يعني فشلًا') : 'أول أسبوع نقرأ منه الإيقاع';
+    return `<div class="card weekly-review-card">
+      <div class="weekly-review-card__top"><span>🗓️</span><div><h3>مراجعة الأسبوع التالي</h3><p>${s.total} مهمة خلال ${s.activeDays} ${s.activeDays === 1 ? 'يوم نشط' : 'أيام نشطة'} · ${trend}</p></div></div>
+      <div class="weekly-review-card__recommend"><b>اقتراح واحد: ${esc(s.recommendation.title)}</b><small>${esc(s.recommendation.desc)}</small></div>
+      <button class="btn-primary purple" onclick="App.openWeeklyReview()">راجع بهدوء ←</button>
+    </div>`;
+  },
+
+  openWeeklyReview() {
+    const s = this.weeklyReviewSummary();
+    const c = C();
+    const catLines = Object.entries(s.catCounts).sort((a, b) => b[1] - a[1]).slice(0, 4)
+      .map(([cat, n]) => `<span class="pill">${(CATEGORIES[cat] || {}).emoji || '⭐'} ${(CATEGORIES[cat] || {}).name || cat}: <b>${n}</b></span>`).join('') || '<span class="pill">لا يوجد مسار كافٍ للحكم بعد</span>';
+    const actionButton = s.recommendation.kind === 'done'
+      ? '<button class="btn-ghost" onclick="App.closeModal()">حسنًا</button>'
+      : `<button class="btn-primary green" onclick="App.applyWeeklyReview('${s.recommendation.kind}')">اعتماد هذه الخطوة</button>`;
+    const privacyText = s.cloud
+      ? 'المراجعة تُحسب على هذا الجهاز، ثم تدخل في المزامنة العائلية التي فعّلتموها. لا تشارك صور الإثبات أو تفاصيل المنزل مع المدرسة.'
+      : 'المراجعة تُحسب وتبقى على هذا الجهاز. لا توجد مزامنة عائلية مفعلة حاليًا.';
+    this.openModal(`<section class="weekly-review-modal"><p class="onboarding-kicker">قرار صغير للأسبوع القادم</p><h2>كيف كان الإيقاع؟</h2>
+      <div class="weekly-review-stats"><div><b>${s.total}</b><span>مهمة</span></div><div><b>${s.activeDays}</b><span>أيام نشطة</span></div><div><b>${s.previous}</b><span>الأسبوع السابق</span></div></div>
+      <div class="weekly-review-bars">${s.dayCounts.slice().reverse().map((n, i) => `<i title="${n} مهام" style="height:${Math.max(10, Math.round(n / Math.max(1, ...s.dayCounts) * 100))}%"><small>${n}</small><em>${i === 6 ? 'اليوم' : ''}</em></i>`).join('')}</div>
+      <h3>المسارات التي ظهرت هذا الأسبوع</h3><div class="pill-list">${catLines}</div>
+      <div class="weekly-review-action"><span>💡</span><div><b>${esc(s.recommendation.title)}</b><p>${esc(s.recommendation.desc)}</p></div></div>
+      <div class="privacy-snapshot"><b>🔒 خصوصية الأسرة</b><p>${privacyText}</p><small>${s.photos} صورة إثبات/ذكرى محفوظة داخل بيانات الأسرة. لا تعرضها هذه المراجعة ولا تقرير المدرسة المختصر.</small></div>
+      <div class="form-row" style="margin-top:14px"><div><button class="btn-ghost" onclick="App.closeModal()">لاحقًا</button></div><div>${actionButton}</div></div>
+    </section>`);
+  },
+
+  applyWeeklyReview(kind) {
+    const c = C();
+    const key = this.weeklyReviewKey();
+    c.weeklyReview = Object.assign({ actions: {}, seenWeeks: {} }, c.weeklyReview || {});
+    if (kind === 'lighter') {
+      c.autopilot.count = Math.min(3, c.autopilot.count || 3);
+      runAutopilot(true);
+      c.weeklyReview.actions[key] = 'lighter';
+      save();
+      this.closeModal();
+      this.renderPReport();
+      this.toast('خففنا قائمة المساعد إلى 3 مهام يومية ✅');
+      return;
+    }
+    if (kind === 'timing') {
+      c.weeklyReview.actions[key] = 'timing';
+      save();
+      this.closeModal();
+      this.openReminderManager();
+      return;
+    }
+    if (kind === 'split') {
+      this.openWeeklySplitForm();
+      return;
+    }
+    c.weeklyReview.actions[key] = 'keep';
+    c.weeklyReview.seenWeeks[key] = new Date().toISOString();
+    save();
+    this.closeModal();
+    this.renderPReport();
+    this.toast('تم تثبيت الخطة للأسبوع القادم ✅');
+  },
+
+  openWeeklySplitForm() {
+    const done = new Set(C().completions[todayKey()] || []);
+    const candidates = C().tasks.filter(t => !done.has(t.id));
+    const task = candidates[0];
+    if (!task) { this.toast('لا توجد مهمة متاحة لتقسيمها الآن'); return; }
+    this.openModal(`<section class="weekly-split-modal"><h3>✂️ قسّم مهمة إلى خطوتين</h3><p class="muted">عدّل النصين كما يناسب طفلك. ستحتفظ الخطوتان بإجمالي XP والجزر نفسه، ولن تُحذف أي مهمة مكتملة.</p>
+      <div class="form-grid"><div><label>المهمة</label><select id="weekly-split-task">${candidates.map(t => `<option value="${t.id}">${esc(t.title)}</option>`).join('')}</select></div>
+      <div><label>الخطوة الأولى</label><input id="weekly-split-first" value="ابدأ: ${esc(task.title)}" /></div>
+      <div><label>الخطوة الثانية</label><input id="weekly-split-second" value="أكمل: ${esc(task.title)}" /></div>
+      <button class="btn-primary green" onclick="App.saveWeeklySplit()">حفظ الخطوتين</button></div></section>`);
+  },
+
+  saveWeeklySplit() {
+    const id = document.getElementById('weekly-split-task').value;
+    const first = document.getElementById('weekly-split-first').value.trim();
+    const second = document.getElementById('weekly-split-second').value.trim();
+    const task = C().tasks.find(t => t.id === id);
+    if (!task || !first || !second) { this.toast('اكتب الخطوتين أولًا'); return; }
+    const originalXp = task.xp, originalCoins = task.coins;
+    task.title = first;
+    task.xp = Math.max(1, Math.ceil(originalXp / 2));
+    task.coins = Math.max(1, Math.ceil(originalCoins / 2));
+    C().tasks.push(Object.assign({}, task, { id: uid(), title: second, xp: Math.max(1, originalXp - task.xp), coins: Math.max(1, originalCoins - task.coins), splitFrom: id }));
+    C().weeklyReview = Object.assign({ actions: {}, seenWeeks: {} }, C().weeklyReview || {});
+    C().weeklyReview.actions[this.weeklyReviewKey()] = 'split';
+    save();
+    this.closeModal();
+    this.renderPReport();
+    this.renderPTasks();
+    this.toast('تحولت المهمة إلى خطوتين أصغر ✅');
+  },
+
   /* ── تبويب التقارير ── */
   renderPReport() {
     // آخر 7 أيام
@@ -2390,6 +2735,7 @@ const App = {
         <div class="chart">${bars}</div>
         ${trendHtml}
       </div>
+      ${this.weeklyReviewCardHtml()}
       <div class="card">
         <h3>نظرة عامة على ${esc(C().name)}</h3>
         <div class="pill-list" style="margin-bottom:12px">
@@ -2404,7 +2750,47 @@ const App = {
         <h3 style="margin-top:6px">حسب المسار</h3>
         <div class="pill-list">${catStats}</div>
       </div>
-      <button class="btn-primary purple" onclick="App.shareWeeklyReport()">📤 مشاركة تقرير الأسبوع (واتساب)</button>`;
+      <div class="form-row"><div><button class="btn-primary purple" onclick="App.shareWeeklyReport()">📤 مشاركة تقرير الأسبوع</button></div><div><button class="btn-ghost" onclick="App.openSchoolSummary()">🏫 ملخص تعليمي محدود</button></div></div>`;
+  },
+
+  /* ملخص اختياري للمعلم: لا يتضمن صور إثبات أو مهام المنزل أو بيانات المزامنة */
+  schoolSummaryData() {
+    const c = C();
+    const studyIds = new Set(c.tasks.filter(t => t.cat === 'study').map(t => t.id));
+    for (const [id, cat] of Object.entries(c.taskArchive || {})) if (cat === 'study') studyIds.add(id);
+    let studyDone = 0;
+    for (let i = 0; i < 7; i++) studyDone += (c.completions[dayKeyOffset(-i)] || []).filter(id => studyIds.has(id)).length;
+    const quizzes = (S.quizzes || []).filter(q => c.quizzesDone && c.quizzesDone[q.id] !== undefined)
+      .map(q => ({ title: q.title, teacher: q.teacher, score: c.quizzesDone[q.id], total: q.questions.length }));
+    return { studyDone, quizzes };
+  },
+
+  openSchoolSummary() {
+    const d = this.schoolSummaryData();
+    const quizRows = d.quizzes.length ? d.quizzes.map(q => `<li>${esc(q.title)}: ${q.score}/${q.total}</li>`).join('') : '<li>لا توجد نتائج اختبارات مكتملة هذا الأسبوع.</li>';
+    this.openModal(`<section class="school-summary-modal"><h3>🏫 ملخص تعليمي محدود</h3>
+      <p class="muted">هذه معاينة قبل المشاركة. لا تحتوي على اسم الطفل افتراضيًا، ولا صور إثبات، ولا تفاصيل المهام المنزلية أو الأسرة.</p>
+      <div class="school-summary-preview"><b>جَزَرة — ملخص تعلم لآخر 7 أيام</b><p>مهام تعلم مكتملة: <strong>${d.studyDone}</strong></p><ul>${quizRows}</ul></div>
+      <label class="reminder-main-toggle"><input id="school-include-name" type="checkbox" /> أضف اسم الطفل إلى الملخص</label>
+      <div class="form-row" style="margin-top:14px"><div><button class="btn-ghost" onclick="App.closeModal()">إلغاء</button></div><div><button class="btn-primary green" onclick="App.shareSchoolSummary()">مشاركة الملخص</button></div></div>
+    </section>`);
+  },
+
+  shareSchoolSummary() {
+    const d = this.schoolSummaryData();
+    const includeName = !!(document.getElementById('school-include-name') || {}).checked;
+    const lines = ['🏫 جَزَرة — ملخص تعلم لآخر 7 أيام'];
+    if (includeName) lines.push(`الطالب/ـة: ${C().name}`);
+    lines.push(`مهام تعلم مكتملة: ${d.studyDone}`);
+    if (d.quizzes.length) {
+      lines.push('نتائج الاختبارات المكتملة:');
+      d.quizzes.forEach(q => lines.push(`- ${q.title}: ${q.score}/${q.total}`));
+    } else lines.push('لا توجد نتائج اختبارات مكتملة في الفترة المختارة.');
+    lines.push('', 'هذا الملخص لا يشمل صورًا أو مهام منزلية أو معلومات عائلية.');
+    const text = lines.join('\n');
+    this.closeModal();
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
   },
 
   /* تقرير أسبوعي نصي جاهز — للوالد المشغول أو لمشاركته مع الطرف الآخر */
@@ -2469,6 +2855,7 @@ const App = {
       <div class="card cloud-card on">
         <h3>☁️ المزامنة السحابية تعمل</h3>
         <p class="muted">${Sync.statusText()}${Sync.lastError ? ' · ⚠️ ' + esc(Sync.lastError) : ''}</p>
+        <p class="muted" style="margin-top:6px">🛡️ ${typeof Sync.mergeStatus === 'function' ? esc(Sync.mergeStatus()) : 'تتزامن بيانات الأسرة بين الأجهزة.'}</p>
         ${Sync.cfg.familyCode ? `
           <div class="family-code-box">
             <span class="muted">رمز العائلة — تدخله أجهزة الأطفال</span>
@@ -2900,6 +3287,17 @@ const App = {
     return state;
   },
 
+  worldBloomCardHtml() {
+    const bloom = worldBloomStatus(C());
+    const nextText = bloom.next ? `${Math.max(0, bloom.next.needed - bloom.earned)} إنجازات صغيرة حتى ${bloom.next.title}` : 'أكملت كل معالم عالم جزّور — استمر كما تحب.';
+    return `<section class="world-bloom-card" aria-label="تطور عالم جزّور">
+      <div class="world-bloom-card__top"><span>${bloom.stage.emoji}</span><div><p>عالم جزّور يكبر معك</p><h3>${esc(bloom.stage.title)}</h3></div><b>${bloom.earned}</b></div>
+      <p>${esc(bloom.stage.note)}</p>
+      <div class="world-bloom-card__meter"><i style="width:${bloom.percent}%"></i></div>
+      <small>${esc(nextText)}</small>
+    </section>`;
+  },
+
   routineCardHtml() {
     const routine = this.activeRoutine();
     if (!routine) return '';
@@ -3038,6 +3436,7 @@ const App = {
     const mood = this.jazzourMood();
     const heartsWaiting = (C().feed || []).filter(f => f.heart && !f.seen).length;
     const routineCard = this.routineCardHtml();
+    const worldBloomCard = this.worldBloomCardHtml();
 
     const taskState = (task) => {
       if (doneIds.has(task.id)) return { key: 'done', badge: 'مكتملة', icon: '✅', cta: 'تم الإنجاز', disabled: true, note: 'أحسنت، تقدمت في مغامرتك.' };
@@ -3061,6 +3460,7 @@ const App = {
         </div>
 
         ${routineCard}
+        ${worldBloomCard}
 
         <section class="next-mission" aria-label="المهمة التالية">
           <div class="next-mission__topline">
@@ -4883,7 +5283,9 @@ const App = {
       emoji = '🏆';
       msg = `مكافأة اليوم الكامل: +${res.bonus} 🥕`;
     }
-    this.celebrate(title, msg, [`+${t.xp} ✨ XP`, `+${t.coins + res.bonus} 🥕`], emoji);
+    const gains = [`+${t.xp} ✨ XP`, `+${t.coins + res.bonus} 🥕`];
+    if (res.worldBloom) gains.push(`${res.worldBloom.stage.emoji} رممت: ${res.worldBloom.stage.title}`);
+    this.celebrate(title, msg, gains, emoji);
   },
 
   /* ── إثبات بالصورة ── */

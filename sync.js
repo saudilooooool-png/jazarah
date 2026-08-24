@@ -2,7 +2,7 @@
    جَزَرة — محرك المزامنة السحابية (Supabase)
    - الوالد: حساب بريد إلكتروني يملك صف العائلة
    - أجهزة الأطفال: تنضم برمز العائلة (بلا بريد)
-   - الحالة كاملة تُرفع وتُسحب كمستند واحد (آخر كتابة تفوز)
+   - الحالة كاملة تُرفع وتُسحب كمستند واحد مع دمج محافظ للأحداث والتقدم قبل الكتابة
    ═══════════════════════════════════════════════════ */
 
 'use strict';
@@ -15,6 +15,7 @@ const Sync = {
   cfg: null,          // { mode:'parent'|'code', email, access_token, refresh_token, familyId, familyCode, lastVersion }
   applying: false,    // أثناء تطبيق حالة قادمة من السحابة — لا نعيد رفعها
   lastError: null,
+  lastMerge: null,     // آخر دمج محافظ محلي لتوضيح ما حدث للوالد
   _pushTimer: null,
   _pollTimer: null,
 
@@ -44,8 +45,12 @@ const Sync = {
 
   statusText() {
     if (!this.isConfigured()) return 'غير متصلة';
-    if (this.cfg.mode === 'parent') return `متصلة كوالد (${this.cfg.email})`;
-    return 'متصلة برمز العائلة';
+    const base = this.cfg.mode === 'parent' ? `متصلة كوالد (${this.cfg.email})` : 'متصلة برمز العائلة';
+    return this.lastMerge ? base + ' · دمج محافظ للإنجازات مفعل' : base;
+  },
+
+  mergeStatus() {
+    return this.lastMerge ? 'آخر مزامنة دمجت تغييرات الأجهزة لحماية الإنجازات والطلبات.' : 'تُدمج الإنجازات والطلبات الجديدة بدل استبدالها عند تعارض الأجهزة.';
   },
 
   /* ─────── طلبات HTTP ─────── */
@@ -171,6 +176,7 @@ const Sync = {
       const fam = rows[0];
       this.cfg.familyId = fam.id;
       this.cfg.familyCode = fam.join_code;
+      this.cfg.lastVersion = fam.updated_at;
       this.saveCfg();
       // توجد بيانات سحابية: المستخدم يقرر أيها يبقى
       const cloudHasData = fam.state && fam.state.children;
@@ -214,7 +220,105 @@ const Sync = {
     this.startPolling();
   },
 
-  /* ─────── الرفع والسحب ─────── */
+  /* ─────── الدمج المحافظ والرفع والسحب ─────── */
+
+  _mergeById(remoteList, localList) {
+    const map = new Map();
+    for (const item of (remoteList || [])) if (item && item.id) map.set(item.id, item);
+    for (const item of (localList || [])) if (item && item.id) map.set(item.id, Object.assign({}, map.get(item.id) || {}, item));
+    return [...map.values()];
+  },
+
+  _mergeObjects(remoteList, localList, keyFn) {
+    const out = [], seen = new Set();
+    for (const item of (remoteList || []).concat(localList || [])) {
+      const key = keyFn(item);
+      if (seen.has(key)) continue;
+      seen.add(key); out.push(item);
+    }
+    return out;
+  },
+
+  _mergeCompletions(remote, local) {
+    const out = Object.assign({}, remote || {});
+    for (const [date, ids] of Object.entries(local || {})) out[date] = [...new Set((out[date] || []).concat(ids || []))];
+    return out;
+  },
+
+  _mergeRoutineProgress(remote, local) {
+    const r = remote || {}, l = local || {};
+    if (!r.date || (l.date && l.date > r.date)) return l;
+    if (!l.date || r.date > l.date) return r;
+    const byRoutine = Object.assign({}, r.byRoutine || {});
+    for (const [id, state] of Object.entries(l.byRoutine || {})) {
+      const before = byRoutine[id] || {};
+      byRoutine[id] = Object.assign({}, before, state, { done: [...new Set((before.done || []).concat(state.done || []))] });
+    }
+    return { date: r.date, byRoutine };
+  },
+
+  _mergeChild(localChild, remoteChild) {
+    const local = Object.assign(defaultChild(localChild.name || remoteChild.name || 'البطل'), localChild || {});
+    const remote = Object.assign(defaultChild(remoteChild.name || localChild.name || 'البطل'), remoteChild || {});
+    const out = Object.assign({}, remote, local);
+    out.tasks = this._mergeById(remote.tasks, local.tasks);
+    out.completions = this._mergeCompletions(remote.completions, local.completions);
+    out.taskArchive = Object.assign({}, remote.taskArchive || {}, local.taskArchive || {});
+    out.pendingProofs = this._mergeById(remote.pendingProofs, local.pendingProofs);
+    out.redemptions = this._mergeById(remote.redemptions, local.redemptions);
+    out.feed = this._mergeById(remote.feed, local.feed).sort((a, b) => String(b.ts || '').localeCompare(String(a.ts || ''))).slice(0, 80);
+    out.unseenApprovals = this._mergeObjects(remote.unseenApprovals, local.unseenApprovals, x => `${x.title}|${x.xp}|${x.coins}`);
+    out.routines = this._mergeById(remote.routines, local.routines);
+    out.routineProgress = this._mergeRoutineProgress(remote.routineProgress, local.routineProgress);
+    out.screenTime = {
+      balance: Math.max(Number((remote.screenTime || {}).balance) || 0, Number((local.screenTime || {}).balance) || 0),
+      log: this._mergeObjects((remote.screenTime || {}).log, (local.screenTime || {}).log, x => `${x.date}|${x.mins}|${x.kind}`).slice(-80),
+    };
+    out.quran = Object.assign({}, remote.quran || {}, local.quran || {}, {
+      seconds: Math.max(Number((remote.quran || {}).seconds) || 0, Number((local.quran || {}).seconds) || 0),
+      totalSeconds: Math.max(Number((remote.quran || {}).totalSeconds) || 0, Number((local.quran || {}).totalSeconds) || 0),
+      done: Object.assign({}, (remote.quranPath || {}).done || {}, (local.quranPath || {}).done || {}),
+    });
+    out.quranPath = Object.assign({}, remote.quranPath || {}, local.quranPath || {}, { done: Object.assign({}, (remote.quranPath || {}).done || {}, (local.quranPath || {}).done || {}) });
+    out.journey = Object.assign({}, remote.journey || {}, local.journey || {}, {
+      stage: Math.max(Number((remote.journey || {}).stage) || 0, Number((local.journey || {}).stage) || 0),
+      xpToday: Math.max(Number((remote.journey || {}).xpToday) || 0, Number((local.journey || {}).xpToday) || 0),
+      advanced: Math.max(Number((remote.journey || {}).advanced) || 0, Number((local.journey || {}).advanced) || 0),
+    });
+    out.worldBloom = Object.assign({}, remote.worldBloom || {}, local.worldBloom || {}, {
+      earned: Math.max(Number((remote.worldBloom || {}).earned) || 0, Number((local.worldBloom || {}).earned) || 0),
+      restored: Math.max(Number((remote.worldBloom || {}).restored) || 0, Number((local.worldBloom || {}).restored) || 0),
+    });
+    // الخبرة وعالم جزّور لا ينقصان؛ نأخذ القيمة الأعلى كي لا يضيع إنجاز جهاز الطفل.
+    out.xp = Math.max(Number(remote.xp) || 0, Number(local.xp) || 0);
+    out.lifetimeCoins = Math.max(Number(remote.lifetimeCoins) || 0, Number(local.lifetimeCoins) || 0);
+    out.coins = Math.max(Number(remote.coins) || 0, Number(local.coins) || 0);
+    out.hp = Math.max(Number(remote.hp) || 0, Number(local.hp) || 0);
+    out.streak = Math.max(Number(remote.streak) || 0, Number(local.streak) || 0);
+    out.bestStreak = Math.max(Number(remote.bestStreak) || 0, Number(local.bestStreak) || 0);
+    return out;
+  },
+
+  mergeStates(localState, remoteState) {
+    const local = Object.assign(defaultState(), localState || {});
+    const remote = Object.assign(defaultState(), remoteState || {});
+    const remoteById = new Map((remote.children || []).map(c => [c.id, c]));
+    const localById = new Map((local.children || []).map(c => [c.id, c]));
+    const ids = [...new Set([...remoteById.keys(), ...localById.keys()])];
+    const out = Object.assign({}, remote, local);
+    out.children = ids.map(id => {
+      const r = remoteById.get(id), l = localById.get(id);
+      return r && l ? this._mergeChild(l, r) : Object.assign(defaultChild((l || r).name || 'البطل'), l || r);
+    });
+    out.activeChildId = out.children.some(c => c.id === local.activeChildId) ? local.activeChildId : (remote.activeChildId || out.children[0].id);
+    out.joinRequests = this._mergeById(remote.joinRequests, local.joinRequests);
+    out.rewards = this._mergeById(remote.rewards, local.rewards);
+    out.videos = this._mergeById(remote.videos, local.videos);
+    out.quizzes = this._mergeById(remote.quizzes, local.quizzes);
+    out.vouchers = this._mergeById(remote.vouchers, local.vouchers);
+    out.bossesDefeated = Math.max(Number(remote.bossesDefeated) || 0, Number(local.bossesDefeated) || 0);
+    return out;
+  },
 
   pushSoon() {
     if (!this.isConfigured() || this.applying) return;
@@ -222,9 +326,39 @@ const Sync = {
     this._pushTimer = setTimeout(() => this.push().catch(e => { this.lastError = e.message; }), 2500);
   },
 
-  async push() {
+  async _casPush() {
+    if (!this.cfg.familyCode) return null;
+    const res = await this._fetch('/rest/v1/rpc/family_push_cas', {
+      method: 'POST',
+      body: JSON.stringify({ code: this.cfg.familyCode, new_state: S, expected_updated_at: this.cfg.lastVersion || null }),
+    });
+    // الأسر التي لم تنفذ ترقية SQL بعد تبقى عاملة بالمسار المتوافق أدناه.
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('فشل التحقق من تعارض المزامنة');
+    const rows = await res.json();
+    return rows[0] || null;
+  },
+
+  async push(retried) {
     if (!this.isConfigured()) return;
     this.lastError = null;
+    // نسحب أولًا: إن عدل جهاز آخر في أثناء العمل ندمج الحالتين بدل حذف إنجازاته.
+    if (!retried) await this.pullNow();
+    const cas = await this._casPush();
+    if (cas) {
+      if (cas.ok) {
+        this.cfg.lastVersion = cas.updated_at;
+        this.saveCfg();
+        return;
+      }
+      // وصل جهاز آخر أولًا: ندمج النتيجة الجديدة ثم نعيد المحاولة مرة واحدة فقط.
+      if (cas.state && cas.updated_at) {
+        this._applyState(cas.state, cas.updated_at);
+        if (!retried) return this.push(true);
+      }
+      throw new Error('تعارضت تغييرات الأجهزة؛ اسحب البيانات ثم حاول مرة أخرى');
+    }
+    // مسار توافق مؤقت للأسر القديمة قبل تنفيذ ترقية supabase-setup-3.sql.
     if (this.cfg.mode === 'code') {
       const res = await this._fetch('/rest/v1/rpc/family_push', {
         method: 'POST',
@@ -272,15 +406,18 @@ const Sync = {
   _applyState(state, version) {
     this.applying = true;
     try {
-      S = state;
+      const shouldMerge = !!(this.cfg && this.cfg.lastVersion && this.cfg.lastVersion !== version);
+      S = shouldMerge ? this.mergeStates(S, state) : state;
       // ضمان سلامة البنية بعد أي إصدار قديم
       if (!S.children || !S.children.length) S.children = [defaultChild('البطل')];
       S.children = S.children.map(c => Object.assign(defaultChild(), c));
       if (!S.children.find(c => c.id === S.activeChildId)) S.activeChildId = S.children[0].id;
       S.joinRequests = S.joinRequests || [];
+      if (shouldMerge) this.lastMerge = { at: new Date().toISOString() };
       save();
       this.cfg.lastVersion = version;
       this.saveCfg();
+      if (typeof ReminderEngine !== 'undefined') ReminderEngine.scheduleAll().catch(() => {});
       if (window.App && App.refreshAfterSync) App.refreshAfterSync();
     } finally {
       this.applying = false;
