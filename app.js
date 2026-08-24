@@ -2896,7 +2896,7 @@ const App = {
       <button class="btn-primary" onclick="App.childForm()">＋ إضافة بطل جديد</button>
       <div class="card audio-card" style="margin-top:14px">
         <h3>🔊 صوت جزّور</h3>
-        <p class="muted" style="margin-bottom:10px">يدعم التطبيق ملفات صوت بشرية داخل <span dir="ltr">audio/prompts/ar</span> عند إضافتها، ويستخدم نطق الجهاز كخطة بديلة.</p>
+        <p class="muted" style="margin-bottom:10px">جزّور له هوية صوت واحدة. تُراجع العبارات المسجلة قبل اعتمادها، ويخزّن محرك الصوت العبارات المتغيرة عند توفر مزوّد جزّور الموحد.</p>
         <div class="form-row">
           <div><button class="btn-primary purple" onclick="App.audioSettingsForm()">اختبار واختيار الصوت</button></div>
           <div><button class="btn-primary green" onclick="App.testKidAudio()">جرّب التشجيع ✨</button></div>
@@ -2929,45 +2929,40 @@ const App = {
     const A = window.JazarahAudio;
     const voices = A ? A.voiceOptions('ar-SA') : [];
     const saved = localStorage.getItem('jazarah_voice_ar-SA') || '';
-    const curTone = A ? A.toneName() : 'child_soft';
-    const tones = A ? A.tones : {};
+    const status = A ? A.identityStatus() : { staticClips: false, dynamicProvider: false };
+    const staticState = status.staticClips ? 'العبارات المسجلة المعتمدة جاهزة' : 'العبارات المسجلة معلّقة حتى اعتماد دفعة جزّور الجديدة';
+    const dynamicState = status.dynamicProvider ? 'محرك النصوص المتغيرة متصل ويخزّن العبارات المعاد استخدامها' : 'محرك النصوص المتغيرة ينتظر ربط مزوّد جزّور الآمن';
     this.openModal(`
-      <h3>🔊 إعداد صوت جزّور</h3>
-      <p class="muted" style="margin-bottom:12px">اختر شخصية صوت جزّور ثم أفضل صوت عربي متوفر في الجهاز — واسمع الفرق مباشرة.</p>
-      <div class="form-grid">
-        <div>
-          <label>شخصية الصوت</label>
-          <div class="tone-grid">
-            ${Object.entries(tones).map(([k, t]) => `
-              <button class="tone-tile ${k === curTone ? 'on' : ''}" onclick="App.pickTone('${k}')">
-                <b>${esc(t.label)}</b><small>${esc(t.intro)}</small>
-              </button>`).join('')}
+      <section class="jazour-voice-modal">
+        <h3>🔊 هوية صوت جزّور</h3>
+        <p class="muted">لجزّور صوت واحد: دافئ وطفولي وواضح، كصديق يجلس بجانب الطفل. لا يبدّل التطبيق شخصيته حسب الشاشة أو المهمة.</p>
+        <div class="jazour-voice-status">
+          <b>🥕 جزّور — الصديق الدافئ</b>
+          <small>${esc(A ? A.IDENTITY.description : 'صوت واحد متسق للتطبيق.')}</small>
+          <span>${staticState}</span>
+          <span>${dynamicState}</span>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>صوت الجهاز البديل</label>
+            <select id="f-voice">
+              <option value="">اختيار تلقائي ناعم</option>
+              ${voices.map(v => `<option value="${esc(v.name)}" ${v.name === saved ? 'selected' : ''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('')}
+            </select>
+            <p class="muted">يُستخدم فقط عند عدم توفر صوت جزّور الموحّد أو عدم الاتصال، ولا يُعد شخصية ثانية لجزّور.</p>
+            ${voices.length ? '' : '<p class="muted">لا تظهر أصوات عربية حاليًا في هذا المتصفح؛ سيُستخدم صوت الجهاز عند توفره.</p>'}
           </div>
+          <button class="btn-primary green" onclick="App.saveAudioVoice()">حفظ البديل واختباره</button>
+          <button class="btn-ghost" onclick="App.testKidAudio()">اختبر عبارة جزّور</button>
         </div>
-        <div>
-          <label>الصوت العربي في الجهاز</label>
-          <select id="f-voice">
-            <option value="">اختيار تلقائي (يفضّل الصوت الناعم)</option>
-            ${voices.map(v => `<option value="${esc(v.name)}" ${v.name === saved ? 'selected' : ''}>${esc(v.name)} — ${esc(v.lang)}</option>`).join('')}
-          </select>
-          ${voices.length ? '' : '<p class="muted">لا تظهر أصوات عربية حاليًا في هذا المتصفح؛ جرّب من الجهاز الحقيقي أو Android/iOS.</p>'}
-        </div>
-        <button class="btn-primary green" onclick="App.saveAudioVoice()">حفظ وتجربة الصوت</button>
-        <button class="btn-ghost" onclick="App.testKidAudio()">تشغيل مؤثر نجاح قصير</button>
-      </div>`);
-  },
-
-  pickTone(name) {
-    if (window.JazarahAudio) JazarahAudio.saveTone(name);
-    document.querySelectorAll('.tone-tile').forEach(b => b.classList.toggle('on', b.getAttribute('onclick').includes(`'${name}'`)));
-    const t = window.JazarahAudio ? JazarahAudio.tones[name] : null;
-    speak(t ? `أنا جزّور بصوت ${t.label}. هيا نكمل مغامرتنا!` : 'أنا جزّور!', 'ar-SA');
+      </section>`);
   },
 
   saveAudioVoice() {
-    const name = document.getElementById('f-voice').value;
-    if (window.JazarahAudio) JazarahAudio.saveVoice('ar-SA', name);
-    this.toast('تم حفظ الصوت ✅');
+    const field = document.getElementById('f-voice');
+    const name = field ? field.value : '';
+    if (window.JazarahAudio) JazarahAudio.saveFallbackVoice('ar-SA', name);
+    this.toast('تم حفظ بديل الجهاز عند الحاجة ✅');
     this.testKidAudio();
   },
 

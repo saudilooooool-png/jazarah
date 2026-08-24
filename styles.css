@@ -1523,3 +1523,13 @@ b { font-weight: 700; }
   .weekly-review-stats { display: flex; }
   .weekly-review-stats > div { flex-direction: row; justify-content: space-between; padding: 8px 10px; }
 }
+
+
+/* ═══════════ هوية صوت جزّور الواحدة ═══════════ */
+.jazour-voice-modal { direction: rtl; padding: 2px 1px; }
+.jazour-voice-modal > h3 { color: #704b25; font-size: 1.14rem; margin-bottom: 5px; }
+.jazour-voice-status { display: flex; flex-direction: column; gap: 5px; margin: 13px 0; border: 2px solid #ffe0b1; border-radius: 16px; background: linear-gradient(135deg, #fff8ec, #fff); padding: 12px; }
+.jazour-voice-status b { color: #a55c1d; font-size: .86rem; }
+.jazour-voice-status small { color: #806f61; font-size: .69rem; font-weight: 700; line-height: 1.5; }
+.jazour-voice-status span { border-radius: 9px; background: #fff; color: #78685d; font-size: .66rem; font-weight: 800; line-height: 1.45; padding: 7px 8px; }
+.jazour-voice-modal .form-grid > div > .muted { color: #7f7888; font-size: .68rem; font-weight: 700; line-height: 1.55; margin: 7px 0 0; }
