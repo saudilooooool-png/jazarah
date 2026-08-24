@@ -450,6 +450,72 @@ function defaultTasks() {
   ];
 }
 
+/* ─────────────── الروتينات البصرية ─────────────── */
+const ROUTINE_TEMPLATES = {
+  before_school: {
+    title: 'روتين صباح البطل', emoji: '🌤️',
+    intro: 'نبدأ صباحنا خطوة صغيرة في كل مرة.',
+    steps: [
+      ['🛏️', 'رتّب سريرك', 'خمس لمسات سريعة تجعل غرفتك جاهزة.'],
+      ['🪥', 'اغسل أسنانك', 'ابتسامة البطل تبدأ هنا.'],
+      ['👕', 'ارتد ملابسك', 'اختر ملابسك وجهّز نفسك بهدوء.'],
+      ['🎒', 'جهّز حقيبتك', 'تأكد من دفترك ومقلمتك وماءك.'],
+    ],
+  },
+  after_school: {
+    title: 'روتين العودة للبيت', emoji: '🏠',
+    intro: 'ننتقل من المدرسة إلى البيت بهدوء وترتيب.',
+    steps: [
+      ['🥤', 'خذ استراحة قصيرة', 'ماء وهدوء قبل المهمة التالية.'],
+      ['🎒', 'رتّب حقيبتك', 'ضع أدواتك في مكانها لتبقى جاهزة.'],
+      ['📚', 'ابدأ واجبك 15 دقيقة', 'ابدأ بأصغر جزء، ثم أكمل.'],
+    ],
+  },
+  evening: {
+    title: 'روتين المساء الهادئ', emoji: '🌙',
+    intro: 'نغلق يومنا بهدوء ونجهز للغد.',
+    steps: [
+      ['🧺', 'رتّب مساحتك', 'اجمع الأشياء في أماكنها.'],
+      ['🪥', 'اغسل أسنانك', 'خطوة صغيرة لصحة قوية.'],
+      ['👕', 'جهّز ملابس الغد', 'صباح الغد سيكون أسهل.'],
+      ['📖', 'هدّئ نفسك قليلًا', 'اقرأ أو تنفس ببطء قبل النوم.'],
+    ],
+  },
+  weekend: {
+    title: 'روتين عطلة العائلة', emoji: '🌿',
+    intro: 'نصنع وقتًا جميلًا ونساعد بعضنا.',
+    steps: [
+      ['🧺', 'رتّب مساحتك', 'اجعل مكانك جاهزًا للمغامرة.'],
+      ['🏃', 'اختر نشاطًا حركيًا', 'حرّك جسمك قليلًا واستمتع.'],
+      ['🤍', 'ساعد العائلة', 'اسأل: ما المهمة الصغيرة التي أستطيع فعلها؟'],
+    ],
+  },
+};
+
+function routineTemplateId(windowId) {
+  return ROUTINE_TEMPLATES[windowId] ? windowId : 'after_school';
+}
+
+function routineFromTemplate(windowId, supports = [], opts = {}) {
+  const templateId = opts.templateId || routineTemplateId(windowId);
+  const template = ROUTINE_TEMPLATES[templateId] || ROUTINE_TEMPLATES.after_school;
+  return {
+    id: opts.id || ('routine-' + uid()),
+    templateId,
+    window: windowId || templateId,
+    title: opts.title || template.title,
+    emoji: opts.emoji || template.emoji,
+    intro: opts.intro || template.intro,
+    active: opts.active !== false,
+    audio: opts.audio !== undefined ? opts.audio : supports.includes('audio'),
+    timerSeconds: opts.timerSeconds !== undefined ? opts.timerSeconds : (supports.includes('timer') ? 180 : 0),
+    steps: (opts.steps || template.steps).map((step, index) => {
+      if (typeof step === 'object' && !Array.isArray(step)) return Object.assign({ id: 'step-' + (index + 1) }, step);
+      return { id: 'step-' + (index + 1), emoji: step[0], title: step[1], hint: step[2] };
+    }),
+  };
+}
+
 /* ملف طفل كامل — كل بيانات الطفل معزولة تحت حسابه */
 function defaultChild(name, avatarBase, avatarBg) {
   return {
@@ -490,6 +556,8 @@ function defaultChild(name, avatarBase, avatarBg) {
     feed: [],               // يوميات الطفل { id, e, title, ts, img, heart, seen }
     myPickDate: null,       // تاريخ آخر «مهمة أختارها أنا»
     mapMode: 'planet',      // عرض الرحلة: 'planet' كوكب تفاعلي | 'list' قائمة كلاسيكية
+    routines: [],            // روتينات بصرية يضبطها الوالد
+    routineProgress: { date: null, byRoutine: {} },
   };
 }
 
@@ -505,6 +573,7 @@ function defaultState() {
     quizzes: [],           // اختبارات المعلمين التفاعلية { id, title, teacher, questions }
     vouchers: [],          // قسائم شركاء بخصم مقابل كود { id, partner, title, cost, code, emoji, used }
     family: { city: '', district: '', school: '' },   // يدخلها الوالد لفتح سوق العروض
+    onboarding: { version: 1, status: 'pending', draft: null, completedAt: null },
     screenPerTask: 10,     // دقائق شاشة تُكسب مع كل مهمة منجزة (0 = إيقاف)
     rewards: [
       { id: uid(), emoji: '🎮', title: 'نصف ساعة لعب إضافية', cost: 25 },
@@ -850,6 +919,9 @@ function load() {
         s.quizzes = s.quizzes || [];
         s.vouchers = s.vouchers || [];
         s.family = s.family || { city: '', district: '', school: '' };
+        // لا نقطع على الأسر القديمة باستبيان جديد؛ يظهر الاستبيان تلقائيًا للأسر المنشأة بعد هذا الإصدار فقط.
+        if (!old.onboarding) s.onboarding = { version: 1, status: 'legacy', draft: null, completedAt: null };
+        else s.onboarding = Object.assign({ version: 1, status: 'pending', draft: null, completedAt: null }, old.onboarding);
         if (s.screenPerTask === undefined) s.screenPerTask = 10;
         return s;
       }
@@ -1161,6 +1233,8 @@ const App = {
   pinSubmit() {
     if (this._pinMode === 'setup') {
       S.pin = this._pinBuffer;
+      // الأسرة المنشأة للتو تبدأ بخطة مخصصة بدل المهام الافتراضية العامة.
+      S.onboarding = { version: 1, status: 'pending', draft: null, completedAt: null };
       save();
       this.openParent();
     } else if (this._pinBuffer === S.pin) {
@@ -1175,9 +1249,264 @@ const App = {
   openParent() {
     dailyUpkeep();
     this.showScreen('screen-parent');
+    if (this.needsOnboarding()) {
+      this.startOnboarding();
+      return;
+    }
     this.renderChildSwitcher();
     this.parentTab('tasks');
     this.refreshParentSubtitle();
+  },
+
+  /* ─────── استبيان بداية الأسرة وخطة اليوم الأول ─────── */
+  needsOnboarding() {
+    return !S.onboarding || S.onboarding.status === 'pending';
+  },
+
+  onboardingDefaults() {
+    return {
+      focusAreas: [],
+      routineWindow: '',
+      structure: '',
+      rewards: '',
+      supports: [],
+    };
+  },
+
+  startOnboarding(step = 0, draft) {
+    const stored = (S.onboarding && S.onboarding.draft) || {};
+    this._onboardingDraft = Object.assign(this.onboardingDefaults(), stored, this._onboardingDraft || {}, draft || {});
+    this._onboardingStep = step;
+    this.renderOnboarding();
+  },
+
+  onboardingPick(key, value, multi = false, limit = 2) {
+    const d = this._onboardingDraft || this.onboardingDefaults();
+    if (multi) {
+      const chosen = Array.isArray(d[key]) ? d[key].slice() : [];
+      const at = chosen.indexOf(value);
+      if (at >= 0) chosen.splice(at, 1);
+      else if (chosen.length < limit) chosen.push(value);
+      else { this.toast(`اختر حتى ${limit} فقط`); return; }
+      d[key] = chosen;
+    } else d[key] = value;
+    this._onboardingDraft = d;
+    this.renderOnboarding();
+  },
+
+  onboardingNext() {
+    const d = this._onboardingDraft || this.onboardingDefaults();
+    const checks = [
+      () => d.focusAreas && d.focusAreas.length,
+      () => !!d.routineWindow,
+      () => !!d.structure,
+      () => !!d.rewards,
+      () => true,
+    ];
+    if (!checks[this._onboardingStep]()) {
+      this.toast('اختر ما يناسب أسرتك أولًا');
+      return;
+    }
+    if (this._onboardingStep >= 4) { this.renderOnboardingPreview(); return; }
+    this._onboardingStep += 1;
+    this.renderOnboarding();
+  },
+
+  onboardingBack() {
+    if (this._onboardingStep <= 0) return;
+    this._onboardingStep -= 1;
+    this.renderOnboarding();
+  },
+
+  onboardingSkip() {
+    S.onboarding = { version: 1, status: 'skipped', draft: null, completedAt: new Date().toISOString() };
+    save();
+    this.closeModal();
+    this.openParent();
+  },
+
+  renderOnboarding() {
+    const d = this._onboardingDraft || this.onboardingDefaults();
+    const step = this._onboardingStep || 0;
+    const single = (key, options) => `<div class="onboarding-options">${options.map(o =>
+      `<button class="onboarding-choice ${d[key] === o.id ? 'selected' : ''}" onclick="App.onboardingPick('${key}','${o.id}')"><span>${o.emoji}</span><b>${o.title}</b><small>${o.desc}</small></button>`).join('')}</div>`;
+    const multi = (key, options, limit) => `<div class="onboarding-options">${options.map(o =>
+      `<button class="onboarding-choice ${(d[key] || []).includes(o.id) ? 'selected' : ''}" onclick="App.onboardingPick('${key}','${o.id}',true,${limit})"><span>${o.emoji}</span><b>${o.title}</b><small>${o.desc}</small></button>`).join('')}</div>`;
+
+    const screens = [
+      {
+        kicker: 'نرسم البداية المناسبة لكم',
+        title: 'ما الذي تريد أن يصبح أسهل هذا الأسبوع؟',
+        text: 'اختر هدفًا واحدًا أو هدفين فقط، وسنبني حولهما أول مغامرة.',
+        body: multi('focusAreas', [
+          { id: 'morning', emoji: '🌤️', title: 'صباح هادئ', desc: 'الاستعداد والخروج بلا استعجال' },
+          { id: 'homework', emoji: '📚', title: 'الواجب والتركيز', desc: 'بدء الدراسة وإنهاؤها خطوة بخطوة' },
+          { id: 'responsibility', emoji: '🧺', title: 'المسؤولية والترتيب', desc: 'العناية بالمساحة والمهام المنزلية' },
+          { id: 'sleep', emoji: '🌙', title: 'نوم أسهل', desc: 'روتين هادئ لنهاية اليوم' },
+          { id: 'health', emoji: '🏃', title: 'صحة ونشاط', desc: 'الحركة والعادات الصحية' },
+          { id: 'quran', emoji: '📖', title: 'ورد وقراءة', desc: 'عادة قراءة هادئة وثابتة' },
+        ], 2),
+      },
+      {
+        kicker: 'نرتب اليوم حول وقت حقيقي',
+        title: 'متى تحتاج الأسرة إلى دعم أكثر؟',
+        text: 'سنستخدمه لفهم سياق المهام، وليس لإرسال تنبيهات من دون إذنك.',
+        body: single('routineWindow', [
+          { id: 'before_school', emoji: '🎒', title: 'قبل المدرسة', desc: 'أول اليوم والتحضير للخروج' },
+          { id: 'after_school', emoji: '🏠', title: 'بعد المدرسة', desc: 'الراحة والواجبات والانتقال' },
+          { id: 'evening', emoji: '🌙', title: 'المساء', desc: 'الترتيب والنوم الهادئ' },
+          { id: 'weekend', emoji: '🌿', title: 'عطلة نهاية الأسبوع', desc: 'مسؤوليات ونشاطات عائلية' },
+        ]),
+      },
+      {
+        kicker: 'كل طفل يحتاج قدرًا مختلفًا من البنية',
+        title: 'ما الشكل الأسهل لطفلك الآن؟',
+        text: 'يمكنك تغيير هذا لاحقًا من خطة الأسرة.',
+        body: single('structure', [
+          { id: 'one', emoji: '1️⃣', title: 'مهمة واحدة الآن', desc: 'تركيز كامل على الخطوة التالية فقط' },
+          { id: 'three', emoji: '3️⃣', title: 'ثلاث مهام قصيرة', desc: 'خطة يوم خفيفة ومتوازنة' },
+          { id: 'steps', emoji: '🧩', title: 'خطوات أصغر', desc: 'نحضّر للروتين المرئي في المرحلة التالية' },
+          { id: 'choice', emoji: '🙋', title: 'يختار من القائمة', desc: 'استقلال أكبر مع توجيه خفيف' },
+        ]),
+      },
+      {
+        kicker: 'المكافأة تساعد، لكنها ليست الهدف',
+        title: 'كيف تحب أن يحتفل جَزَرة بالإنجاز؟',
+        text: 'نقترح التقدم في العالم أولًا، ووقت الشاشة اختياري وليس افتراضيًا.',
+        body: single('rewards', [
+          { id: 'world', emoji: '🗺️', title: 'تقدم جزّور والعالم', desc: 'عملات وخبرة ورحلة المغامرة' },
+          { id: 'family', emoji: '🤍', title: 'امتياز عائلي', desc: 'مكافأة حقيقية يختارها الوالد' },
+          { id: 'screen', emoji: '⏱️', title: 'وقت شاشة اختياري', desc: 'دقائق محدودة تُكتسب مع الإنجاز' },
+          { id: 'balanced', emoji: '⚖️', title: 'مزيج متوازن', desc: 'تقدم في العالم مع امتيازات مختارة' },
+        ]),
+      },
+      {
+        kicker: 'الدعم الذي يجعل البداية أسهل',
+        title: 'ما الذي يساعده على البدء؟',
+        text: 'اختياري — اختر حتى اثنين. لن نستخدم أي معلومة كتصنيف أو تشخيص.',
+        body: multi('supports', [
+          { id: 'audio', emoji: '🔊', title: 'صوت جزّور', desc: 'تشجيع وقراءة واضحة للخطوة' },
+          { id: 'visual', emoji: '👁️', title: 'صور ورموز', desc: 'دعم بصري للروتين القادم' },
+          { id: 'timer', emoji: '⏳', title: 'مؤقت بسيط', desc: 'نهاية واضحة للمهمة' },
+          { id: 'gentle', emoji: '💬', title: 'تذكير هادئ', desc: 'دعوة لطيفة بدل الإلحاح' },
+        ], 2),
+      },
+    ];
+    const current = screens[step];
+    this.openModal(`
+      <section class="onboarding-shell" aria-label="خطة الأسرة">
+        <div class="onboarding-progress"><i style="width:${((step + 1) / screens.length) * 100}%"></i></div>
+        <div class="onboarding-head"><span>خطة الأسرة</span><small>الخطوة ${step + 1} من ${screens.length}</small></div>
+        <p class="onboarding-kicker">${current.kicker}</p>
+        <h2>${current.title}</h2>
+        <p class="onboarding-copy">${current.text}</p>
+        ${current.body}
+        <div class="onboarding-actions">
+          ${step ? '<button class="btn-ghost" onclick="App.onboardingBack()">→ رجوع</button>' : '<button class="btn-ghost" onclick="App.onboardingSkip()">تخطي الآن</button>'}
+          <button class="btn-primary big" onclick="App.onboardingNext()">${step === screens.length - 1 ? 'شاهد خطة اليوم الأول ←' : 'التالي ←'}</button>
+        </div>
+      </section>`);
+  },
+
+  onboardingPlanFor(draft) {
+    const recipes = {
+      morning: [
+        { title: 'استعد لصباحك بهدوء', cat: 'health', proof: 'self', xp: 12, coins: 4 },
+        { title: 'جهّز حقيبتك لليوم', cat: 'study', proof: 'self', xp: 12, coins: 4 },
+      ],
+      homework: [
+        { title: 'ابدأ واجبك الدراسي 15 دقيقة', cat: 'study', proof: 'parent', xp: 18, coins: 6 },
+        { title: 'رتّب أدواتك بعد الدراسة', cat: 'study', proof: 'self', xp: 10, coins: 4 },
+      ],
+      responsibility: [
+        { title: 'رتّب مساحتك الخاصة', cat: 'health', proof: 'photo', xp: 15, coins: 5 },
+        { title: 'ساعد في مهمة عائلية صغيرة', cat: 'health', proof: 'parent', xp: 14, coins: 5 },
+      ],
+      sleep: [
+        { title: 'جهّز نفسك للنوم بهدوء', cat: 'health', proof: 'self', xp: 15, coins: 5 },
+        { title: 'رتّب ملابسك لليوم التالي', cat: 'health', proof: 'self', xp: 10, coins: 4 },
+      ],
+      health: [
+        { title: 'حركة ونشاط 20 دقيقة', cat: 'sport', proof: 'parent', xp: 18, coins: 6 },
+        { title: 'اشرب ماءً خلال اليوم', cat: 'health', proof: 'self', xp: 10, coins: 4 },
+      ],
+      quran: [
+        { title: 'ورد القرآن اليومي', cat: 'study', proof: 'self', xp: 14, coins: 5 },
+        { title: 'اقرأ 10 دقائق بهدوء', cat: 'study', proof: 'self', xp: 12, coins: 4 },
+      ],
+    };
+    const pool = (draft.focusAreas || []).flatMap(area => recipes[area] || []);
+    const fallback = recipes.health.concat(recipes.responsibility);
+    const seen = new Set();
+    const picked = pool.concat(fallback).filter(t => !seen.has(t.title) && seen.add(t.title));
+    const count = draft.structure === 'one' ? 1 : 3;
+    return picked.slice(0, count).map(t => Object.assign({ id: uid(), onboarding: true }, t));
+  },
+
+  renderOnboardingPreview() {
+    const d = this._onboardingDraft || this.onboardingDefaults();
+    const plan = this.onboardingPlanFor(d);
+    this._onboardingPlan = plan;
+    const labels = {
+      before_school: 'قبل المدرسة', after_school: 'بعد المدرسة', evening: 'المساء', weekend: 'عطلة نهاية الأسبوع',
+      one: 'مهمة واحدة في كل مرة', three: 'ثلاث مهام قصيرة', steps: 'خطوات أصغر', choice: 'اختيار من القائمة',
+    };
+    this.openModal(`
+      <section class="onboarding-shell onboarding-preview" aria-label="معاينة خطة اليوم الأول">
+        <p class="onboarding-kicker">بداية صغيرة يمكن نجاحها</p>
+        <h2>هذه خطة اليوم الأول</h2>
+        <p class="onboarding-copy">${esc(C().name)} سيبدأ في ${esc(labels[d.routineWindow] || 'وقته المناسب')} وبنمط ${esc(labels[d.structure] || 'خفيف')}.</p>
+        <div class="first-plan-list">${plan.map((t, i) => `<div class="first-plan-item"><span>${i + 1}</span><div><b>${esc(t.title)}</b><small>${CATEGORIES[t.cat].emoji} ${CATEGORIES[t.cat].name} · ${PROOF_MODES[t.proof].short}</small></div><em>+${t.coins} 🥕</em></div>`).join('')}</div>
+        <p class="onboarding-note">يمكنك تعديل أي مهمة بعد البداية. الهدف هو يوم أول سهل، لا قائمة طويلة.</p>
+        <div class="onboarding-actions">
+          <button class="btn-ghost" onclick="App.startOnboarding(0, App._onboardingDraft)">تعديل الخطة</button>
+          <button class="btn-primary big" onclick="App.finishOnboarding()">ابدأ مغامرتنا ✨</button>
+        </div>
+      </section>`);
+  },
+
+  finishOnboarding() {
+    const d = this._onboardingDraft || this.onboardingDefaults();
+    const plan = this._onboardingPlan || this.onboardingPlanFor(d);
+    C().tasks = plan;
+    // الروتين يوجّه الخطوات ولا يمنح عملات مستقلة؛ تظل مكافآت اليوم مرتبطة بالمهام الفعلية.
+    C().routines = [routineFromTemplate(d.routineWindow, d.supports || [])];
+    C().routineProgress = { date: todayKey(), byRoutine: {} };
+    C().autopilot = Object.assign(C().autopilot || {}, {
+      enabled: false,
+      goals: [...new Set(plan.map(t => t.cat))],
+      count: plan.length,
+      lastGen: null,
+    });
+    // وقت الشاشة خيار صريح، وليس مكافأة مفروضة على العائلة.
+    S.screenPerTask = (d.rewards === 'screen' || d.rewards === 'balanced') ? 10 : 0;
+    S.onboarding = {
+      version: 1,
+      status: 'complete',
+      completedAt: new Date().toISOString(),
+      focusAreas: d.focusAreas || [],
+      routineWindow: d.routineWindow || '',
+      structure: d.structure || 'three',
+      rewards: d.rewards || 'world',
+      supports: d.supports || [],
+      draft: null,
+    };
+    save();
+    this._onboardingDraft = null;
+    this._onboardingPlan = null;
+    this.closeModal();
+    this.openParent();
+    this.celebrate('خطة اليوم الأول جاهزة! ✨', `جهزنا لـ${esc(C().name)} ${plan.length} مهام صغيرة قابلة للنجاح.`, ['ابدؤوا بخطوة واحدة فقط'], '🥕');
+  },
+
+  familyPlanForm() {
+    const d = S.onboarding && S.onboarding.status === 'complete'
+      ? {
+          focusAreas: S.onboarding.focusAreas || [], routineWindow: S.onboarding.routineWindow || '',
+          structure: S.onboarding.structure || '', rewards: S.onboarding.rewards || '', supports: S.onboarding.supports || [],
+        }
+      : this.onboardingDefaults();
+    this.startOnboarding(0, d);
   },
 
   refreshParentSubtitle() {
@@ -1219,6 +1548,152 @@ const App = {
     document.getElementById('ptab-' + tab).classList.add('active');
     const renderers = { tasks: this.renderPTasks, rewards: this.renderPRewards, boss: this.renderPBoss, report: this.renderPReport, settings: this.renderPSettings };
     renderers[tab].call(this);
+  },
+
+  /* ── صندوق «تحتاج قرارك الآن» ── */
+  /* ── إدارة روتين الطفل من لوحة الوالد ── */
+  routineManagerCardHtml() {
+    const routine = this.activeRoutine();
+    if (!routine) {
+      return `<div class="card routine-manager-card empty">
+        <div class="routine-manager-title"><span>🧩</span><div><h3>روتين بصري للطفل</h3><p>حوّل وقتًا صعبًا إلى خطوات صغيرة ينجزها البطل باستقلالية.</p></div></div>
+        <button class="btn-primary purple" onclick="App.openRoutineManager()">جهّز روتينًا</button>
+      </div>`;
+    }
+    const state = this.routineState(routine);
+    return `<div class="card routine-manager-card">
+      <div class="routine-manager-title"><span>${routine.emoji}</span><div><h3>${esc(routine.title)}</h3><p>${routine.steps.length} خطوات · ${routine.audio ? '🔊 صوت جزّور' : 'صامت'}${routine.timerSeconds ? ' · ⏳ مؤقت تركيز' : ''}</p></div><b>${state.done.length}/${routine.steps.length}</b></div>
+      <button class="btn-ghost" onclick="App.openRoutineManager('${routine.id}')">تعديل الروتين</button>
+    </div>`;
+  },
+
+  openRoutineManager(routineId, templateId) {
+    const current = (C().routines || []).find(r => r.id === routineId) || this.activeRoutine();
+    const fallback = (S.onboarding && S.onboarding.routineWindow) || 'after_school';
+    const selected = templateId || (current && current.templateId) || routineTemplateId(fallback);
+    const audio = current ? !!current.audio : !!(S.onboarding && (S.onboarding.supports || []).includes('audio'));
+    const timer = current ? !!current.timerSeconds : !!(S.onboarding && (S.onboarding.supports || []).includes('timer'));
+    const templates = Object.entries(ROUTINE_TEMPLATES).map(([id, t]) =>
+      `<button class="routine-template ${id === selected ? 'selected' : ''}" onclick="App.openRoutineManager('${current ? current.id : ''}','${id}')"><span>${t.emoji}</span><b>${esc(t.title)}</b><small>${t.steps.length} خطوات</small></button>`).join('');
+    const preview = ROUTINE_TEMPLATES[selected] || ROUTINE_TEMPLATES.after_school;
+    this.openModal(`<section class="routine-manager-modal">
+      <h3>🧩 روتين ${esc(C().name)}</h3>
+      <p class="muted">اختر وقتًا واحدًا مهمًا. الروتين يرشد الطفل ولا يمنح عملات مستقلة؛ تبقى المكافآت لمهام اليوم.</p>
+      <div class="routine-template-grid">${templates}</div>
+      <div class="routine-preview-parent"><b>${preview.emoji} ${esc(preview.title)}</b>${preview.steps.map((s, i) => `<span>${i + 1}. ${s[0]} ${esc(s[1])}</span>`).join('')}</div>
+      <div class="routine-support-toggles">
+        <label><input id="routine-audio" type="checkbox" ${audio ? 'checked' : ''} /> <span>🔊 يقرأ جزّور أول خطوة ويشجع عند التقدم</span></label>
+        <label><input id="routine-timer" type="checkbox" ${timer ? 'checked' : ''} /> <span>⏳ أظهر مؤقت تركيز اختياريًا (3 دقائق)</span></label>
+      </div>
+      <div class="form-row" style="margin-top:14px"><div><button class="btn-ghost" onclick="App.closeModal()">إلغاء</button></div><div><button class="btn-primary green" onclick="App.saveRoutineManager('${current ? current.id : ''}','${selected}')">حفظ الروتين</button></div></div>
+    </section>`);
+  },
+
+  saveRoutineManager(currentId, templateId) {
+    const current = (C().routines || []).find(r => r.id === currentId) || this.activeRoutine();
+    const audio = !!document.getElementById('routine-audio').checked;
+    const timer = !!document.getElementById('routine-timer').checked;
+    const next = routineFromTemplate(templateId, [], {
+      id: current ? current.id : undefined,
+      audio,
+      timerSeconds: timer ? 180 : 0,
+    });
+    C().routines = [next];
+    C().routineProgress = { date: todayKey(), byRoutine: {} };
+    if (S.onboarding && S.onboarding.status === 'complete') {
+      const supports = new Set(S.onboarding.supports || []);
+      audio ? supports.add('audio') : supports.delete('audio');
+      timer ? supports.add('timer') : supports.delete('timer');
+      S.onboarding.supports = [...supports];
+    }
+    save();
+    this.closeModal();
+    this.renderPTasks();
+    this.toast('تم حفظ الروتين — سيظهر للبطل في مسار اليوم 🧩');
+  },
+
+  parentDecisions() {
+    const decisions = [];
+    for (const child of S.children) {
+      for (const proof of (child.pendingProofs || [])) {
+        decisions.push({ type: 'proof', childId: child.id, childName: child.name, id: proof.id, title: proof.title, photo: !!proof.photo, date: proof.date, emoji: '📸' });
+      }
+      for (const reward of (child.redemptions || []).filter(r => r.status === 'pending')) {
+        decisions.push({ type: 'reward', childId: child.id, childName: child.name, id: reward.id, title: reward.title, kind: reward.kind || 'home', date: reward.date, emoji: reward.kind === 'out' ? '🚗' : reward.kind === 'budget' ? '💰' : '🎁' });
+      }
+    }
+    for (const request of (S.joinRequests || [])) {
+      decisions.push({ type: 'join', id: request.id, title: request.name, date: request.date, emoji: '🙋' });
+    }
+    return decisions;
+  },
+
+  familyPlanCardHtml() {
+    const o = S.onboarding || {};
+    const labels = {
+      morning: 'صباح هادئ', homework: 'واجب وتركيز', responsibility: 'مسؤولية وترتيب', sleep: 'نوم أسهل', health: 'صحة ونشاط', quran: 'ورد وقراءة',
+      before_school: 'قبل المدرسة', after_school: 'بعد المدرسة', evening: 'المساء', weekend: 'عطلة نهاية الأسبوع',
+      one: 'خطوة واحدة', three: 'ثلاث مهام قصيرة', steps: 'خطوات أصغر', choice: 'اختيار من القائمة',
+    };
+    if (o.status === 'complete') {
+      const focuses = (o.focusAreas || []).map(x => labels[x]).filter(Boolean).join(' · ') || 'خطة مخصصة';
+      return `<div class="card family-plan-card">
+        <div class="family-plan-title"><span>🧭</span><div><h3>خطة الأسرة</h3><p>${esc(focuses)} · ${esc(labels[o.routineWindow] || 'وقت مرن')} · ${esc(labels[o.structure] || 'بداية خفيفة')}</p></div></div>
+        <button class="btn-ghost" onclick="App.familyPlanForm()">تعديل الخطة</button>
+      </div>`;
+    }
+    return `<div class="card family-plan-card start">
+      <div class="family-plan-title"><span>🧭</span><div><h3>ابدأ بخطة تناسب أسرتك</h3><p>خمس أسئلة قصيرة تحول أهدافكم إلى بداية خفيفة للطفل.</p></div></div>
+      <button class="btn-primary purple" onclick="App.familyPlanForm()">أنشئ خطة الأسرة</button>
+    </div>`;
+  },
+
+  parentDecisionInboxHtml() {
+    const decisions = this.parentDecisions();
+    if (!decisions.length) {
+      return `<div class="card decision-inbox clear"><div class="decision-inbox-title"><span>✅</span><div><h3>تحتاج قرارك الآن</h3><p>لا توجد موافقات أو طلبات معلقة. وقت جميل لترك ${esc(C().name)} يكمل مغامرته.</p></div></div></div>`;
+    }
+    const preview = decisions.slice(0, 3).map(d => {
+      const text = d.type === 'proof' ? `إثبات ${d.childName}: ${d.title}` : d.type === 'reward' ? `مكافأة ${d.childName}: ${d.title}` : `طلب انضمام: ${d.title}`;
+      return `<div class="decision-preview"><span>${d.emoji}</span><b>${esc(text)}</b></div>`;
+    }).join('');
+    return `<div class="card decision-inbox active">
+      <div class="decision-inbox-title"><span>🔔</span><div><h3>تحتاج قرارك الآن</h3><p>${decisions.length} ${decisions.length === 1 ? 'طلب ينتظر' : 'طلبات تنتظر'} موافقتك أو مراجعتك.</p></div><strong>${decisions.length}</strong></div>
+      <div class="decision-previews">${preview}</div>
+      <button class="btn-primary green" style="width:100%;margin-top:10px" onclick="App.openParentDecisionInbox()">راجع القرارات ←</button>
+    </div>`;
+  },
+
+  decisionUseChild(childId) {
+    if (!childId) return;
+    S.activeChildId = childId;
+    save();
+    this.renderChildSwitcher();
+    this.refreshParentSubtitle();
+  },
+
+  openParentDecisionInbox() {
+    const decisions = this.parentDecisions();
+    const typeText = { proof: 'إثبات مهمة', reward: 'طلب مكافأة', join: 'طلب انضمام' };
+    const rows = decisions.map(d => {
+      const meta = d.type === 'proof'
+        ? `${d.childName} · ${d.photo ? 'صورة مرفقة' : 'تأكيد بانتظارك'} · ${d.date}`
+        : d.type === 'reward'
+          ? `${d.childName} · ${d.kind === 'out' ? 'خارج المنزل' : d.kind === 'budget' ? 'يحتاج ميزانية' : 'مكافأة عائلية'} · ${d.date}`
+          : `طلب إنشاء حساب طفل · ${d.date}`;
+      const approve = d.type === 'proof'
+        ? `<button class="btn-primary green" onclick="App.closeModal();App.decisionUseChild('${d.childId}');App.approveProof('${d.id}')">اعتمد</button>`
+        : d.type === 'reward'
+          ? `<button class="btn-primary green" onclick="App.closeModal();App.decisionUseChild('${d.childId}');App.approveRedemption('${d.id}');App.parentTab('rewards')">اعتمد</button>`
+          : `<button class="btn-primary green" onclick="App.closeModal();App.approveJoinRequest('${d.id}')">أنشئ الحساب</button>`;
+      const review = d.type === 'proof'
+        ? `<button class="btn-ghost" onclick="App.closeModal();App.decisionUseChild('${d.childId}');App.parentTab('tasks')">راجع</button>`
+        : d.type === 'reward'
+          ? `<button class="btn-ghost" onclick="App.closeModal();App.decisionUseChild('${d.childId}');App.parentTab('rewards')">راجع</button>`
+          : `<button class="btn-ghost" onclick="App.closeModal();App.parentTab('settings')">راجع</button>`;
+      return `<div class="decision-row"><span class="task-cat">${d.emoji}</span><div class="task-info"><div class="t-title">${esc(d.title)}</div><div class="t-meta">${esc(typeText[d.type])} · ${esc(meta)}</div></div><div class="decision-actions">${review}${approve}</div></div>`;
+    }).join('');
+    this.openModal(`<section class="decision-modal"><h3>🔔 تحتاج قرارك الآن</h3><p class="muted">اعتمد بسرعة عندما تكون متأكدًا، أو اختر «راجع» لرؤية التفاصيل أولًا.</p><div class="decision-list">${rows || '<p class="muted">لا توجد قرارات معلقة الآن.</p>'}</div></section>`);
   },
 
   /* ── تبويب المهام ── */
@@ -1302,6 +1777,9 @@ const App = {
       </div>` : '';
 
     document.getElementById('ptab-tasks').innerHTML = `
+      ${this.familyPlanCardHtml()}
+      ${this.routineManagerCardHtml()}
+      ${this.parentDecisionInboxHtml()}
       ${reviewHtml}
       ${feedHtml}
       ${apHtml}
@@ -2403,6 +2881,147 @@ const App = {
     document.getElementById('stat-streak').textContent = C().streak;
   },
 
+  /* ── الروتين البصري للطفل ── */
+  activeRoutine() {
+    const routines = (C().routines || []).filter(r => r && r.active !== false && Array.isArray(r.steps) && r.steps.length);
+    return routines[0] || null;
+  },
+
+  routineState(routine) {
+    if (!routine) return null;
+    if (!C().routineProgress || C().routineProgress.date !== todayKey()) {
+      C().routineProgress = { date: todayKey(), byRoutine: {} };
+    }
+    const all = C().routineProgress.byRoutine || (C().routineProgress.byRoutine = {});
+    if (!all[routine.id]) all[routine.id] = { done: [], startedAt: null, completedAt: null, timerLeft: routine.timerSeconds || 0 };
+    const state = all[routine.id];
+    state.done = Array.isArray(state.done) ? state.done : [];
+    if (state.timerLeft === undefined) state.timerLeft = routine.timerSeconds || 0;
+    return state;
+  },
+
+  routineCardHtml() {
+    const routine = this.activeRoutine();
+    if (!routine) return '';
+    const state = this.routineState(routine);
+    const total = routine.steps.length;
+    const done = state.done.length;
+    const complete = done >= total;
+    const next = routine.steps.find(s => !state.done.includes(s.id));
+    const progress = Math.min(100, Math.round(done / Math.max(1, total) * 100));
+    return `<section class="visual-routine ${complete ? 'visual-routine--done' : ''}" aria-label="${esc(routine.title)}">
+      <div class="visual-routine__icon">${routine.emoji}</div>
+      <div class="visual-routine__copy">
+        <span class="eyebrow">روتينك الآن ${complete ? 'مكتمل' : ''}</span>
+        <h2>${esc(routine.title)}</h2>
+        <p>${complete ? 'أحسنت! أنهيت خطوات روتينك بهدوء.' : `التالي: ${esc(next ? next.title : routine.intro)}`}</p>
+        <div class="visual-routine__meter"><i style="width:${progress}%"></i></div>
+        <small>${done}/${total} خطوات ${routine.timerSeconds ? '· ⏳ مؤقت اختياري' : ''}${routine.audio ? ' · 🔊 صوت جزّور' : ''}</small>
+      </div>
+      <button class="visual-routine__cta" onclick="App.openVisualRoutine('${routine.id}')">${complete ? 'راجع روتيني' : 'ابدأ الروتين ←'}</button>
+    </section>`;
+  },
+
+  openVisualRoutine(routineId) {
+    const routine = (C().routines || []).find(r => r.id === routineId);
+    if (!routine) return;
+    const state = this.routineState(routine);
+    if (!state.startedAt) { state.startedAt = new Date().toISOString(); save(); }
+    if (routine.audio) this.sayRoutine(routineId, true);
+    this.renderVisualRoutineModal(routineId);
+  },
+
+  renderVisualRoutineModal(routineId) {
+    const routine = (C().routines || []).find(r => r.id === routineId);
+    if (!routine) return;
+    const state = this.routineState(routine);
+    const done = state.done.length;
+    const total = routine.steps.length;
+    const complete = done >= total;
+    const next = routine.steps.find(s => !state.done.includes(s.id));
+    const clock = routine.timerSeconds ? `<div class="routine-timer ${state.timerLeft <= 0 ? 'routine-timer--end' : ''}" id="routine-timer-${routine.id}">⏳ ${this.routineTimerLabel(state.timerLeft)}</div>` : '';
+    const steps = routine.steps.map((step, index) => {
+      const isDone = state.done.includes(step.id);
+      const isNext = next && next.id === step.id;
+      return `<button class="routine-step ${isDone ? 'routine-step--done' : ''} ${isNext ? 'routine-step--next' : ''}" ${isDone ? 'disabled' : ''} onclick="App.completeRoutineStep('${routine.id}','${step.id}')">
+        <span class="routine-step__number">${isDone ? '✓' : index + 1}</span>
+        <span class="routine-step__emoji">${step.emoji || '⭐'}</span>
+        <span class="routine-step__copy"><b>${esc(step.title)}</b><small>${esc(step.hint || '')}</small></span>
+        ${isNext ? '<em>الآن</em>' : ''}
+      </button>`;
+    }).join('');
+    this.openModal(`<section class="routine-player" aria-label="${esc(routine.title)}">
+      <div class="routine-player__top"><span>${routine.emoji}</span><div><p>خطوات صغيرة، تركيز أكبر</p><h2>${esc(routine.title)}</h2></div><b>${done}/${total}</b></div>
+      <p class="routine-player__intro">${complete ? 'أنجزت الروتين اليوم. تستطيع مراجعة الخطوات وقتما شئت.' : esc(routine.intro || '')}</p>
+      ${clock}
+      <div class="routine-step-list">${steps}</div>
+      <div class="routine-player__actions">
+        ${routine.audio ? `<button class="btn-ghost" onclick="App.sayRoutine('${routine.id}', false)">🔊 اسمع الخطوة</button>` : ''}
+        ${routine.timerSeconds ? `<button class="btn-primary purple" onclick="App.startRoutineTimer('${routine.id}')">${state.timerLeft && state.timerLeft < routine.timerSeconds ? 'واصل المؤقت' : 'ابدأ مؤقت التركيز'}</button>` : ''}
+      </div>
+    </section>`);
+  },
+
+  sayRoutine(routineId, intro) {
+    const routine = (C().routines || []).find(r => r.id === routineId);
+    if (!routine) return;
+    const state = this.routineState(routine);
+    const step = routine.steps.find(s => !state.done.includes(s.id));
+    const text = intro
+      ? `${routine.title}. ${routine.intro || 'نبدأ بهدوء.'} ${step ? 'أول خطوة: ' + step.title : 'أحسنت، أكملت كل الخطوات.'}`
+      : (step ? `${step.title}. ${step.hint || 'خذ وقتك، أنا معك.'}` : 'أحسنت، أكملت روتينك اليوم.');
+    speak(text, 'ar-SA');
+  },
+
+  completeRoutineStep(routineId, stepId) {
+    const routine = (C().routines || []).find(r => r.id === routineId);
+    if (!routine) return;
+    const state = this.routineState(routine);
+    if (state.done.includes(stepId)) return;
+    state.done.push(stepId);
+    const step = routine.steps.find(s => s.id === stepId);
+    const complete = state.done.length >= routine.steps.length;
+    if (complete) {
+      state.completedAt = new Date().toISOString();
+      feedPush(C(), routine.emoji || '🧩', `أكمل روتين: ${routine.title}`);
+    }
+    save();
+    if (routine.audio) {
+      const following = routine.steps.find(s => !state.done.includes(s.id));
+      speak(complete ? `أحسنت يا ${C().name}! أكملت ${routine.title}.` : `رائع! الخطوة التالية: ${following ? following.title : 'أكملت الروتين.'}`, 'ar-SA');
+    }
+    if (complete) {
+      this.closeModal();
+      this.renderKMap();
+      this.celebrate('روتين مكتمل! 🌟', `أتممت ${esc(routine.title)} خطوة خطوة. الآن اختر مهمة اليوم التالية.`, ['🤍 استقلالك يكبر كل يوم'], routine.emoji || '🌟');
+    } else this.renderVisualRoutineModal(routineId);
+  },
+
+  routineTimerLabel(seconds) {
+    const n = Math.max(0, Number(seconds) || 0);
+    return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+  },
+
+  startRoutineTimer(routineId) {
+    const routine = (C().routines || []).find(r => r.id === routineId);
+    if (!routine || !routine.timerSeconds) return;
+    const state = this.routineState(routine);
+    if (!state.timerLeft || state.timerLeft < 1) state.timerLeft = routine.timerSeconds;
+    clearInterval(this._routineTimer);
+    this._routineTimer = setInterval(() => {
+      const el = document.getElementById('routine-timer-' + routineId);
+      if (!el) { clearInterval(this._routineTimer); return; }
+      state.timerLeft = Math.max(0, state.timerLeft - 1);
+      el.textContent = '⏳ ' + this.routineTimerLabel(state.timerLeft);
+      if (state.timerLeft <= 0) {
+        clearInterval(this._routineTimer);
+        el.classList.add('routine-timer--end');
+        save();
+        if (routine.audio) speak('انتهى وقت التركيز. أحسنت، انتقل للخطوة التالية بهدوء.', 'ar-SA');
+      }
+    }, 1000);
+  },
+
   /* ── خريطة المغامرة ── */
   renderKMap() {
     const today = todayKey();
@@ -2418,6 +3037,7 @@ const App = {
     const progressPct = Math.min(100, Math.round((todayDone / Math.max(1, todayTotal)) * 100));
     const mood = this.jazzourMood();
     const heartsWaiting = (C().feed || []).filter(f => f.heart && !f.seen).length;
+    const routineCard = this.routineCardHtml();
 
     const taskState = (task) => {
       if (doneIds.has(task.id)) return { key: 'done', badge: 'مكتملة', icon: '✅', cta: 'تم الإنجاز', disabled: true, note: 'أحسنت، تقدمت في مغامرتك.' };
@@ -2439,6 +3059,8 @@ const App = {
             <div class="jz-bubble guided-day__bubble">${this._jazzourBubble(mood)}</div>
           </div>
         </div>
+
+        ${routineCard}
 
         <section class="next-mission" aria-label="المهمة التالية">
           <div class="next-mission__topline">
