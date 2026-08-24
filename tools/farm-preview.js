@@ -1,0 +1,478 @@
+#!/usr/bin/env node
+/* ═══════════════════════════════════════════════════
+   مولّد معاينة المزرعة
+   يبني farm/preview.html — نموذجًا حيًّا يعرض شكل المزرعة وحركتها
+   قبل دمجها في التطبيق: منظور أيزومتري، ترتيب بالعمق، كاميرا تُسحب،
+   ولوحة بناء تعمل فعلًا.
+
+     node tools/farm-preview.js            ← مسارات نسبية (داخل المستودع)
+     node tools/farm-preview.js out.html   ← ملف واحد مستقل بصور مضمّنة
+
+   الصور تُقرأ من ملفات WebP داخل farm — شغّل tools/farm-optimize.py أولًا.
+   ═══════════════════════════════════════════════════ */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const ROOT = path.join(__dirname, '..');
+const B = (p, mime) => `data:${mime};base64,${fs.readFileSync(p).toString('base64')}`;
+const F = f => B(path.join(ROOT, 'farm', f), 'image/webp');
+const JZ = f => B(path.join(ROOT, 'avatars', 'jazzour', f + '.webp'), 'image/webp');
+
+const MAP = {
+  land: ['land/land_farm.webp', 'f'], home: ['buildings/home.webp', 'f'],
+  barn: ['buildings/barn.webp', 'f'], well: ['buildings/well.webp', 'f'],
+  field: ['buildings/field.webp', 'f'], scaffold: ['buildings/scaffold.webp', 'f'],
+  egg: ['companions/egg_brown.webp', 'f'], wood: ['resources/wood.webp', 'f'],
+  stone: ['resources/stone.webp', 'f'], water: ['resources/water.webp', 'f'],
+  light: ['resources/light.webp', 'f'], seed: ['resources/seed.webp', 'f'],
+  jz: ['hero', 'j'], jzHappy: ['happy', 'j'], jzCheer: ['celebrate', 'j'],
+};
+
+/* inline=true ⇒ ملف واحد مستقل · inline=false ⇒ مسارات نسبية داخل المستودع */
+function page(inline) {
+const ASSETS = {};
+for (const [k, [v, kind]] of Object.entries(MAP)) {
+  ASSETS[k] = kind === 'f'
+    ? (inline ? F(v) : v)
+    : (inline ? JZ(v) : `../avatars/jazzour/${v}.webp`);
+}
+
+const html = `<!doctype html>
+<html dir="rtl" lang="ar"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>مزرعة جزّور — نموذج تفاعلي</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#DED8CC;font-family:'Cairo',system-ui,sans-serif;
+  user-select:none;-webkit-user-select:none}
+img{-webkit-user-drag:none;user-drag:none}
+body{display:flex;align-items:center;justify-content:center}
+
+.ph{position:relative;width:min(410px,100vw);height:min(850px,100vh);overflow:hidden;
+    background:#8FCB63;border-radius:min(30px,3vw);box-shadow:0 18px 44px rgba(60,40,20,.22);
+    touch-action:none;cursor:grab}
+.ph.grab{cursor:grabbing}
+
+/* ── الخلفية بمنظور بطيء (parallax) ── */
+.sky{pointer-events:none;position:absolute;inset:-8%;width:116%;height:116%;object-fit:cover;
+     transform-origin:50% 76%;will-change:transform}
+
+/* ── الكاميرا ── */
+.cam{position:absolute;inset:0;will-change:transform}
+
+/* ── الرقع ── */
+.plot{position:absolute;width:148px;height:76px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.soil{pointer-events:none;background:linear-gradient(168deg,#B07C46,#7E5527)}
+.soil::after{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(72deg,rgba(0,0,0,.10) 0 2px,transparent 2px 9px)}
+.free{background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.free::before{content:'';position:absolute;inset:5px;
+  background:linear-gradient(168deg,#A9DC72,#74B44A);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.lock{pointer-events:none;background:rgba(255,255,255,.18)}
+.lock::before{content:'';position:absolute;inset:5px;
+  background:linear-gradient(168deg,rgba(150,200,110,.55),rgba(105,158,68,.55));
+  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.free b{position:relative;width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  font:900 19px Cairo;color:#5C8C2E;background:rgba(255,255,255,.94);border-radius:50%;
+  box-shadow:0 3px 0 rgba(40,90,20,.28);animation:tap 2.4s ease-in-out infinite}
+@keyframes tap{0%,88%,100%{transform:scale(1)}92%{transform:scale(1.16)}96%{transform:scale(.96)}}
+.free:active b{transform:scale(.9)}
+
+/* ── المباني ── */
+.bld{position:absolute;filter:drop-shadow(0 8px 6px rgba(40,60,20,.32));cursor:pointer;
+     transform-origin:50% 92%;animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.bld.sway{animation:sway 5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
+.bld.pop{animation:pop .5s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+.bld:active{filter:drop-shadow(0 4px 4px rgba(40,60,20,.4)) brightness(1.06)}
+
+/* ── الزينة ── */
+.tree,.bush,.rock{pointer-events:none;position:absolute;filter:drop-shadow(0 5px 4px rgba(40,60,20,.28));
+  transform-origin:50% 100%;animation:leaf 6s ease-in-out infinite}
+@keyframes leaf{0%,100%{transform:rotate(-1.8deg)}50%{transform:rotate(1.8deg)}}
+.tree b{position:absolute;left:43%;bottom:0;width:14%;height:34%;
+  background:linear-gradient(90deg,#A2703F,#623F1D);border-radius:0 0 3px 3px}
+.tree i{position:absolute;left:0;top:0;width:100%;height:74%;border-radius:52% 52% 44% 44%}
+.tree.v0 i{background:radial-gradient(circle at 32% 24%,#C2EB88,#7FC750 42%,#3B8632)}
+.tree.v1 i{background:radial-gradient(circle at 32% 24%,#AEE07A,#6DB847 44%,#2F7429);border-radius:56% 44% 48% 42%}
+.tree.v2 i{background:radial-gradient(circle at 34% 22%,#D2F09A,#8FCF5C 40%,#4A9438);border-radius:46% 54% 42% 48%}
+.bush i{position:absolute;inset:0;border-radius:50% 50% 44% 44%;
+  background:radial-gradient(circle at 34% 24%,#B7E77F,#77BE4C 46%,#3A8130)}
+.rock i{position:absolute;inset:0;border-radius:48% 52% 40% 44%;
+  background:radial-gradient(circle at 35% 26%,#D5DBE1,#9CA8B2 50%,#6B7783)}
+.post{pointer-events:none;position:absolute;width:9px;height:34px;border-radius:3px;
+  background:linear-gradient(90deg,#C9944F,#8A5D2B)}
+.rail{pointer-events:none;position:absolute;height:6px;border-radius:3px;transform-origin:0 50%;
+  background:linear-gradient(180deg,#D9A75E,#9A6A33)}
+
+/* ── جزّور ── */
+.jz{position:absolute;width:88px;filter:drop-shadow(0 8px 6px rgba(40,60,20,.34));
+    cursor:pointer;transition:transform 3.4s ease-in-out;will-change:transform}
+.jz img{width:100%;display:block;animation:hop 1.1s ease-in-out infinite}
+@keyframes hop{0%,100%{transform:translateY(0) scaleY(1)}
+  45%{transform:translateY(-4px) scaleY(1.02)}70%{transform:translateY(0) scaleY(.98)}}
+.bubble{position:absolute;bottom:96%;right:50%;transform:translateX(50%) scale(0);
+  background:#fff;border-radius:14px;padding:7px 12px;font:800 12px Cairo;color:#3A2B18;
+  white-space:nowrap;box-shadow:0 4px 12px rgba(40,60,20,.25);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.bubble.on{transform:translateX(50%) scale(1)}
+.bubble::after{content:'';position:absolute;top:100%;right:50%;margin-right:-6px;
+  border:6px solid transparent;border-top-color:#fff}
+
+/* ── الشريط العلوي ── */
+.bar{position:absolute;top:0;left:0;right:0;display:flex;gap:4px;padding:10px 8px;z-index:60;
+  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(255,255,255,0))}
+.r{flex:1;display:flex;align-items:center;justify-content:center;gap:3px;background:#FFF6E7;
+   border-radius:99px;padding:4px 6px;font:900 12px Cairo;color:#4A3520;box-shadow:0 2px 0 #E8D9BE}
+.r img{width:18px}
+.r.bump{animation:bump .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes bump{0%,100%{transform:scale(1)}45%{transform:scale(1.22)}}
+
+/* ── مورد يطير ── */
+.fly{position:absolute;width:26px;z-index:70;pointer-events:none;
+  filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
+
+/* ── لوحة البناء ── */
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:80;background:#FFFDF7;
+  border-radius:22px 22px 0 0;padding:14px 14px 18px;box-shadow:0 -8px 26px rgba(60,40,20,.22);
+  transform:translateY(105%);transition:transform .32s cubic-bezier(.34,1.4,.64,1)}
+.sheet.on{transform:translateY(0)}
+.sheet h3{font:900 15px Cairo;color:#3A2B18;margin-bottom:10px;text-align:center}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.opt{display:flex;align-items:center;gap:9px;background:#F6F0E2;border:2px solid #EADFC6;
+  border-radius:16px;padding:9px;cursor:pointer;transition:transform .12s}
+.opt:active{transform:scale(.96)}
+.opt.no{opacity:.45}
+.opt img.ic{width:42px}
+.opt .nm{font:900 13px Cairo;color:#3A2B18}
+.opt .cost{display:flex;gap:6px;margin-top:3px;font:800 11px Cairo;color:#7A6244;align-items:center}
+.opt .cost img{width:14px}
+.close{display:block;width:100%;margin-top:11px;background:none;border:none;
+  font:800 12.5px Cairo;color:#8A7658;cursor:pointer}
+
+/* ── غبار البناء ── */
+.dust{position:absolute;width:12px;height:12px;border-radius:50%;background:rgba(210,185,150,.9);
+  pointer-events:none;z-index:50}
+
+.hint{position:absolute;bottom:14px;left:14px;right:14px;z-index:55;background:rgba(255,255,255,.94);
+  border-radius:16px;padding:9px 12px;font:800 12.5px Cairo;color:#3A2B18;text-align:center;
+  box-shadow:0 4px 14px rgba(60,40,20,.15);transition:opacity .3s}
+</style></head><body>
+
+<div class="ph" id="ph">
+  <img class="sky" id="sky" src="${ASSETS.land}" alt="">
+  <div class="cam" id="cam"></div>
+
+  <div class="bar" id="bar">
+    <span class="r" data-k="wood"><img src="${ASSETS.wood}">‏<i>14</i></span>
+    <span class="r" data-k="stone"><img src="${ASSETS.stone}">‏<i>10</i></span>
+    <span class="r" data-k="water"><img src="${ASSETS.water}">‏<i>8</i></span>
+    <span class="r" data-k="light"><img src="${ASSETS.light}">‏<i>5</i></span>
+    <span class="r" data-k="seed"><img src="${ASSETS.seed}">‏<i>12</i></span>
+  </div>
+
+  <div class="hint" id="hint">🖐️ اسحب لتتجول · اضغط ＋ لتبني · اضغط جزّور</div>
+
+  <div class="sheet" id="sheet">
+    <h3>وش تبني هنا؟</h3>
+    <div class="opts" id="opts"></div>
+    <button class="close" onclick="closeSheet()">إلغاء</button>
+  </div>
+</div>
+
+<script>
+const A = ${JSON.stringify({
+  home: ASSETS.home, barn: ASSETS.barn, well: ASSETS.well, field: ASSETS.field,
+  scaffold: ASSETS.scaffold, egg: ASSETS.egg, jz: ASSETS.jz, jzHappy: ASSETS.jzHappy,
+  jzCheer: ASSETS.jzCheer, wood: ASSETS.wood, stone: ASSETS.stone, water: ASSETS.water,
+  light: ASSETS.light, seed: ASSETS.seed,
+})};
+
+/* ═══ الشبكة ═══ */
+const TW = 148, TH = 76, OX = 205, OY = 400;
+const iso = (r, c) => ({ x: OX + (c - r) * TW / 2, y: OY + (c + r) * TH / 2, z: r + c });
+
+const CAT = {
+  field: { nm: 'حقل الجزر', w: 173, dy: -44, sway: true,  cost: { seed: 4, water: 3 } },
+  well:  { nm: 'البئر',     w: 120, dy: -88, cost: { stone: 6, wood: 2 } },
+  barn:  { nm: 'الحظيرة',   w: 170, dy: -104, cost: { wood: 8, stone: 3 } },
+  egg:   { nm: 'عش الرفيق', w: 96,  dy: -66, cost: { light: 4, seed: 5 } },
+  home:  { nm: 'بيت جزّور', w: 178, dy: -116, cost: { wood: 10, stone: 5 } },
+};
+
+const RES = { wood: 14, stone: 10, water: 8, light: 5, seed: 12 };
+const world = {
+  '0,1': 'home', '1,0': 'barn', '1,3': 'well', '2,2': 'field',
+};
+const CELLS = [];
+for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) CELLS.push([r, c]);
+/* المفتوح للبناء الآن — الباقي أرض محجوزة تُفتح تباعًا */
+const OPEN = new Set(['1,1', '0,2', '2,3', '3,1']);
+
+const DECO = [
+  ['tree', -1, 0, 64, 0], ['tree', -1, 2, 56, 1], ['tree', 0, 4, 60, 2],
+  ['tree', 2, -1, 66, 1], ['tree', 4, 1, 60, 0], ['tree', 4, 3, 56, 2],
+  ['tree', 3, 4, 58, 1], ['tree', -1, 3, 50, 2],
+  ['bush', 0, 3, 42, 0], ['bush', 2, 4, 38, 1], ['bush', 4, 0, 44, 0],
+  ['bush', 1, -1, 40, 1], ['bush', 4, 2, 36, 2],
+  ['rock', 3, -1, 30, 0], ['rock', 4, 4, 26, 1],
+];
+
+const cam = document.getElementById('cam');
+
+/* ═══ الرسم ═══ */
+function render() {
+  const parts = [];
+  const add = (z, h) => parts.push({ z, h });
+
+  CELLS.forEach(([r, c]) => {
+    const p = iso(r, c), k = world[r + ',' + c];
+    const st = \`left:\${p.x - TW / 2}px;top:\${p.y - TH / 2}px\`;
+    const key = r + ',' + c;
+    add(p.z * 10, k
+      ? \`<i class="plot soil" style="\${st}"></i>\`
+      : OPEN.has(key)
+        ? \`<i class="plot free" data-cell="\${key}" style="\${st}"><b>＋</b></i>\`
+        : \`<i class="plot lock" style="\${st}"></i>\`);
+  });
+
+  /* السياج */
+  const post = (r, c) => { const p = iso(r, c); add(p.z * 10 + 3, \`<i class="post" style="left:\${p.x - 4}px;top:\${p.y - 30}px"></i>\`); };
+  const rail = (a, b, off) => {
+    const L = Math.hypot(b.x - a.x, b.y - a.y), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+    add(Math.max(a.z, b.z) * 10 + 2, \`<i class="rail" style="left:\${a.x}px;top:\${a.y - off}px;width:\${L}px;transform:rotate(\${ang}deg)"></i>\`);
+  };
+  for (let c = 0; c <= 4; c++) { post(4, c); if (c < 4) { rail(iso(4, c), iso(4, c + 1), 23); rail(iso(4, c), iso(4, c + 1), 12); } }
+  for (let r = 0; r <= 3; r++) { post(r, 4); rail(iso(r, 4), iso(r + 1, 4), 23); rail(iso(r, 4), iso(r + 1, 4), 12); }
+
+  DECO.forEach(([kind, r, c, w, v], i) => {
+    const p = iso(r, c), h = kind === 'tree' ? w * 1.4 : kind === 'bush' ? w * .6 : w * .68;
+    add(p.z * 10 + 4, \`<span class="\${kind} v\${v}" style="left:\${p.x - w / 2}px;top:\${p.y - h + 6}px;width:\${w}px;height:\${h}px;animation-delay:\${(i % 5) * .3}s"><b></b><i></i></span>\`);
+  });
+
+  CELLS.forEach(([r, c]) => {
+    const k = world[r + ',' + c]; if (!k) return;
+    const p = iso(r, c), d = CAT[k];
+    add(p.z * 10 + 6, \`<img class="bld\${d.sway ? ' sway' : ''}" data-b="\${r},\${c}" src="\${A[k]}"
+      style="left:\${p.x - d.w / 2}px;top:\${p.y + d.dy}px;width:\${d.w}px;animation-delay:\${(r + c) * .4}s">\`);
+  });
+
+  const jp = iso(2, 1);
+  add(jp.z * 10 + 8, \`<div class="jz" id="jz" style="left:\${jp.x - 44}px;top:\${jp.y - 79}px">
+      <div class="bubble" id="bub"></div><img id="jzimg" src="\${A.jz}"></div>\`);
+
+  /* z-index = العمق نفسه، حتى تندمج العناصر المضافة لاحقًا في الترتيب ذاته */
+  cam.innerHTML = parts.sort((a, b) => a.z - b.z)
+    .map(o => o.h.replace('style="', 'style="z-index:' + o.z + ';')).join('');
+  bindWorld();
+}
+
+/* ═══ الكاميرا: سحب + قصور ═══ */
+let camX = 0, camY = 0, vx = 0, vy = 0, drag = null, moved = 0;
+const CLAMP = { x: 105, y: 95 };
+const ph = document.getElementById('ph'), sky = document.getElementById('sky');
+function applyCam() {
+  camX = Math.max(-CLAMP.x, Math.min(CLAMP.x, camX));
+  camY = Math.max(-CLAMP.y, Math.min(CLAMP.y, camY));
+  cam.style.transform = \`translate(\${camX}px,\${camY}px)\`;
+  sky.style.transform = \`scale(1.24) translate(\${camX * .3}px,\${camY * .22}px)\`;
+}
+applyCam();
+
+ph.addEventListener('dragstart', e => e.preventDefault());
+ph.addEventListener('pointerdown', e => {
+  if (e.target.closest('.sheet,.bar')) return;
+  e.preventDefault();
+  drag = { x: e.clientX, y: e.clientY, t: performance.now() }; moved = 0;
+  vx = vy = 0; ph.classList.add('grab');
+});
+window.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  moved += Math.abs(dx) + Math.abs(dy);
+  camX += dx; camY += dy; vx = dx; vy = dy;
+  drag.x = e.clientX; drag.y = e.clientY; applyCam();
+});
+window.addEventListener('pointerup', () => { drag = null; ph.classList.remove('grab'); coast(); });
+window.addEventListener('pointercancel', () => { drag = null; ph.classList.remove('grab'); });
+function coast() {
+  if (Math.abs(vx) < .4 && Math.abs(vy) < .4) return;
+  camX += vx; camY += vy; vx *= .93; vy *= .93; applyCam();
+  requestAnimationFrame(coast);
+}
+
+/* ═══ الموارد ═══ */
+function paintRes() {
+  document.querySelectorAll('.r').forEach(el => {
+    const k = el.dataset.k, i = el.querySelector('i');
+    if (i.textContent != RES[k]) { i.textContent = RES[k]; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  });
+}
+paintRes();
+
+function flyRes(kind, fromX, fromY) {
+  const target = document.querySelector(\`.r[data-k="\${kind}"]\`).getBoundingClientRect();
+  const box = ph.getBoundingClientRect();
+  const img = document.createElement('img');
+  img.className = 'fly'; img.src = A[kind];
+  img.style.left = fromX + 'px'; img.style.top = fromY + 'px';
+  ph.appendChild(img);
+  const tx = target.left - box.left + target.width / 2 - fromX - 13;
+  const ty = target.top - box.top + target.height / 2 - fromY - 13;
+  img.animate([
+    { transform: 'translate(0,0) scale(1)', opacity: 1 },
+    { transform: \`translate(\${tx * .5}px,\${ty * .5 - 60}px) scale(1.3)\`, opacity: 1, offset: .5 },
+    { transform: \`translate(\${tx}px,\${ty}px) scale(.5)\`, opacity: .2 },
+  ], { duration: 600, easing: 'cubic-bezier(.4,0,.6,1)' }).onfinish = () => img.remove();
+}
+
+/* ═══ لوحة البناء ═══ */
+let pick = null;
+const sheet = document.getElementById('sheet'), opts = document.getElementById('opts');
+function openSheet(cell) {
+  pick = cell;
+  opts.innerHTML = Object.entries(CAT).filter(([k]) => k !== 'home').map(([k, d]) => {
+    const can = Object.entries(d.cost).every(([m, n]) => RES[m] >= n);
+    return \`<div class="opt \${can ? '' : 'no'}" data-k="\${k}">
+      <img class="ic" src="\${A[k]}">
+      <div><div class="nm">\${d.nm}</div><div class="cost">\${Object.entries(d.cost)
+        .map(([m, n]) => \`<span><img src="\${A[m]}">\${n}</span>\`).join('')}</div></div></div>\`;
+  }).join('');
+  opts.querySelectorAll('.opt').forEach(o => o.onclick = () => {
+    if (o.classList.contains('no')) return;
+    build(pick, o.dataset.k); closeSheet();
+  });
+  sheet.classList.add('on');
+}
+function closeSheet() { sheet.classList.remove('on'); }
+
+/* ═══ لحظة البناء ═══ */
+function build([r, c], kind) {
+  const d = CAT[kind], p = iso(r, c);
+  Object.entries(d.cost).forEach(([m, n]) => RES[m] -= n);
+  paintRes();
+
+  const soil = document.createElement('i');
+  soil.className = 'plot soil';
+  soil.style.cssText = \`left:\${p.x - TW / 2}px;top:\${p.y - TH / 2}px;z-index:\${p.z * 10}\`;
+  cam.appendChild(soil);
+  cam.querySelector(\`.free[data-cell="\${r},\${c}"]\`)?.remove();
+
+  const sc = document.createElement('img');
+  sc.className = 'bld'; sc.src = A.scaffold;
+  sc.style.cssText = \`left:\${p.x - 143 / 2}px;top:\${p.y - 95}px;width:143px;z-index:\${p.z * 10 + 6}\`;
+  sc.classList.add('pop'); cam.appendChild(sc);
+  say('نبني الآن…', 'jzHappy');
+
+  setTimeout(() => {
+    sc.remove(); dust(p.x, p.y);
+    const im = document.createElement('img');
+    im.className = 'bld' + (d.sway ? ' sway' : ''); im.src = A[kind]; im.dataset.b = r + ',' + c;
+    im.style.cssText = \`left:\${p.x - d.w / 2}px;top:\${p.y + d.dy}px;width:\${d.w}px;z-index:\${p.z * 10 + 6}\`;
+    im.classList.add('pop'); cam.appendChild(im);
+    im.onclick = () => tapBld(kind);
+    world[r + ',' + c] = kind;
+    OPEN.delete(r + ',' + c);
+    const nxt = CELLS.map(x => x.join(',')).find(k => !world[k] && !OPEN.has(k));
+    if (nxt) { OPEN.add(nxt); unlock(nxt); }
+    shake();
+    say('صار عندنا ' + d.nm + '!', 'jzCheer');
+    /* مكافأة صغيرة تطير للشريط */
+    const box = ph.getBoundingClientRect();
+    const sx = p.x + camX, sy = p.y + camY;
+    ['seed', 'wood'].forEach((m, i) => setTimeout(() => { RES[m] += 2; paintRes(); flyRes(m, sx, sy); }, 200 + i * 180));
+  }, 1300);
+}
+function unlock(key) {
+  const [r, c] = key.split(',').map(Number), p = iso(r, c);
+  const old = [...cam.querySelectorAll('.lock')].find(e =>
+    Math.abs(parseFloat(e.style.left) - (p.x - TW / 2)) < 1 &&
+    Math.abs(parseFloat(e.style.top) - (p.y - TH / 2)) < 1);
+  if (!old) return;
+  old.className = 'plot free'; old.dataset.cell = key;
+  old.innerHTML = '<b>＋</b>';
+  old.onclick = () => { if (moved <= 12) openSheet([r, c]); };
+  old.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
+}
+function dust(x, y) {
+  for (let i = 0; i < 10; i++) {
+    const el = document.createElement('i');
+    el.className = 'dust';
+    el.style.cssText = \`left:\${x - 6}px;top:\${y - 6}px;z-index:9999\`;
+    cam.appendChild(el);
+    const a = Math.PI * 2 * i / 10, r = 34 + Math.random() * 26;
+    el.animate([
+      { transform: 'translate(0,0) scale(.5)', opacity: .9 },
+      { transform: \`translate(\${Math.cos(a) * r}px,\${Math.sin(a) * r * .5 - 12}px) scale(1.5)\`, opacity: 0 },
+    ], { duration: 560, easing: 'ease-out' }).onfinish = () => el.remove();
+  }
+}
+function shake() {
+  ph.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(2px,-2px)' },
+  { transform: 'translate(-2px,1px)' }, { transform: 'translate(0,0)' }], { duration: 220 });
+}
+
+/* ═══ جزّور ═══ */
+const LINES = ['أنت رائع! كمّل.', 'وش نبني اليوم؟', 'المزرعة صارت أحلى!', 'أنا فخور فيك!', 'هيا نكمل المغامرة!'];
+let bubT;
+function say(txt, pose) {
+  const b = document.getElementById('bub'), im = document.getElementById('jzimg');
+  b.textContent = txt; b.classList.add('on');
+  if (pose) { im.src = A[pose]; }
+  clearTimeout(bubT);
+  bubT = setTimeout(() => { b.classList.remove('on'); im.src = A.jz; }, 2200);
+}
+function tapBld(kind) { say(CAT[kind].nm + ' يشتغل تمام 👍', 'jzHappy'); }
+
+/* مشي جزّور بين الرقع */
+let jzCell = [2, 1];
+function walk() {
+  const free = CELLS.filter(([r, c]) => !world[r + ',' + c]);
+  if (!free.length) return;
+  const [r, c] = free[Math.floor(Math.random() * free.length)];
+  const from = iso(...jzCell), to = iso(r, c);
+  const el = document.getElementById('jz');
+  if (!el) return;
+  el.style.zIndex = (to.z * 10 + 8);
+  el.style.transform = \`translate(\${to.x - from.x}px,\${to.y - from.y}px) scaleX(\${to.x > from.x ? -1 : 1})\`;
+}
+setInterval(walk, 4200);
+setInterval(() => { if (Math.random() < .4) say(LINES[Math.floor(Math.random() * LINES.length)]); }, 9000);
+
+/* ═══ الربط ═══ */
+function bindWorld() {
+  cam.querySelectorAll('.free').forEach(el => el.onclick = () => {
+    if (moved > 12) return;
+    openSheet(el.dataset.cell.split(',').map(Number));
+  });
+  cam.querySelectorAll('.bld[data-b]').forEach(el => el.onclick = () => {
+    if (moved > 12) return;
+    tapBld(world[el.dataset.b]);
+  });
+  const jz = document.getElementById('jz');
+  if (jz) jz.onclick = () => { if (moved <= 12) say(LINES[Math.floor(Math.random() * LINES.length)], 'jzCheer'); };
+}
+
+/* سحب خفيف يخفي التلميح */
+setTimeout(() => document.getElementById('hint').style.opacity = 0, 7000);
+
+render();
+</script></body></html>`;
+
+return html;
+}
+
+const out = process.argv[2];
+if (out) {
+  const inl = page(true);
+  fs.writeFileSync(out, inl);
+  console.log(`✅  ${out} — ملف واحد مستقل (${(inl.length / 1024).toFixed(0)}KB)`);
+} else {
+  const rel = page(false);
+  const dst = path.join(ROOT, 'farm', 'preview.html');
+  fs.writeFileSync(dst, rel);
+  console.log(`✅  farm/preview.html (${(rel.length / 1024).toFixed(0)}KB)`);
+}

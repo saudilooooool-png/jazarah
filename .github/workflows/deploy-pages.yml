@@ -37,6 +37,10 @@ jobs:
           mkdir -p _site
           cp index.html styles.css app.js audio.js voice.js sync.js qrcode.js quran.js manifest.webmanifest sw.js _site/
           cp -r icons avatars audio _site/
+          # المزرعة: الرسومات المضغوطة ومعاينتها فقط — لا نرفع الأصول الثقيلة
+          mkdir -p _site/farm
+          rsync -a --include='*/' --include='*.webp' --include='preview.html' \
+                --exclude='*' farm/ _site/farm/
           sed -i "s/BUILD_PLACEHOLDER/web-${{ github.run_number }}/" _site/app.js
 
       - uses: actions/upload-pages-artifact@v3
