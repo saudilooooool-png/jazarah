@@ -31,7 +31,7 @@ jobs:
       - name: Prepare web assets
         run: |
           mkdir -p www
-          cp index.html styles.css app.js audio.js sync.js qrcode.js quran.js manifest.webmanifest sw.js www/
+          cp index.html styles.css app.js audio.js voice.js sync.js qrcode.js quran.js manifest.webmanifest sw.js www/
           cp -r icons avatars audio www/
           # حقن رقم البناء ليظهر داخل التطبيق
           sed -i "s/BUILD_PLACEHOLDER/${{ github.run_number }}/" www/app.js

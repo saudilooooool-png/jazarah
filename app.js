@@ -2968,7 +2968,7 @@ const App = {
 
   testKidAudio() {
     if (window.JazarahAudio) JazarahAudio.cheer('أحسنت يا بطل! جزّور فخور بك.');
-    else speak('أحسنت يا بطل! جزّور فخور بك.', 'ar-SA');
+    else VoiceLines.say('proud');
   },
 
   /* إنشاء / تعديل حساب طفل — من لوحة الوالد فقط */
@@ -3237,7 +3237,7 @@ const App = {
         this.celebrate(`عالم جديد! ${w.emoji}`,
           `هزمت زعيم ${esc(WORLDS[ev.world - 1].name)} ودخلت <b>${esc(w.name)}</b>!<br /><small>فُتحت خلفية ${esc(WORLDS[ev.world - 1].name)} في استوديو البطل 🎨</small>`,
           ['🏆 إنجاز ملحمي'], w.emoji);
-        speak(`مبروك! وصلت إلى ${w.name}`, 'ar-SA');
+        VoiceLines.say('world_enter', { i: ev.world });
       } else if (ev.type === 'finish') {
         this.celebrate('أسطورة جَزَرة! 🐉👑', 'أكملت رحلة العوالم الثمانية كاملة!<br />أنت من أبطال التاريخ', ['👑 المجد الخالد'], '🏰');
       } else {
@@ -3410,7 +3410,7 @@ const App = {
         clearInterval(this._routineTimer);
         el.classList.add('routine-timer--end');
         save();
-        if (routine.audio) speak('انتهى وقت التركيز. أحسنت، انتقل للخطوة التالية بهدوء.', 'ar-SA');
+        if (routine.audio) VoiceLines.say('focus_end');
       }
     }, 1000);
   },
@@ -4369,7 +4369,8 @@ const App = {
         node.classList.add('node-glow');
         setTimeout(() => node.classList.remove('node-glow'), 2500);
       }
-      speak('مهمتك التالية: ' + next.title, 'ar-SA');
+      VoiceLines.say('task_next');
+      setTimeout(() => VoiceLines.say(null, {}, next.title), 1400);
       return;
     }
     const qr = this._quranState();
@@ -4532,6 +4533,7 @@ const App = {
     this.openModal(`<div style="text-align:center;padding:30px 0"><div style="font-size:3rem">🌱</div><p class="muted">جارٍ فتح رحلة البراعم…</p></div>`);
     try { await this._loadQuran(); }
     catch (e) { this.openModal('<p class="muted" style="text-align:center;padding:20px">تعذر تحميل المصحف</p>'); return; }
+    if (window.VoiceLines) VoiceLines.init();   // أسماء السور صارت متاحة الآن
     this._quranMode = 'kids';
     this.renderQuranKids();
     this._quranTickStart();
@@ -4606,7 +4608,7 @@ const App = {
       this.celebrate(`ختمت سورة ${esc(s.n)}! 🌟`,
         next ? `محطتك التالية: <b>سورة ${esc(next)}</b> 🌱` : 'أتممت الرحلة كاملة!',
         ['+15 ✨ XP', '+5 🥕'], '🕌');
-      speak(`أحسنت! ختمت سورة ${s.n}`, 'ar-SA');
+      VoiceLines.say('surah_done', { n: this.KIDS_QURAN_ORDER[qp.pos - 1] });
     }
   },
 
@@ -5945,6 +5947,10 @@ document.getElementById('celebrate').addEventListener('click', e => {
 });
 
 dailyUpkeep();
+
+/* تهيئة سجل عبارات جزّور: يحصر العوالم وسور رحلة البراعم
+   فتُنطق أسماؤها بصوته لا بصوت الجهاز */
+if (window.VoiceLines) VoiceLines.init();
 
 /* عرض رقم البناء أسفل شاشة البداية — للتحقق أي نسخة تعمل */
 (function () {
