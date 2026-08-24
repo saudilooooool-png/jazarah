@@ -1,418 +1,490 @@
 <!doctype html>
-<html dir="rtl" lang="ar"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>مزرعة جزّور — نموذج تفاعلي</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800;900&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:#DED8CC;font-family:'Cairo',system-ui,sans-serif;
-  user-select:none;-webkit-user-select:none}
-img{-webkit-user-drag:none;user-drag:none}
-body{display:flex;align-items:center;justify-content:center}
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>مزرعة جزّور — عالم ثلاثي الأبعاد</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #3b2b1c;
+      --cream: #fffaf0;
+      --leaf: #4f8f36;
+      --leaf-dark: #31722e;
+      --path: #d99543;
+      --shadow: rgba(38, 68, 25, .28);
+    }
 
-.ph{position:relative;width:min(410px,100vw);height:min(850px,100vh);overflow:hidden;
-    background:#8FCB63;border-radius:min(30px,3vw);box-shadow:0 18px 44px rgba(60,40,20,.22);
-    touch-action:none;cursor:grab}
-.ph.grab{cursor:grabbing}
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #d9d3c6; }
+    body { display: grid; place-items: center; font-family: Cairo, system-ui, sans-serif; color: var(--ink); user-select: none; }
+    button { font: inherit; }
 
-/* ── الخلفية بمنظور بطيء (parallax) ── */
-.sky{pointer-events:none;position:absolute;inset:-8%;width:116%;height:116%;object-fit:cover;
-     transform-origin:50% 76%;will-change:transform}
+    .phone {
+      position: relative;
+      width: min(430px, 100vw);
+      height: min(860px, 100vh);
+      overflow: hidden;
+      isolation: isolate;
+      background: linear-gradient(#9eddf0 0 15%, #77c461 16% 100%);
+      border-radius: min(32px, 4vw);
+      box-shadow: 0 22px 50px rgba(52, 41, 24, .25);
+      touch-action: none;
+    }
 
-/* ── الكاميرا ── */
-.cam{position:absolute;inset:0;will-change:transform}
+    .world-viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; }
+    .world-viewport.is-dragging { cursor: grabbing; }
+    .world {
+      position: absolute;
+      width: 1180px;
+      height: 664px;
+      top: 102px;
+      left: -375px;
+      transform: translate3d(0, 0, 0);
+      transform-origin: center;
+      will-change: transform;
+    }
+    .world-base { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 
-/* ── الرقع ── */
-.plot{position:absolute;width:148px;height:76px;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
-.soil{pointer-events:none;background:linear-gradient(168deg,#B07C46,#7E5527)}
-.soil::after{content:'';position:absolute;inset:0;
-  background:repeating-linear-gradient(72deg,rgba(0,0,0,.10) 0 2px,transparent 2px 9px)}
-.free{background:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;cursor:pointer}
-.free::before{content:'';position:absolute;inset:5px;
-  background:linear-gradient(168deg,#A9DC72,#74B44A);clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
-.lock{pointer-events:none;background:rgba(255,255,255,.18)}
-.lock::before{content:'';position:absolute;inset:5px;
-  background:linear-gradient(168deg,rgba(150,200,110,.55),rgba(105,158,68,.55));
-  clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)}
-.free b{position:relative;width:30px;height:30px;display:flex;align-items:center;justify-content:center;
-  font:900 19px Cairo;color:#5C8C2E;background:rgba(255,255,255,.94);border-radius:50%;
-  box-shadow:0 3px 0 rgba(40,90,20,.28);animation:tap 2.4s ease-in-out infinite}
-@keyframes tap{0%,88%,100%{transform:scale(1)}92%{transform:scale(1.16)}96%{transform:scale(.96)}}
-.free:active b{transform:scale(.9)}
+    .world-object { position: absolute; transform-origin: 50% 100%; border: 0; padding: 0; background: transparent; filter: drop-shadow(0 9px 7px var(--shadow)); cursor: pointer; }
+    .world-object img { width: 100%; display: block; pointer-events: none; }
+    .home { width: 192px; left: 498px; top: 110px; animation: homeBreathe 4.6s ease-in-out infinite; }
+    .barn { width: 184px; left: 197px; top: 193px; animation: barnSway 5.8s ease-in-out infinite; }
+    .egg { width: 78px; left: 640px; top: 392px; animation: eggWarm 2.6s ease-in-out infinite; }
+    .egg[hidden] { display: none; }
+    .ground-shadow { position: absolute; border-radius: 50%; background: rgba(34, 77, 27, .24); filter: blur(5px); pointer-events: none; }
+    .home-shadow { width: 124px; height: 24px; left: 531px; top: 283px; }
+    .barn-shadow { width: 112px; height: 22px; left: 233px; top: 321px; }
+    .egg-shadow { width: 49px; height: 11px; left: 655px; top: 464px; }
 
-/* ── المباني ── */
-.bld{position:absolute;filter:drop-shadow(0 8px 6px rgba(40,60,20,.32));cursor:pointer;
-     transform-origin:50% 92%;animation:breathe 4s ease-in-out infinite}
-@keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
-.bld.sway{animation:sway 5s ease-in-out infinite}
-@keyframes sway{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
-.bld.pop{animation:pop .5s cubic-bezier(.34,1.56,.64,1) forwards}
-@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
-.bld:active{filter:drop-shadow(0 4px 4px rgba(40,60,20,.4)) brightness(1.06)}
+    @keyframes homeBreathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes barnSway { 0%, 100% { transform: rotate(-.7deg); } 50% { transform: rotate(.7deg); } }
+    @keyframes eggWarm { 0%, 100% { transform: translateY(0) rotate(0deg); } 42% { transform: translateY(-4px) rotate(-3deg); } 62% { transform: translateY(-1px) rotate(2deg); } }
 
-/* ── الزينة ── */
-.tree,.bush,.rock{pointer-events:none;position:absolute;filter:drop-shadow(0 5px 4px rgba(40,60,20,.28));
-  transform-origin:50% 100%;animation:leaf 6s ease-in-out infinite}
-@keyframes leaf{0%,100%{transform:rotate(-1.8deg)}50%{transform:rotate(1.8deg)}}
-.tree b{position:absolute;left:43%;bottom:0;width:14%;height:34%;
-  background:linear-gradient(90deg,#A2703F,#623F1D);border-radius:0 0 3px 3px}
-.tree i{position:absolute;left:0;top:0;width:100%;height:74%;border-radius:52% 52% 44% 44%}
-.tree.v0 i{background:radial-gradient(circle at 32% 24%,#C2EB88,#7FC750 42%,#3B8632)}
-.tree.v1 i{background:radial-gradient(circle at 32% 24%,#AEE07A,#6DB847 44%,#2F7429);border-radius:56% 44% 48% 42%}
-.tree.v2 i{background:radial-gradient(circle at 34% 22%,#D2F09A,#8FCF5C 40%,#4A9438);border-radius:46% 54% 42% 48%}
-.bush i{position:absolute;inset:0;border-radius:50% 50% 44% 44%;
-  background:radial-gradient(circle at 34% 24%,#B7E77F,#77BE4C 46%,#3A8130)}
-.rock i{position:absolute;inset:0;border-radius:48% 52% 40% 44%;
-  background:radial-gradient(circle at 35% 26%,#D5DBE1,#9CA8B2 50%,#6B7783)}
-.post{pointer-events:none;position:absolute;width:9px;height:34px;border-radius:3px;
-  background:linear-gradient(90deg,#C9944F,#8A5D2B)}
-.rail{pointer-events:none;position:absolute;height:6px;border-radius:3px;transform-origin:0 50%;
-  background:linear-gradient(180deg,#D9A75E,#9A6A33)}
+    .farm-spot {
+      position: absolute;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: center;
+    }
+    .farm-spot:focus-visible, .world-object:focus-visible { outline: 3px solid #fff; outline-offset: 5px; border-radius: 18px; }
+    .well-spot { left: 864px; top: 163px; width: 112px; height: 116px; border-radius: 50%; }
+    .field-spot { left: 238px; top: 370px; width: 224px; height: 180px; border-radius: 34%; }
+    .site-spot { left: 610px; top: 397px; width: 158px; height: 108px; border-radius: 40%; }
 
-/* ── جزّور ── */
-.jz{position:absolute;width:88px;filter:drop-shadow(0 8px 6px rgba(40,60,20,.34));
-    cursor:pointer;transition:transform 3.4s ease-in-out;will-change:transform}
-.jz img{width:100%;display:block;animation:hop 1.1s ease-in-out infinite}
-@keyframes hop{0%,100%{transform:translateY(0) scaleY(1)}
-  45%{transform:translateY(-4px) scaleY(1.02)}70%{transform:translateY(0) scaleY(.98)}}
-.bubble{position:absolute;bottom:96%;right:50%;transform:translateX(50%) scale(0);
-  background:#fff;border-radius:14px;padding:7px 12px;font:800 12px Cairo;color:#3A2B18;
-  white-space:nowrap;box-shadow:0 4px 12px rgba(40,60,20,.25);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
-.bubble.on{transform:translateX(50%) scale(1)}
-.bubble::after{content:'';position:absolute;top:100%;right:50%;margin-right:-6px;
-  border:6px solid transparent;border-top-color:#fff}
+    .site-pin {
+      position: absolute;
+      right: 6px;
+      bottom: 13px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px 7px 8px;
+      background: #fffaf1;
+      color: #4e341d;
+      border: 2px solid #c98a3d;
+      border-radius: 17px;
+      box-shadow: 0 4px 0 rgba(116, 72, 29, .18), 0 7px 14px rgba(72, 55, 28, .2);
+      white-space: nowrap;
+      font: 900 12px Cairo, sans-serif;
+      animation: invite 2.3s ease-in-out infinite;
+    }
+    .site-pin::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: #6ab14d; box-shadow: inset 0 -2px 0 rgba(33, 94, 34, .25); }
+    @keyframes invite { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.025); } }
 
-/* ── الشريط العلوي ── */
-.bar{position:absolute;top:0;left:0;right:0;display:flex;gap:4px;padding:10px 8px;z-index:60;
-  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(255,255,255,0))}
-.r{flex:1;display:flex;align-items:center;justify-content:center;gap:3px;background:#FFF6E7;
-   border-radius:99px;padding:4px 6px;font:900 12px Cairo;color:#4A3520;box-shadow:0 2px 0 #E8D9BE}
-.r img{width:18px}
-.r.bump{animation:bump .5s cubic-bezier(.34,1.56,.64,1)}
-@keyframes bump{0%,100%{transform:scale(1)}45%{transform:scale(1.22)}}
+    .jazour {
+      position: absolute;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      left: 566px;
+      top: 282px;
+      width: 94px;
+      z-index: 15;
+      cursor: pointer;
+      transition: transform 1.25s cubic-bezier(.34, 1.1, .64, 1);
+      filter: drop-shadow(0 10px 7px rgba(35, 72, 25, .3));
+    }
+    .jazour img { width: 100%; display: block; animation: jazourHop 1.1s ease-in-out infinite; }
+    .jazour .character-shadow { position: absolute; width: 51px; height: 12px; right: 21px; bottom: 5px; border-radius: 50%; background: rgba(36, 78, 28, .27); filter: blur(3px); z-index: -1; }
+    @keyframes jazourHop { 0%, 100% { transform: translateY(0) scaleY(1); } 48% { transform: translateY(-5px) scaleY(1.025); } 70% { transform: translateY(0) scaleY(.975); } }
+    .speech {
+      position: absolute;
+      bottom: 83%;
+      right: 42%;
+      min-width: max-content;
+      max-width: 185px;
+      padding: 8px 11px;
+      background: #fffdf6;
+      border-radius: 14px;
+      color: #3c2a18;
+      text-align: center;
+      font: 800 12px Cairo, sans-serif;
+      line-height: 1.65;
+      box-shadow: 0 5px 15px rgba(49, 60, 33, .22);
+      transform: scale(.6);
+      opacity: 0;
+      transition: opacity .2s, transform .25s cubic-bezier(.34, 1.56, .64, 1);
+      pointer-events: none;
+    }
+    .speech::after { content: ''; position: absolute; right: 22px; top: calc(100% - 1px); border: 7px solid transparent; border-top-color: #fffdf6; }
+    .speech.on { transform: scale(1); opacity: 1; }
 
-/* ── مورد يطير ── */
-.fly{position:absolute;width:26px;z-index:70;pointer-events:none;
-  filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
+    .top-ui {
+      position: absolute;
+      inset: 0 0 auto;
+      z-index: 30;
+      padding: 11px 11px 34px;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(247, 252, 243, .95), rgba(247, 252, 243, 0));
+    }
+    .brand { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 14px; background: rgba(255, 252, 244, .82); color: #5a482c; font: 900 11px Cairo, sans-serif; box-shadow: 0 3px 9px rgba(39, 73, 27, .11); }
+    .brand-dot { width: 8px; height: 8px; background: #74b84d; border-radius: 50%; box-shadow: 0 0 0 3px rgba(116, 184, 77, .18); }
+    .resources { display: flex; gap: 5px; margin-top: 8px; direction: rtl; }
+    .resource {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-width: 0;
+      padding: 5px 3px;
+      border-radius: 999px;
+      background: rgba(255, 249, 235, .96);
+      color: #46351f;
+      box-shadow: 0 2px 0 rgba(147, 112, 67, .16);
+      font: 900 12px Cairo, sans-serif;
+    }
+    .resource img { width: 17px; height: 17px; object-fit: contain; }
+    .resource.bump { animation: resourceBump .48s cubic-bezier(.34, 1.56, .64, 1); }
+    @keyframes resourceBump { 50% { transform: scale(1.18); background: #fff; } }
 
-/* ── لوحة البناء ── */
-.sheet{position:absolute;left:0;right:0;bottom:0;z-index:80;background:#FFFDF7;
-  border-radius:22px 22px 0 0;padding:14px 14px 18px;box-shadow:0 -8px 26px rgba(60,40,20,.22);
-  transform:translateY(105%);transition:transform .32s cubic-bezier(.34,1.4,.64,1)}
-.sheet.on{transform:translateY(0)}
-.sheet h3{font:900 15px Cairo;color:#3A2B18;margin-bottom:10px;text-align:center}
-.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
-.opt{display:flex;align-items:center;gap:9px;background:#F6F0E2;border:2px solid #EADFC6;
-  border-radius:16px;padding:9px;cursor:pointer;transition:transform .12s}
-.opt:active{transform:scale(.96)}
-.opt.no{opacity:.45}
-.opt img.ic{width:42px}
-.opt .nm{font:900 13px Cairo;color:#3A2B18}
-.opt .cost{display:flex;gap:6px;margin-top:3px;font:800 11px Cairo;color:#7A6244;align-items:center}
-.opt .cost img{width:14px}
-.close{display:block;width:100%;margin-top:11px;background:none;border:none;
-  font:800 12.5px Cairo;color:#8A7658;cursor:pointer}
+    .objective {
+      position: absolute;
+      right: 12px;
+      left: 12px;
+      bottom: 15px;
+      z-index: 35;
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 10px;
+      background: rgba(255, 253, 245, .97);
+      border: 1px solid rgba(255, 255, 255, .85);
+      border-radius: 19px;
+      box-shadow: 0 8px 22px rgba(53, 71, 34, .23);
+      direction: rtl;
+    }
+    .objective-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(145deg, #ffce6d, #e89543); box-shadow: inset 0 2px 0 rgba(255,255,255,.45); }
+    .objective-icon img { width: 29px; height: 29px; object-fit: contain; }
+    .objective-kicker { color: #6e9b49; font: 900 10px Cairo, sans-serif; line-height: 1.2; }
+    .objective-title { margin-top: 1px; color: #3a2919; font: 900 13px Cairo, sans-serif; line-height: 1.35; }
+    .objective-copy { display: block; margin-top: 1px; color: #806d55; font: 700 10px Cairo, sans-serif; }
+    .focus-button {
+      border: 0;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: var(--leaf);
+      color: #fff;
+      font: 900 11px Cairo, sans-serif;
+      box-shadow: 0 3px 0 var(--leaf-dark);
+      cursor: pointer;
+    }
+    .focus-button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--leaf-dark); }
 
-/* ── غبار البناء ── */
-.dust{position:absolute;width:12px;height:12px;border-radius:50%;background:rgba(210,185,150,.9);
-  pointer-events:none;z-index:50}
+    .build-sheet {
+      position: absolute;
+      z-index: 50;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      padding: 15px 15px 20px;
+      background: #fffdf7;
+      border-radius: 25px 25px 0 0;
+      box-shadow: 0 -10px 28px rgba(41, 49, 26, .28);
+      transform: translateY(108%);
+      transition: transform .35s cubic-bezier(.34, 1.25, .64, 1);
+    }
+    .build-sheet.open { transform: translateY(0); }
+    .sheet-handle { width: 38px; height: 4px; margin: 0 auto 11px; border-radius: 9px; background: #e7dcc8; }
+    .sheet-header { display: flex; align-items: center; gap: 10px; }
+    .sheet-header img { width: 61px; height: 61px; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(47,70,28,.18)); }
+    .sheet-title { margin: 0; color: #342516; font: 900 17px Cairo, sans-serif; }
+    .sheet-copy { margin: 1px 0 0; color: #7c684f; font: 700 11px Cairo, sans-serif; }
+    .cost-row { display: flex; gap: 7px; margin: 13px 0; direction: rtl; }
+    .cost { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: center; padding: 7px 5px; border-radius: 11px; background: #f7f0df; color: #5d4830; font: 900 11px Cairo, sans-serif; }
+    .cost img { width: 18px; height: 18px; object-fit: contain; }
+    .sheet-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .build-button { border: 0; border-radius: 13px; padding: 10px; background: linear-gradient(180deg, #6db74e, #4e963a); color: #fff; box-shadow: 0 3px 0 #34762e; font: 900 13px Cairo, sans-serif; cursor: pointer; }
+    .cancel-button { border: 0; border-radius: 13px; padding: 10px 13px; background: #f3eee4; color: #7b6750; font: 800 12px Cairo, sans-serif; cursor: pointer; }
+    .build-button:active, .cancel-button:active { transform: translateY(2px); }
 
-.hint{position:absolute;bottom:14px;left:14px;right:14px;z-index:55;background:rgba(255,255,255,.94);
-  border-radius:16px;padding:9px 12px;font:800 12.5px Cairo;color:#3A2B18;text-align:center;
-  box-shadow:0 4px 14px rgba(60,40,20,.15);transition:opacity .3s}
-</style></head><body>
+    .toast {
+      position: absolute;
+      z-index: 60;
+      top: 118px;
+      right: 50%;
+      width: max-content;
+      max-width: calc(100% - 42px);
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: rgba(57, 99, 42, .95);
+      color: #fff;
+      font: 800 12px Cairo, sans-serif;
+      transform: translate(50%, -14px) scale(.92);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .25s cubic-bezier(.34, 1.56, .64, 1);
+      text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translate(50%, 0) scale(1); }
+    .walk-tip { position: absolute; z-index: 22; left: 50%; top: 105px; transform: translateX(-50%); padding: 6px 11px; border-radius: 999px; background: rgba(255,255,255,.84); color: #65533a; font: 800 10.5px Cairo, sans-serif; white-space: nowrap; box-shadow: 0 3px 10px rgba(46,73,31,.14); transition: opacity .4s; pointer-events: none; }
+    .walk-tip.hide { opacity: 0; }
 
-<div class="ph" id="ph">
-  <img class="sky" id="sky" src="land/land_farm.webp" alt="">
-  <div class="cam" id="cam"></div>
+    @media (max-height: 690px) {
+      .phone { border-radius: 0; }
+      .world { top: 65px; }
+      .objective { bottom: 8px; }
+      .walk-tip { top: 98px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone" aria-label="مزرعة جزّور">
+    <div class="world-viewport" id="viewport" aria-label="عالم المزرعة القابل للتجول">
+      <section class="world" id="world" aria-label="عالم مزرعة جزّور">
+        <img class="world-base" src="land/world_farm_3d.webp" alt="أرض مزرعة ثلاثية الأبعاد فيها طريق وحقل وبئر ومواقع بناء">
 
-  <div class="bar" id="bar">
-    <span class="r" data-k="wood"><img src="resources/wood.webp">‏<i>14</i></span>
-    <span class="r" data-k="stone"><img src="resources/stone.webp">‏<i>10</i></span>
-    <span class="r" data-k="water"><img src="resources/water.webp">‏<i>8</i></span>
-    <span class="r" data-k="light"><img src="resources/light.webp">‏<i>5</i></span>
-    <span class="r" data-k="seed"><img src="resources/seed.webp">‏<i>12</i></span>
-  </div>
+        <span class="ground-shadow home-shadow"></span>
+        <button class="world-object home" id="home" type="button" aria-label="بيت جزّور">
+          <img src="buildings/home_exact.webp?v=2" alt="بيت جزّور">
+        </button>
 
-  <div class="hint" id="hint">🖐️ اسحب لتتجول · اضغط ＋ لتبني · اضغط جزّور</div>
+        <span class="ground-shadow barn-shadow"></span>
+        <button class="world-object barn" id="barn" type="button" aria-label="حظيرة الرفيق">
+          <img src="buildings/barn_exact.webp?v=2" alt="حظيرة الرفيق">
+        </button>
 
-  <div class="sheet" id="sheet">
-    <h3>وش تبني هنا؟</h3>
-    <div class="opts" id="opts"></div>
-    <button class="close" onclick="closeSheet()">إلغاء</button>
-  </div>
-</div>
+        <button class="farm-spot well-spot" id="well" type="button" aria-label="بئر المزرعة"></button>
+        <button class="farm-spot field-spot" id="field" type="button" aria-label="حقل الجزر"></button>
 
-<script>
-const A = {"home":"buildings/home.webp","barn":"buildings/barn.webp","well":"buildings/well.webp","field":"buildings/field.webp","scaffold":"buildings/scaffold.webp","egg":"companions/egg_brown.webp","jz":"../avatars/jazzour/hero.webp","jzHappy":"../avatars/jazzour/happy.webp","jzCheer":"../avatars/jazzour/celebrate.webp","wood":"resources/wood.webp","stone":"resources/stone.webp","water":"resources/water.webp","light":"resources/light.webp","seed":"resources/seed.webp"};
+        <button class="farm-spot site-spot" id="buildSite" type="button" aria-label="موقع بناء عش الرفيق">
+          <span class="site-pin" id="sitePin">عش الرفيق هنا</span>
+        </button>
+        <span class="ground-shadow egg-shadow" id="eggShadow" hidden></span>
+        <button class="world-object egg" id="egg" type="button" aria-label="بيضة الرفيق البني" hidden>
+          <img src="companions/egg_brown.webp" alt="بيضة الرفيق البني">
+        </button>
 
-/* ═══ الشبكة ═══ */
-const TW = 148, TH = 76, OX = 205, OY = 400;
-const iso = (r, c) => ({ x: OX + (c - r) * TW / 2, y: OY + (c + r) * TH / 2, z: r + c });
+        <button class="jazour" id="jazour" type="button" aria-label="تحدث مع جزّور">
+          <span class="character-shadow"></span>
+          <span class="speech" id="speech" aria-live="polite"></span>
+          <img id="jazourImage" src="characters/jazour/hero.webp?v=2" alt="جزّور">
+        </button>
+      </section>
+    </div>
 
-const CAT = {
-  field: { nm: 'حقل الجزر', w: 173, dy: -44, sway: true,  cost: { seed: 4, water: 3 } },
-  well:  { nm: 'البئر',     w: 120, dy: -88, cost: { stone: 6, wood: 2 } },
-  barn:  { nm: 'الحظيرة',   w: 170, dy: -104, cost: { wood: 8, stone: 3 } },
-  egg:   { nm: 'عش الرفيق', w: 96,  dy: -66, cost: { light: 4, seed: 5 } },
-  home:  { nm: 'بيت جزّور', w: 178, dy: -116, cost: { wood: 10, stone: 5 } },
-};
+    <div class="top-ui">
+      <div class="brand"><span class="brand-dot"></span>مزرعة جزّور</div>
+      <div class="resources" aria-label="موارد المزرعة">
+        <div class="resource" data-resource="wood"><span>١٤</span><img src="resources/wood.webp" alt="خشب"></div>
+        <div class="resource" data-resource="stone"><span>١٠</span><img src="resources/stone.webp" alt="حجر"></div>
+        <div class="resource" data-resource="water"><span>٨</span><img src="resources/water.webp" alt="ماء"></div>
+        <div class="resource" data-resource="light"><span>٥</span><img src="resources/light.webp" alt="نور"></div>
+        <div class="resource" data-resource="seed"><span>١٢</span><img src="resources/seed.webp" alt="بذور"></div>
+      </div>
+    </div>
 
-const RES = { wood: 14, stone: 10, water: 8, light: 5, seed: 12 };
-const world = {
-  '0,1': 'home', '1,0': 'barn', '1,3': 'well', '2,2': 'field',
-};
-const CELLS = [];
-for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) CELLS.push([r, c]);
-/* المفتوح للبناء الآن — الباقي أرض محجوزة تُفتح تباعًا */
-const OPEN = new Set(['1,1', '0,2', '2,3', '3,1']);
+    <p class="walk-tip" id="walkTip">اسحب لتتجول في المزرعة</p>
+    <div class="toast" id="toast" role="status"></div>
 
-const DECO = [
-  ['tree', -1, 0, 64, 0], ['tree', -1, 2, 56, 1], ['tree', 0, 4, 60, 2],
-  ['tree', 2, -1, 66, 1], ['tree', 4, 1, 60, 0], ['tree', 4, 3, 56, 2],
-  ['tree', 3, 4, 58, 1], ['tree', -1, 3, 50, 2],
-  ['bush', 0, 3, 42, 0], ['bush', 2, 4, 38, 1], ['bush', 4, 0, 44, 0],
-  ['bush', 1, -1, 40, 1], ['bush', 4, 2, 36, 2],
-  ['rock', 3, -1, 30, 0], ['rock', 4, 4, 26, 1],
-];
+    <section class="objective" aria-label="الخطوة التالية">
+      <div class="objective-icon"><img src="companions/egg_brown.webp" alt=""></div>
+      <div>
+        <div class="objective-kicker">خطوتنا التالية</div>
+        <div class="objective-title" id="objectiveTitle">نجهّز عش الرفيق</div>
+        <span class="objective-copy" id="objectiveCopy">اضغط اللوحة الخشبية في الأرض الخضراء.</span>
+      </div>
+      <button class="focus-button" id="focusButton" type="button">أرِني</button>
+    </section>
 
-const cam = document.getElementById('cam');
+    <section class="build-sheet" id="buildSheet" aria-labelledby="sheetTitle" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <img src="companions/egg_brown.webp" alt="بيضة الرفيق البني">
+        <div>
+          <h2 class="sheet-title" id="sheetTitle">عش الرفيق البني</h2>
+          <p class="sheet-copy">عندما نكمله، تبدأ البيضة بالدفء.</p>
+        </div>
+      </div>
+      <div class="cost-row" aria-label="الموارد المطلوبة">
+        <div class="cost"><img src="resources/light.webp" alt="">٤ نور</div>
+        <div class="cost"><img src="resources/seed.webp" alt="">٥ بذور</div>
+      </div>
+      <div class="sheet-actions">
+        <button class="build-button" id="buildButton" type="button">ابنِ العش</button>
+        <button class="cancel-button" id="cancelButton" type="button">ليس الآن</button>
+      </div>
+    </section>
+  </main>
 
-/* ═══ الرسم ═══ */
-function render() {
-  const parts = [];
-  const add = (z, h) => parts.push({ z, h });
+  <script>
+    const viewport = document.getElementById('viewport');
+    const world = document.getElementById('world');
+    const walkTip = document.getElementById('walkTip');
+    const speech = document.getElementById('speech');
+    const jazour = document.getElementById('jazour');
+    const jazourImage = document.getElementById('jazourImage');
+    const buildSite = document.getElementById('buildSite');
+    const sitePin = document.getElementById('sitePin');
+    const egg = document.getElementById('egg');
+    const eggShadow = document.getElementById('eggShadow');
+    const sheet = document.getElementById('buildSheet');
+    const toast = document.getElementById('toast');
+    const objectiveTitle = document.getElementById('objectiveTitle');
+    const objectiveCopy = document.getElementById('objectiveCopy');
+    const focusButton = document.getElementById('focusButton');
 
-  CELLS.forEach(([r, c]) => {
-    const p = iso(r, c), k = world[r + ',' + c];
-    const st = `left:${p.x - TW / 2}px;top:${p.y - TH / 2}px`;
-    const key = r + ',' + c;
-    add(p.z * 10, k
-      ? `<i class="plot soil" style="${st}"></i>`
-      : OPEN.has(key)
-        ? `<i class="plot free" data-cell="${key}" style="${st}"><b>＋</b></i>`
-        : `<i class="plot lock" style="${st}"></i>`);
-  });
+    const pan = { x: 0, y: 0, minX: -370, maxX: 116, minY: -62, maxY: 52 };
+    let drag = null;
+    let moved = 0;
+    let built = false;
+    let speechTimer;
+    let toastTimer;
 
-  /* السياج */
-  const post = (r, c) => { const p = iso(r, c); add(p.z * 10 + 3, `<i class="post" style="left:${p.x - 4}px;top:${p.y - 30}px"></i>`); };
-  const rail = (a, b, off) => {
-    const L = Math.hypot(b.x - a.x, b.y - a.y), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
-    add(Math.max(a.z, b.z) * 10 + 2, `<i class="rail" style="left:${a.x}px;top:${a.y - off}px;width:${L}px;transform:rotate(${ang}deg)"></i>`);
-  };
-  for (let c = 0; c <= 4; c++) { post(4, c); if (c < 4) { rail(iso(4, c), iso(4, c + 1), 23); rail(iso(4, c), iso(4, c + 1), 12); } }
-  for (let r = 0; r <= 3; r++) { post(r, 4); rail(iso(r, 4), iso(r + 1, 4), 23); rail(iso(r, 4), iso(r + 1, 4), 12); }
+    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+    function paintWorld() { world.style.transform = `translate3d(${pan.x}px, ${pan.y}px, 0)`; }
+    paintWorld();
 
-  DECO.forEach(([kind, r, c, w, v], i) => {
-    const p = iso(r, c), h = kind === 'tree' ? w * 1.4 : kind === 'bush' ? w * .6 : w * .68;
-    add(p.z * 10 + 4, `<span class="${kind} v${v}" style="left:${p.x - w / 2}px;top:${p.y - h + 6}px;width:${w}px;height:${h}px;animation-delay:${(i % 5) * .3}s"><b></b><i></i></span>`);
-  });
+    function say(text, pose = 'hero.webp') {
+      speech.textContent = text;
+      speech.classList.add('on');
+      jazourImage.src = `characters/jazour/${pose}?v=2`;
+      clearTimeout(speechTimer);
+      speechTimer = setTimeout(() => {
+        speech.classList.remove('on');
+        jazourImage.src = 'characters/jazour/hero.webp?v=2';
+      }, 2600);
+    }
 
-  CELLS.forEach(([r, c]) => {
-    const k = world[r + ',' + c]; if (!k) return;
-    const p = iso(r, c), d = CAT[k];
-    add(p.z * 10 + 6, `<img class="bld${d.sway ? ' sway' : ''}" data-b="${r},${c}" src="${A[k]}"
-      style="left:${p.x - d.w / 2}px;top:${p.y + d.dy}px;width:${d.w}px;animation-delay:${(r + c) * .4}s">`);
-  });
+    function notify(text) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2300);
+    }
 
-  const jp = iso(2, 1);
-  add(jp.z * 10 + 8, `<div class="jz" id="jz" style="left:${jp.x - 44}px;top:${jp.y - 79}px">
-      <div class="bubble" id="bub"></div><img id="jzimg" src="${A.jz}"></div>`);
+    function moveToSite() {
+      pan.x = -120;
+      pan.y = -12;
+      paintWorld();
+      walkTip.classList.add('hide');
+      setTimeout(() => { if (!built) say('هنا بيت الرفيق، وش رايك نبنيه؟', 'thinking.webp'); }, 460);
+    }
 
-  /* z-index = العمق نفسه، حتى تندمج العناصر المضافة لاحقًا في الترتيب ذاته */
-  cam.innerHTML = parts.sort((a, b) => a.z - b.z)
-    .map(o => o.h.replace('style="', 'style="z-index:' + o.z + ';')).join('');
-  bindWorld();
-}
+    function openBuild() {
+      if (built) {
+        say('البيضة تدفأ شوي شوي… نرجع لها بكرا!', 'happy.webp');
+        return;
+      }
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden', 'false');
+      say('إذا بنيناه، تقترب لحظة الفقس!', 'happy.webp');
+    }
 
-/* ═══ الكاميرا: سحب + قصور ═══ */
-let camX = 0, camY = 0, vx = 0, vy = 0, drag = null, moved = 0;
-const CLAMP = { x: 105, y: 95 };
-const ph = document.getElementById('ph'), sky = document.getElementById('sky');
-function applyCam() {
-  camX = Math.max(-CLAMP.x, Math.min(CLAMP.x, camX));
-  camY = Math.max(-CLAMP.y, Math.min(CLAMP.y, camY));
-  cam.style.transform = `translate(${camX}px,${camY}px)`;
-  sky.style.transform = `scale(1.24) translate(${camX * .3}px,${camY * .22}px)`;
-}
-applyCam();
+    function closeBuild() {
+      sheet.classList.remove('open');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
 
-ph.addEventListener('dragstart', e => e.preventDefault());
-ph.addEventListener('pointerdown', e => {
-  if (e.target.closest('.sheet,.bar')) return;
-  e.preventDefault();
-  drag = { x: e.clientX, y: e.clientY, t: performance.now() }; moved = 0;
-  vx = vy = 0; ph.classList.add('grab');
-});
-window.addEventListener('pointermove', e => {
-  if (!drag) return;
-  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-  moved += Math.abs(dx) + Math.abs(dy);
-  camX += dx; camY += dy; vx = dx; vy = dy;
-  drag.x = e.clientX; drag.y = e.clientY; applyCam();
-});
-window.addEventListener('pointerup', () => { drag = null; ph.classList.remove('grab'); coast(); });
-window.addEventListener('pointercancel', () => { drag = null; ph.classList.remove('grab'); });
-function coast() {
-  if (Math.abs(vx) < .4 && Math.abs(vy) < .4) return;
-  camX += vx; camY += vy; vx *= .93; vy *= .93; applyCam();
-  requestAnimationFrame(coast);
-}
+    function bump(resource) {
+      const element = document.querySelector(`[data-resource="${resource}"]`);
+      if (!element) return;
+      element.classList.remove('bump');
+      void element.offsetWidth;
+      element.classList.add('bump');
+    }
 
-/* ═══ الموارد ═══ */
-function paintRes() {
-  document.querySelectorAll('.r').forEach(el => {
-    const k = el.dataset.k, i = el.querySelector('i');
-    if (i.textContent != RES[k]) { i.textContent = RES[k]; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
-  });
-}
-paintRes();
+    function buildNest() {
+      if (built) return;
+      built = true;
+      closeBuild();
+      sitePin.hidden = true;
+      buildSite.style.pointerEvents = 'none';
+      egg.hidden = false;
+      eggShadow.hidden = false;
+      objectiveTitle.textContent = 'البيضة صارت دافئة';
+      objectiveCopy.textContent = 'أنجز مهمة جديدة لتتحرك البيضة أكثر.';
+      focusButton.textContent = 'شاهدها';
+      bump('light');
+      bump('seed');
+      jazourImage.src = 'characters/jazour/celebrate.webp?v=2';
+      jazour.animate([
+        { transform: 'translate(0,0) scale(1)' },
+        { transform: 'translate(-9px,-8px) scale(1.08)' },
+        { transform: 'translate(0,0) scale(1)' }
+      ], { duration: 680, easing: 'cubic-bezier(.34,1.56,.64,1)' });
+      say('يا سلام! صار للرفيق بيت دافئ!', 'celebrate.webp');
+      notify('اكتمل عش الرفيق البني');
+    }
 
-function flyRes(kind, fromX, fromY) {
-  const target = document.querySelector(`.r[data-k="${kind}"]`).getBoundingClientRect();
-  const box = ph.getBoundingClientRect();
-  const img = document.createElement('img');
-  img.className = 'fly'; img.src = A[kind];
-  img.style.left = fromX + 'px'; img.style.top = fromY + 'px';
-  ph.appendChild(img);
-  const tx = target.left - box.left + target.width / 2 - fromX - 13;
-  const ty = target.top - box.top + target.height / 2 - fromY - 13;
-  img.animate([
-    { transform: 'translate(0,0) scale(1)', opacity: 1 },
-    { transform: `translate(${tx * .5}px,${ty * .5 - 60}px) scale(1.3)`, opacity: 1, offset: .5 },
-    { transform: `translate(${tx}px,${ty}px) scale(.5)`, opacity: .2 },
-  ], { duration: 600, easing: 'cubic-bezier(.4,0,.6,1)' }).onfinish = () => img.remove();
-}
+    viewport.addEventListener('pointerdown', event => {
+      if (event.target.closest('button, .objective, .build-sheet, .top-ui')) return;
+      drag = { x: event.clientX, y: event.clientY };
+      moved = 0;
+      viewport.setPointerCapture?.(event.pointerId);
+      viewport.classList.add('is-dragging');
+      walkTip.classList.add('hide');
+    });
 
-/* ═══ لوحة البناء ═══ */
-let pick = null;
-const sheet = document.getElementById('sheet'), opts = document.getElementById('opts');
-function openSheet(cell) {
-  pick = cell;
-  opts.innerHTML = Object.entries(CAT).filter(([k]) => k !== 'home').map(([k, d]) => {
-    const can = Object.entries(d.cost).every(([m, n]) => RES[m] >= n);
-    return `<div class="opt ${can ? '' : 'no'}" data-k="${k}">
-      <img class="ic" src="${A[k]}">
-      <div><div class="nm">${d.nm}</div><div class="cost">${Object.entries(d.cost)
-        .map(([m, n]) => `<span><img src="${A[m]}">${n}</span>`).join('')}</div></div></div>`;
-  }).join('');
-  opts.querySelectorAll('.opt').forEach(o => o.onclick = () => {
-    if (o.classList.contains('no')) return;
-    build(pick, o.dataset.k); closeSheet();
-  });
-  sheet.classList.add('on');
-}
-function closeSheet() { sheet.classList.remove('on'); }
+    viewport.addEventListener('pointermove', event => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      moved += Math.abs(dx) + Math.abs(dy);
+      pan.x = clamp(pan.x + dx, pan.minX, pan.maxX);
+      pan.y = clamp(pan.y + dy, pan.minY, pan.maxY);
+      drag = { x: event.clientX, y: event.clientY };
+      paintWorld();
+    });
 
-/* ═══ لحظة البناء ═══ */
-function build([r, c], kind) {
-  const d = CAT[kind], p = iso(r, c);
-  Object.entries(d.cost).forEach(([m, n]) => RES[m] -= n);
-  paintRes();
+    function endDrag() { drag = null; viewport.classList.remove('is-dragging'); }
+    viewport.addEventListener('pointerup', endDrag);
+    viewport.addEventListener('pointercancel', endDrag);
 
-  const soil = document.createElement('i');
-  soil.className = 'plot soil';
-  soil.style.cssText = `left:${p.x - TW / 2}px;top:${p.y - TH / 2}px;z-index:${p.z * 10}`;
-  cam.appendChild(soil);
-  cam.querySelector(`.free[data-cell="${r},${c}"]`)?.remove();
+    document.getElementById('home').addEventListener('click', () => say('هذا بيتي… تعال نرتب المزرعة سوا!', 'happy.webp'));
+    document.getElementById('barn').addEventListener('click', () => say('الحظيرة جاهزة تستقبل الرفيق.', 'encourage.webp'));
+    document.getElementById('well').addEventListener('click', () => say('موية البئر تساعد حقلنا يكبر.', 'happy.webp'));
+    document.getElementById('field').addEventListener('click', () => say('شوف الجزر! كل إنجاز يساعده ينمو.', 'proud.webp'));
+    buildSite.addEventListener('click', openBuild);
+    egg.addEventListener('click', () => say('أحس إنها تتحرك… خلّنا نرجع بكرا.', 'surprised.webp'));
+    jazour.addEventListener('click', () => {
+      const lines = [
+        ['مزرعتنا صارت أجمل بكثير!', 'celebrate.webp'],
+        ['تبغى نمشي عند الحقل؟', 'happy.webp'],
+        ['كل مهمة تساعدنا نبني شيء جديد.', 'proud.webp']
+      ];
+      const line = lines[Math.floor(Math.random() * lines.length)];
+      say(line[0], line[1]);
+    });
+    focusButton.addEventListener('click', () => {
+      if (built) {
+        pan.x = -115;
+        pan.y = -10;
+        paintWorld();
+        say('شوف! صارت البيضة في أمان.', 'happy.webp');
+      } else {
+        moveToSite();
+      }
+    });
+    document.getElementById('buildButton').addEventListener('click', buildNest);
+    document.getElementById('cancelButton').addEventListener('click', closeBuild);
 
-  const sc = document.createElement('img');
-  sc.className = 'bld'; sc.src = A.scaffold;
-  sc.style.cssText = `left:${p.x - 143 / 2}px;top:${p.y - 95}px;width:143px;z-index:${p.z * 10 + 6}`;
-  sc.classList.add('pop'); cam.appendChild(sc);
-  say('نبني الآن…', 'jzHappy');
-
-  setTimeout(() => {
-    sc.remove(); dust(p.x, p.y);
-    const im = document.createElement('img');
-    im.className = 'bld' + (d.sway ? ' sway' : ''); im.src = A[kind]; im.dataset.b = r + ',' + c;
-    im.style.cssText = `left:${p.x - d.w / 2}px;top:${p.y + d.dy}px;width:${d.w}px;z-index:${p.z * 10 + 6}`;
-    im.classList.add('pop'); cam.appendChild(im);
-    im.onclick = () => tapBld(kind);
-    world[r + ',' + c] = kind;
-    OPEN.delete(r + ',' + c);
-    const nxt = CELLS.map(x => x.join(',')).find(k => !world[k] && !OPEN.has(k));
-    if (nxt) { OPEN.add(nxt); unlock(nxt); }
-    shake();
-    say('صار عندنا ' + d.nm + '!', 'jzCheer');
-    /* مكافأة صغيرة تطير للشريط */
-    const box = ph.getBoundingClientRect();
-    const sx = p.x + camX, sy = p.y + camY;
-    ['seed', 'wood'].forEach((m, i) => setTimeout(() => { RES[m] += 2; paintRes(); flyRes(m, sx, sy); }, 200 + i * 180));
-  }, 1300);
-}
-function unlock(key) {
-  const [r, c] = key.split(',').map(Number), p = iso(r, c);
-  const old = [...cam.querySelectorAll('.lock')].find(e =>
-    Math.abs(parseFloat(e.style.left) - (p.x - TW / 2)) < 1 &&
-    Math.abs(parseFloat(e.style.top) - (p.y - TH / 2)) < 1);
-  if (!old) return;
-  old.className = 'plot free'; old.dataset.cell = key;
-  old.innerHTML = '<b>＋</b>';
-  old.onclick = () => { if (moved <= 12) openSheet([r, c]); };
-  old.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
-}
-function dust(x, y) {
-  for (let i = 0; i < 10; i++) {
-    const el = document.createElement('i');
-    el.className = 'dust';
-    el.style.cssText = `left:${x - 6}px;top:${y - 6}px;z-index:9999`;
-    cam.appendChild(el);
-    const a = Math.PI * 2 * i / 10, r = 34 + Math.random() * 26;
-    el.animate([
-      { transform: 'translate(0,0) scale(.5)', opacity: .9 },
-      { transform: `translate(${Math.cos(a) * r}px,${Math.sin(a) * r * .5 - 12}px) scale(1.5)`, opacity: 0 },
-    ], { duration: 560, easing: 'ease-out' }).onfinish = () => el.remove();
-  }
-}
-function shake() {
-  ph.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(2px,-2px)' },
-  { transform: 'translate(-2px,1px)' }, { transform: 'translate(0,0)' }], { duration: 220 });
-}
-
-/* ═══ جزّور ═══ */
-const LINES = ['أنت رائع! كمّل.', 'وش نبني اليوم؟', 'المزرعة صارت أحلى!', 'أنا فخور فيك!', 'هيا نكمل المغامرة!'];
-let bubT;
-function say(txt, pose) {
-  const b = document.getElementById('bub'), im = document.getElementById('jzimg');
-  b.textContent = txt; b.classList.add('on');
-  if (pose) { im.src = A[pose]; }
-  clearTimeout(bubT);
-  bubT = setTimeout(() => { b.classList.remove('on'); im.src = A.jz; }, 2200);
-}
-function tapBld(kind) { say(CAT[kind].nm + ' يشتغل تمام 👍', 'jzHappy'); }
-
-/* مشي جزّور بين الرقع */
-let jzCell = [2, 1];
-function walk() {
-  const free = CELLS.filter(([r, c]) => !world[r + ',' + c]);
-  if (!free.length) return;
-  const [r, c] = free[Math.floor(Math.random() * free.length)];
-  const from = iso(...jzCell), to = iso(r, c);
-  const el = document.getElementById('jz');
-  if (!el) return;
-  el.style.zIndex = (to.z * 10 + 8);
-  el.style.transform = `translate(${to.x - from.x}px,${to.y - from.y}px) scaleX(${to.x > from.x ? -1 : 1})`;
-}
-setInterval(walk, 4200);
-setInterval(() => { if (Math.random() < .4) say(LINES[Math.floor(Math.random() * LINES.length)]); }, 9000);
-
-/* ═══ الربط ═══ */
-function bindWorld() {
-  cam.querySelectorAll('.free').forEach(el => el.onclick = () => {
-    if (moved > 12) return;
-    openSheet(el.dataset.cell.split(',').map(Number));
-  });
-  cam.querySelectorAll('.bld[data-b]').forEach(el => el.onclick = () => {
-    if (moved > 12) return;
-    tapBld(world[el.dataset.b]);
-  });
-  const jz = document.getElementById('jz');
-  if (jz) jz.onclick = () => { if (moved <= 12) say(LINES[Math.floor(Math.random() * LINES.length)], 'jzCheer'); };
-}
-
-/* سحب خفيف يخفي التلميح */
-setTimeout(() => document.getElementById('hint').style.opacity = 0, 7000);
-
-render();
-</script></body></html>
+    setTimeout(() => say('هلا يا بطل! خلّنا نتمشى في مزرعتنا.', 'wave.webp'), 650);
+  </script>
+</body>
+</html>
