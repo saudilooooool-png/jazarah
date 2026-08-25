@@ -3,730 +3,106 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>مزرعة جزّور — عالم ثلاثي الأبعاد</title>
+  <title>مزرعة جزّور — عالم حي</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --ink: #3b2b1c;
-      --cream: #fffaf0;
-      --leaf: #4f8f36;
-      --leaf-dark: #31722e;
-      --path: #d99543;
-      --shadow: rgba(38, 68, 25, .28);
-    }
-
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #d9d3c6; }
-    body { display: grid; place-items: center; font-family: Cairo, system-ui, sans-serif; color: var(--ink); user-select: none; }
-    button { font: inherit; }
-
-    .phone {
-      position: relative;
-      width: min(430px, 100vw);
-      height: min(860px, 100vh);
-      height: min(860px, 100dvh);   /* سفاري يخفي شريطه فيتغير الارتفاع — dvh يتبعه */
-      overflow: hidden;
-      isolation: isolate;
-      background: linear-gradient(#9eddf0 0 15%, #77c461 16% 100%);
-      border-radius: min(32px, 4vw);
-      box-shadow: 0 22px 50px rgba(52, 41, 24, .25);
-      touch-action: none;
-    }
-
-    .world-viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; }
-    .world-viewport.is-dragging { cursor: grabbing; }
-    .world {
-      position: absolute;
-      width: 1180px;
-      height: 664px;
-      top: 102px;
-      left: -375px;
-      transform: translate3d(0, 0, 0);
-      transform-origin: 0 0;
-      will-change: transform;
-    }
-    .world-base { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
-
-    .world-object { position: absolute; transform-origin: 50% 100%; border: 0; padding: 0; background: transparent; filter: drop-shadow(0 9px 7px var(--shadow)); cursor: pointer; }
-    .world-object img { width: 100%; display: block; pointer-events: none; }
-    .home { z-index: 283; width: 192px; left: 498px; top: 110px; animation: homeBreathe 4.6s ease-in-out infinite; }
-    .barn { z-index: 321; width: 184px; left: 197px; top: 193px; animation: barnSway 5.8s ease-in-out infinite; }
-    .egg { width: 78px; left: 640px; top: 392px; animation: eggWarm 2.6s ease-in-out infinite; }
-    .egg[hidden] { display: none; }
-    .ground-shadow { position: absolute; border-radius: 50%; background: rgba(34, 77, 27, .24); filter: blur(5px); pointer-events: none; }
-    .home-shadow { width: 124px; height: 24px; left: 531px; top: 283px; }
-    .barn-shadow { width: 112px; height: 22px; left: 233px; top: 321px; }
-    .egg-shadow { width: 49px; height: 11px; left: 655px; top: 464px; }
-
-    @keyframes homeBreathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-    @keyframes barnSway { 0%, 100% { transform: rotate(-.7deg); } 50% { transform: rotate(.7deg); } }
-    @keyframes eggWarm { 0%, 100% { transform: translateY(0) rotate(0deg); } 42% { transform: translateY(-4px) rotate(-3deg); } 62% { transform: translateY(-1px) rotate(2deg); } }
-
-    .farm-spot {
-      position: absolute;
-      border: 0;
-      background: transparent;
-      padding: 0;
-      color: var(--ink);
-      cursor: pointer;
-      text-align: center;
-    }
-    .farm-spot:focus-visible, .world-object:focus-visible { outline: 3px solid #fff; outline-offset: 5px; border-radius: 18px; }
-    .well-spot { left: 864px; top: 163px; width: 112px; height: 116px; border-radius: 50%; }
-    .field-spot { left: 238px; top: 370px; width: 224px; height: 180px; border-radius: 34%; }
-    .site-spot { left: 610px; top: 397px; width: 158px; height: 108px; border-radius: 40%; }
-
-    .site-pin {
-      position: absolute;
-      right: 6px;
-      bottom: 13px;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 7px 11px 7px 8px;
-      background: #fffaf1;
-      color: #4e341d;
-      border: 2px solid #c98a3d;
-      border-radius: 17px;
-      box-shadow: 0 4px 0 rgba(116, 72, 29, .18), 0 7px 14px rgba(72, 55, 28, .2);
-      white-space: nowrap;
-      font: 900 12px Cairo, sans-serif;
-      animation: invite 2.3s ease-in-out infinite;
-    }
-    .site-pin::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: #6ab14d; box-shadow: inset 0 -2px 0 rgba(33, 94, 34, .25); }
-    @keyframes invite { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.025); } }
-
-    .jazour {
-      position: absolute;
-      border: 0;
-      padding: 0;
-      background: transparent;
-      left: 566px;
-      top: 282px;
-      width: 94px;
-      z-index: 392;
-      cursor: pointer;
-      transition: transform 1.25s cubic-bezier(.34, 1.1, .64, 1);
-      filter: drop-shadow(0 10px 7px rgba(35, 72, 25, .3));
-    }
-    .jazour img { width: 100%; display: block; animation: jazourHop 1.1s ease-in-out infinite; }
-    .jazour .character-shadow { position: absolute; width: 51px; height: 12px; right: 21px; bottom: 5px; border-radius: 50%; background: rgba(36, 78, 28, .27); filter: blur(3px); z-index: -1; }
-    @keyframes jazourHop { 0%, 100% { transform: translateY(0) scaleY(1); } 48% { transform: translateY(-5px) scaleY(1.025); } 70% { transform: translateY(0) scaleY(.975); } }
-    .speech {
-      position: absolute;
-      bottom: 83%;
-      right: 42%;
-      width: max-content;
-      max-width: min(168px, 42vw);
-      padding: 8px 11px;
-      background: #fffdf6;
-      border-radius: 14px;
-      color: #3c2a18;
-      text-align: center;
-      font: 800 12px Cairo, sans-serif;
-      line-height: 1.65;
-      box-shadow: 0 5px 15px rgba(49, 60, 33, .22);
-      transform: scale(.6);
-      opacity: 0;
-      transition: opacity .2s, transform .25s cubic-bezier(.34, 1.56, .64, 1);
-      pointer-events: none;
-    }
-    .speech::after { content: ''; position: absolute; right: 22px; top: calc(100% - 1px); border: 7px solid transparent; border-top-color: #fffdf6; }
-    .speech.on { transform: scale(1); opacity: 1; }
-
-    .top-ui {
-      position: absolute;
-      inset: 0 0 auto;
-      z-index: 30;
-      padding: 11px 11px 34px;
-      pointer-events: none;
-      background: linear-gradient(180deg, rgba(247, 252, 243, .95), rgba(247, 252, 243, 0));
-    }
-    .brand { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 14px; background: rgba(255, 252, 244, .82); color: #5a482c; font: 900 11px Cairo, sans-serif; box-shadow: 0 3px 9px rgba(39, 73, 27, .11); }
-    .brand-dot { width: 8px; height: 8px; background: #74b84d; border-radius: 50%; box-shadow: 0 0 0 3px rgba(116, 184, 77, .18); }
-    .resources { display: flex; gap: 5px; margin-top: 8px; direction: rtl; }
-    .resource {
-      display: flex;
-      flex: 1;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      min-width: 0;
-      padding: 5px 3px;
-      border-radius: 999px;
-      background: rgba(255, 249, 235, .96);
-      color: #46351f;
-      box-shadow: 0 2px 0 rgba(147, 112, 67, .16);
-      font: 900 12px Cairo, sans-serif;
-    }
-    .resource img { width: 17px; height: 17px; object-fit: contain; }
-    .resource.bump { animation: resourceBump .48s cubic-bezier(.34, 1.56, .64, 1); }
-    @keyframes resourceBump { 50% { transform: scale(1.18); background: #fff; } }
-
-    .objective {
-      position: absolute;
-      right: 12px;
-      left: 12px;
-      bottom: calc(15px + env(safe-area-inset-bottom));
-      z-index: 35;
-      display: grid;
-      grid-template-columns: 42px 1fr auto;
-      align-items: center;
-      gap: 9px;
-      padding: 9px 10px;
-      background: rgba(255, 253, 245, .97);
-      border: 1px solid rgba(255, 255, 255, .85);
-      border-radius: 19px;
-      box-shadow: 0 8px 22px rgba(53, 71, 34, .23);
-      direction: rtl;
-    }
-    .objective-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(145deg, #ffce6d, #e89543); box-shadow: inset 0 2px 0 rgba(255,255,255,.45); }
-    .objective-icon img { width: 29px; height: 29px; object-fit: contain; }
-    .objective-kicker { color: #6e9b49; font: 900 10px Cairo, sans-serif; line-height: 1.2; }
-    .objective-title { margin-top: 1px; color: #3a2919; font: 900 13px Cairo, sans-serif; line-height: 1.35; }
-    .objective-copy { display: block; margin-top: 1px; color: #806d55; font: 700 10px Cairo, sans-serif; }
-    .focus-button {
-      border: 0;
-      padding: 8px 10px;
-      border-radius: 12px;
-      background: var(--leaf);
-      color: #fff;
-      font: 900 11px Cairo, sans-serif;
-      box-shadow: 0 3px 0 var(--leaf-dark);
-      cursor: pointer;
-    }
-    .focus-button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--leaf-dark); }
-
-    .build-sheet {
-      position: absolute;
-      z-index: 50;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      padding: 15px 15px 20px;
-      background: #fffdf7;
-      border-radius: 25px 25px 0 0;
-      box-shadow: 0 -10px 28px rgba(41, 49, 26, .28);
-      /* تُمرَّر بالإصبع، ولا تختفي خياراتها تحت شريط المتصفح */
-      max-height: 76%;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: calc(20px + env(safe-area-inset-bottom));
-      transform: translateY(108%);
-      transition: transform .35s cubic-bezier(.34, 1.25, .64, 1);
-    }
-    .build-sheet.open { transform: translateY(0); }
-    .sheet-handle { width: 38px; height: 4px; margin: 0 auto 11px; border-radius: 9px; background: #e7dcc8; }
-    .sheet-header { display: flex; align-items: center; gap: 10px; }
-    .sheet-header img { width: 61px; height: 61px; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(47,70,28,.18)); }
-    .sheet-title { margin: 0; color: #342516; font: 900 17px Cairo, sans-serif; }
-    .sheet-copy { margin: 1px 0 0; color: #7c684f; font: 700 11px Cairo, sans-serif; }
-    .cost-row { display: flex; gap: 7px; margin: 13px 0; direction: rtl; }
-    .cost { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: center; padding: 7px 5px; border-radius: 11px; background: #f7f0df; color: #5d4830; font: 900 11px Cairo, sans-serif; }
-    .cost img { width: 18px; height: 18px; object-fit: contain; }
-    .sheet-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-    .build-button { border: 0; border-radius: 13px; padding: 10px; background: linear-gradient(180deg, #6db74e, #4e963a); color: #fff; box-shadow: 0 3px 0 #34762e; font: 900 13px Cairo, sans-serif; cursor: pointer; }
-    .cancel-button { border: 0; border-radius: 13px; padding: 10px 13px; background: #f3eee4; color: #7b6750; font: 800 12px Cairo, sans-serif; cursor: pointer; }
-    .build-button:active, .cancel-button:active { transform: translateY(2px); }
-
-    .toast {
-      position: absolute;
-      z-index: 60;
-      top: 118px;
-      right: 50%;
-      width: max-content;
-      max-width: calc(100% - 42px);
-      padding: 8px 13px;
-      border-radius: 999px;
-      background: rgba(57, 99, 42, .95);
-      color: #fff;
-      font: 800 12px Cairo, sans-serif;
-      transform: translate(50%, -14px) scale(.92);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .2s, transform .25s cubic-bezier(.34, 1.56, .64, 1);
-      text-align: center;
-    }
-    .toast.show { opacity: 1; transform: translate(50%, 0) scale(1); }
-    .walk-tip { position: absolute; z-index: 22; left: 50%; top: 105px; transform: translateX(-50%); padding: 6px 11px; border-radius: 999px; background: rgba(255,255,255,.84); color: #65533a; font: 800 10.5px Cairo, sans-serif; white-space: nowrap; box-shadow: 0 3px 10px rgba(46,73,31,.14); transition: opacity .4s; pointer-events: none; }
-    .walk-tip.hide { opacity: 0; }
-
-    @media (max-height: 690px) {
-      .phone { border-radius: 0; }
-      .world { top: 65px; }
-      .objective { bottom: 8px; }
-      .walk-tip { top: 98px; }
-    }
-
-    /* ── مواقع البناء: علامة ＋ واضحة على الأرض ── */
-    .slot {
-      position: absolute;
-      display: grid;
-      place-items: center;
-      border: 0;
-      padding: 0;
-      background: transparent;
-      cursor: pointer;
-    }
-    .slot-ring {
-      position: absolute;
-      inset: 0;
-      border: 3px dashed rgba(255, 255, 255, .85);
-      border-radius: 50%;
-      background: rgba(126, 190, 88, .3);
-      box-shadow: inset 0 0 22px rgba(255, 255, 255, .35);
-    }
-    .slot-plus {
-      position: relative;
-      display: grid;
-      place-items: center;
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      background: #fffdf5;
-      color: #4f9138;
-      font: 900 30px Cairo, sans-serif;
-      line-height: 1;
-      border: 3px solid #6fb84e;
-      box-shadow: 0 5px 0 rgba(52, 118, 46, .5), 0 9px 16px rgba(40, 70, 25, .28);
-      animation: slotBeat 2s ease-in-out infinite;
-    }
-    @keyframes slotBeat {
-      0%, 72%, 100% { transform: translateY(0) scale(1); }
-      80% { transform: translateY(-6px) scale(1.1); }
-      90% { transform: translateY(0) scale(.97); }
-    }
-    .slot:active .slot-plus { transform: scale(.92); }
-    .slot.hint .slot-ring { animation: slotHint 1s ease-in-out 3; }
-    @keyframes slotHint { 50% { background: rgba(255, 235, 130, .7); border-color: #fff; } }
-    .slot[hidden] { display: none; }
-
-    .scaffold { position: absolute; filter: drop-shadow(0 8px 6px var(--shadow)); pointer-events: none; }
-    .scaffold img { width: 100%; display: block; }
-    .placed { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer; filter: drop-shadow(0 9px 7px var(--shadow)); transform-origin: 50% 92%; }
-    .placed img { width: 100%; display: block; pointer-events: none; }
-    .placed.grow { animation: placeGrow .55s cubic-bezier(.34, 1.56, .64, 1); }
-    @keyframes placeGrow { 0% { transform: scale(.55); } 62% { transform: scale(1.09); } 100% { transform: scale(1); } }
-    .dust { position: absolute; width: 15px; height: 15px; border-radius: 50%; background: rgba(214, 189, 152, .92); pointer-events: none; z-index: 9000; }
-    /* رقعة أرض مهيّأة تحت كل مبنى جديد — بدونها يبدو ملصوقًا على العشب */
-    .pad { position: absolute; border-radius: 50%; pointer-events: none;
-      background: radial-gradient(ellipse at 50% 45%, rgba(190,153,102,.72) 0%, rgba(174,137,88,.55) 58%, rgba(178,140,90,0) 100%); }
-
-    /* ── لوحة الاختيار ── */
-    .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
-    .pick {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px;
-      border: 2px solid #ece1cb;
-      border-radius: 16px;
-      background: #f9f4e8;
-      text-align: right;
-      cursor: pointer;
-      transition: transform .12s;
-    }
-    .pick:active { transform: scale(.96); }
-    .pick.locked { opacity: .45; }
-    .pick > img { width: 46px; height: 46px; object-fit: contain; flex: none; }
-    .pick-name { color: #3a2919; font: 900 12.5px Cairo, sans-serif; }
-    .pick-cost { display: flex; gap: 7px; margin-top: 3px; }
-    .pick-cost span { display: flex; align-items: center; gap: 3px; color: #7d6950; font: 800 10.5px Cairo, sans-serif; }
-    .pick-cost img { width: 14px; height: 14px; object-fit: contain; }
+    :root{--ink:#3b2b1c;--cream:#fffaf0;--leaf:#4f8f36;--leaf-dark:#31722e;--shadow:rgba(38,68,25,.28);--gold:#efaa49}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent} html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#d9d3c6}
+    body{display:grid;place-items:center;font-family:Cairo,system-ui,sans-serif;color:var(--ink);user-select:none} button{font:inherit} button:focus-visible{outline:3px solid #fff;outline-offset:4px}
+    .phone{position:relative;width:min(430px,100vw);height:min(860px,100dvh);overflow:hidden;isolation:isolate;background:linear-gradient(#9eddf0 0 15%,#77c461 16% 100%);border-radius:min(32px,4vw);box-shadow:0 22px 50px rgba(52,41,24,.25);touch-action:none}
+    .world-viewport{position:absolute;inset:0;overflow:hidden;cursor:grab}.world-viewport.is-dragging{cursor:grabbing}
+    .world{position:absolute;width:1180px;height:664px;top:102px;left:-375px;transform:translate3d(0,0,0);transform-origin:0 0;will-change:transform}
+    .world-base{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}.ground-shadow{position:absolute;border-radius:50%;background:rgba(34,77,27,.25);filter:blur(5px);pointer-events:none}
+    .world-object,.farm-entity,.zone-anchor{position:absolute;border:0;padding:0;background:transparent;transform-origin:50% 100%;cursor:pointer}.world-object img,.farm-entity img{width:100%;display:block;pointer-events:none}
+    .home{z-index:283;width:192px;left:498px;top:110px;animation:breathe 4.6s ease-in-out infinite}.barn{z-index:321;width:184px;left:197px;top:193px;animation:sway 5.8s ease-in-out infinite}
+    .home-shadow{width:124px;height:24px;left:531px;top:283px}.barn-shadow{width:112px;height:22px;left:233px;top:321px}
+    .farm-entity{filter:drop-shadow(0 9px 7px var(--shadow));animation:breathe 4.8s ease-in-out infinite}.farm-entity.field{animation:fieldSway 5.2s ease-in-out infinite}.farm-entity.field.ready{filter:drop-shadow(0 9px 7px var(--shadow)) saturate(1.05)}.farm-entity:active{transform:scale(.96)}
+    .entity-shadow{position:absolute;border-radius:50%;background:rgba(34,77,27,.23);filter:blur(4px);pointer-events:none}.field-watered::after{content:'💧';position:absolute;right:38%;top:16%;font-size:23px;filter:drop-shadow(0 2px 2px rgba(29,75,150,.25));animation:drop 1.6s ease-in-out infinite}.field-sprout{animation:fieldSway 5.2s ease-in-out infinite,appear .45s cubic-bezier(.34,1.56,.64,1)}
+    @keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}@keyframes sway{0%,100%{transform:rotate(-.7deg)}50%{transform:rotate(.7deg)}}@keyframes fieldSway{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(1deg)}}@keyframes drop{0%,100%{transform:translateY(-2px);opacity:.55}50%{transform:translateY(5px);opacity:1}}@keyframes appear{from{transform:scale(.78);opacity:.3}to{transform:scale(1);opacity:1}}
+    .zone-anchor{display:grid;place-items:center;width:130px;height:78px;border-radius:50%;border:2px dashed rgba(255,255,255,.85);background:rgba(111,184,78,.24);color:#fffdf5;box-shadow:inset 0 0 20px rgba(255,255,255,.32),0 5px 15px rgba(41,85,26,.16);font:900 11px Cairo,sans-serif;animation:zonePulse 2.8s ease-in-out infinite}.zone-anchor span{padding:5px 9px;border-radius:13px;background:#fffdf5;color:#4d8036;box-shadow:0 3px 0 rgba(52,118,46,.32)}@keyframes zonePulse{50%{transform:translateY(-4px) scale(1.03)}}
+    .jazour{position:absolute;border:0;padding:0;background:transparent;left:566px;top:282px;width:94px;z-index:392;cursor:pointer;filter:drop-shadow(0 10px 7px rgba(35,72,25,.3))}.jazour img{width:100%;display:block;animation:jazourHop 1.1s ease-in-out infinite}.jazour .character-shadow{position:absolute;width:51px;height:12px;right:21px;bottom:5px;border-radius:50%;background:rgba(36,78,28,.27);filter:blur(3px);z-index:-1}@keyframes jazourHop{0%,100%{transform:translateY(0) scaleY(1)}48%{transform:translateY(-5px) scaleY(1.025)}70%{transform:translateY(0) scaleY(.975)}}
+    .speech{position:absolute;bottom:83%;right:42%;width:max-content;max-width:min(175px,43vw);padding:8px 11px;background:#fffdf6;border-radius:14px;color:#3c2a18;text-align:center;font:800 12px/1.65 Cairo,sans-serif;box-shadow:0 5px 15px rgba(49,60,33,.22);transform:scale(.6);opacity:0;transition:opacity .2s,transform .25s cubic-bezier(.34,1.56,.64,1);pointer-events:none}.speech::after{content:'';position:absolute;right:22px;top:calc(100% - 1px);border:7px solid transparent;border-top-color:#fffdf6}.speech.on{transform:scale(1);opacity:1}
+    .top-ui{position:absolute;inset:0 0 auto;z-index:30;padding:11px 11px 34px;pointer-events:none;background:linear-gradient(180deg,rgba(247,252,243,.95),rgba(247,252,243,0))}.brand{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:14px;background:rgba(255,252,244,.82);color:#5a482c;font:900 11px Cairo,sans-serif;box-shadow:0 3px 9px rgba(39,73,27,.11)}.brand-dot{width:8px;height:8px;background:#74b84d;border-radius:50%;box-shadow:0 0 0 3px rgba(116,184,77,.18)}.resources{display:flex;gap:5px;margin-top:8px;direction:rtl}.resource{display:flex;flex:1;align-items:center;justify-content:center;gap:3px;min-width:0;padding:5px 3px;border-radius:999px;background:rgba(255,249,235,.96);color:#46351f;box-shadow:0 2px 0 rgba(147,112,67,.16);font:900 12px Cairo,sans-serif}.resource img{width:17px;height:17px;object-fit:contain}.resource.bump{animation:resourceBump .48s cubic-bezier(.34,1.56,.64,1)}@keyframes resourceBump{50%{transform:scale(1.18);background:#fff}}
+    .walk-tip{position:absolute;z-index:22;left:50%;top:105px;transform:translateX(-50%);padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.84);color:#65533a;font:800 10.5px Cairo,sans-serif;white-space:nowrap;box-shadow:0 3px 10px rgba(46,73,31,.14);transition:opacity .4s;pointer-events:none}.walk-tip.hide{opacity:0}
+    .objective{position:absolute;right:12px;left:12px;bottom:calc(15px + env(safe-area-inset-bottom));z-index:35;display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:9px;padding:9px 10px;background:rgba(255,253,245,.97);border:1px solid rgba(255,255,255,.85);border-radius:19px;box-shadow:0 8px 22px rgba(53,71,34,.23);direction:rtl}.objective-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,#ffce6d,#e89543);box-shadow:inset 0 2px 0 rgba(255,255,255,.45)}.objective-icon img{width:29px;height:29px;object-fit:contain}.objective-kicker{color:#6e9b49;font:900 10px Cairo,sans-serif;line-height:1.2}.objective-title{margin-top:1px;color:#3a2919;font:900 13px Cairo,sans-serif;line-height:1.35}.objective-copy{display:block;margin-top:1px;color:#806d55;font:700 10px Cairo,sans-serif}.focus-button{border:0;padding:8px 10px;border-radius:12px;background:var(--leaf);color:#fff;font:900 11px Cairo,sans-serif;box-shadow:0 3px 0 var(--leaf-dark);cursor:pointer}.focus-button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--leaf-dark)}
+    .undo-bar{position:absolute;right:50%;bottom:96px;z-index:44;display:flex;align-items:center;gap:7px;padding:7px 9px 7px 7px;border-radius:15px;background:#fffdf6;box-shadow:0 5px 17px rgba(48,61,30,.22);font:800 10.5px Cairo,sans-serif;transform:translateX(50%) translateY(12px);opacity:0;pointer-events:none;transition:.22s}.undo-bar.show{transform:translateX(50%) translateY(0);opacity:1;pointer-events:auto}.undo-bar button{border:0;border-radius:10px;padding:5px 8px;background:#f1a54c;color:#fff;font:900 10px Cairo,sans-serif;cursor:pointer}
+    .toast{position:absolute;z-index:60;top:118px;right:50%;width:max-content;max-width:calc(100% - 42px);padding:8px 13px;border-radius:999px;background:rgba(57,99,42,.95);color:#fff;font:800 12px Cairo,sans-serif;transform:translate(50%,-14px) scale(.92);opacity:0;pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.34,1.56,.64,1);text-align:center}.toast.show{opacity:1;transform:translate(50%,0) scale(1)}
+    .build-sheet{position:absolute;z-index:70;right:0;bottom:0;left:0;padding:15px 15px calc(20px + env(safe-area-inset-bottom));background:#fffdf7;border-radius:25px 25px 0 0;box-shadow:0 -10px 28px rgba(41,49,26,.28);max-height:77%;overflow-y:auto;overscroll-behavior:contain;transform:translateY(108%);transition:transform .35s cubic-bezier(.34,1.25,.64,1)}.build-sheet.open{transform:translateY(0)}.sheet-handle{width:38px;height:4px;margin:0 auto 11px;border-radius:9px;background:#e7dcc8}.sheet-title{margin:0;color:#342516;font:900 17px Cairo,sans-serif}.sheet-copy{margin:2px 0 0;color:#7c684f;font:700 11px Cairo,sans-serif}.pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.pick{display:flex;align-items:center;gap:8px;padding:9px;border:2px solid #ece1cb;border-radius:16px;background:#f9f4e8;text-align:right;cursor:pointer;transition:transform .12s}.pick:active{transform:scale(.96)}.pick>img{width:46px;height:46px;object-fit:contain;flex:none}.pick-name{color:#3a2919;font:900 12.5px Cairo,sans-serif}.pick-copy{display:block;margin-top:3px;color:#7d6950;font:800 10.5px Cairo,sans-serif}.sheet-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}.cancel-button{border:0;border-radius:13px;padding:10px;background:#f3eee4;color:#7b6750;font:800 12px Cairo,sans-serif;cursor:pointer}
+    @media(max-height:690px){.phone{border-radius:0}.world{top:65px}.objective{bottom:8px}.walk-tip{top:98px}.undo-bar{bottom:89px}}
   </style>
 </head>
 <body>
   <main class="phone" aria-label="مزرعة جزّور">
     <div class="world-viewport" id="viewport" aria-label="عالم المزرعة القابل للتجول">
       <section class="world" id="world" aria-label="عالم مزرعة جزّور">
-        <img class="world-base" src="land/world_farm_3d.webp" alt="أرض مزرعة ثلاثية الأبعاد فيها طريق وحقل وبئر ومواقع بناء">
-
+        <img class="world-base" src="land/world_farm_3d.webp" alt="أرض مزرعة ثلاثية الأبعاد فيها طرق ومناطق مزروعة">
         <span class="ground-shadow home-shadow"></span>
-        <button class="world-object home" id="home" type="button" aria-label="بيت جزّور">
-          <img src="buildings/home_exact.webp?v=2" alt="بيت جزّور">
-        </button>
-
+        <button class="world-object home" id="home" type="button" aria-label="بيت جزّور"><img src="buildings/home_exact.webp?v=3" alt="بيت جزّور"></button>
         <span class="ground-shadow barn-shadow"></span>
-        <button class="world-object barn" id="barn" type="button" aria-label="حظيرة الرفيق">
-          <img src="buildings/barn_exact.webp?v=2" alt="حظيرة الرفيق">
-        </button>
-
-        <button class="farm-spot well-spot" id="well" type="button" aria-label="بئر المزرعة"></button>
-        <button class="farm-spot field-spot" id="field" type="button" aria-label="حقل الجزر"></button>
-
-        <div id="slots"></div>
-
-        <button class="jazour" id="jazour" type="button" aria-label="تحدث مع جزّور">
-          <span class="character-shadow"></span>
-          <span class="speech" id="speech" aria-live="polite"></span>
-          <img id="jazourImage" src="characters/jazour/hero.webp?v=2" alt="جزّور">
-        </button>
+        <button class="world-object barn" id="barn" type="button" aria-label="حظيرة الرفيق"><img src="buildings/barn_exact.webp?v=3" alt="حظيرة الرفيق"></button>
+        <div id="farmEntities"></div>
+        <button class="jazour" id="jazour" type="button" aria-label="تحدث مع جزّور"><span class="character-shadow"></span><span class="speech" id="speech" aria-live="polite"></span><img id="jazourImage" src="characters/jazour/hero.webp?v=3" alt="جزّور"></button>
       </section>
     </div>
-
-    <div class="top-ui">
-      <div class="brand"><span class="brand-dot"></span>مزرعة جزّور</div>
-      <div class="resources" aria-label="موارد المزرعة">
-        <div class="resource" data-resource="wood"><span>١٤</span><img src="resources/wood.webp" alt="خشب"></div>
-        <div class="resource" data-resource="stone"><span>١٠</span><img src="resources/stone.webp" alt="حجر"></div>
-        <div class="resource" data-resource="water"><span>٨</span><img src="resources/water.webp" alt="ماء"></div>
-        <div class="resource" data-resource="light"><span>٥</span><img src="resources/light.webp" alt="نور"></div>
-        <div class="resource" data-resource="seed"><span>١٢</span><img src="resources/seed.webp" alt="بذور"></div>
-      </div>
-    </div>
-
-    <p class="walk-tip" id="walkTip">اسحب لتتجول · اضغط ＋ لتبني</p>
-    <div class="toast" id="toast" role="status"></div>
-
-    <section class="objective" aria-label="الخطوة التالية">
-      <div class="objective-icon"><img id="objectiveIcon" src="resources/wood.webp" alt=""></div>
-      <div>
-        <div class="objective-kicker">خطوتنا التالية</div>
-        <div class="objective-title" id="objectiveTitle">ابنِ أول شيء في مزرعتك</div>
-        <span class="objective-copy" id="objectiveCopy">اضغط علامة ＋ الخضراء على الأرض.</span>
-      </div>
-      <button class="focus-button" id="focusButton" type="button">وين؟</button>
-    </section>
-
-    <section class="build-sheet" id="buildSheet" aria-labelledby="sheetTitle" aria-hidden="true">
-      <div class="sheet-handle"></div>
-      <div class="sheet-header">
-        <div>
-          <h2 class="sheet-title" id="sheetTitle">وش نبني هنا؟</h2>
-          <p class="sheet-copy">اختر، وجزّور يبنيه لك حالًا.</p>
-        </div>
-      </div>
-      <div class="pick-grid" id="pickGrid"></div>
-      <div class="sheet-actions" style="grid-template-columns: 1fr; margin-top: 12px">
-        <button class="cancel-button" id="cancelButton" type="button">ليس الآن</button>
-      </div>
-    </section>
+    <div class="top-ui"><div class="brand"><span class="brand-dot"></span>مزرعة جزّور</div><div class="resources" aria-label="موارد المزرعة"><div class="resource" data-resource="wood"><span></span><img src="resources/wood.webp" alt="خشب"></div><div class="resource" data-resource="stone"><span></span><img src="resources/stone.webp" alt="حجر"></div><div class="resource" data-resource="water"><span></span><img src="resources/water.webp" alt="ماء"></div><div class="resource" data-resource="light"><span></span><img src="resources/light.webp" alt="نور"></div><div class="resource" data-resource="seed"><span></span><img src="resources/seed.webp" alt="بذور"></div></div></div>
+    <p class="walk-tip" id="walkTip">اسحب لتتجول · اضغط الحقل لتزرع</p><div class="toast" id="toast" role="status"></div>
+    <div class="undo-bar" id="undoBar"><span id="undoText"></span><button id="undoButton" type="button">تراجع</button></div>
+    <section class="objective" aria-label="الخطوة التالية"><div class="objective-icon"><img id="objectiveIcon" src="resources/seed.webp" alt=""></div><div><div class="objective-kicker">خطوتنا التالية</div><div class="objective-title" id="objectiveTitle"></div><span class="objective-copy" id="objectiveCopy"></span></div><button class="focus-button" id="focusButton" type="button">أرِني</button></section>
+    <section class="build-sheet" id="buildSheet" aria-labelledby="sheetTitle" aria-hidden="true"><div class="sheet-handle"></div><h2 class="sheet-title" id="sheetTitle"></h2><p class="sheet-copy" id="sheetCopy"></p><div class="pick-grid" id="pickGrid"></div><div class="sheet-actions"><button class="cancel-button" id="cancelButton" type="button">ليس الآن</button></div></section>
   </main>
-
   <script>
-    const viewport = document.getElementById('viewport');
-    const world = document.getElementById('world');
-    const slotsLayer = document.getElementById('slots');
-    const walkTip = document.getElementById('walkTip');
-    const speech = document.getElementById('speech');
-    const jazour = document.getElementById('jazour');
-    const jazourImage = document.getElementById('jazourImage');
-    const sheet = document.getElementById('buildSheet');
-    const pickGrid = document.getElementById('pickGrid');
-    const toast = document.getElementById('toast');
-    const objectiveIcon = document.getElementById('objectiveIcon');
-    const objectiveTitle = document.getElementById('objectiveTitle');
-    const objectiveCopy = document.getElementById('objectiveCopy');
-    const focusButton = document.getElementById('focusButton');
-
-    /* ═══ ما يمكن بناؤه ═══ */
-    const CATALOG = [
-      { id: 'egg',   name: 'عش الرفيق', img: 'companions/egg_brown.webp', w: 86,
-        cost: { light: 4, seed: 5 }, line: 'يا سلام! صار للرفيق بيت دافئ!' },
-      { id: 'field', name: 'حقل جزر',   img: 'buildings/field.webp',      w: 172,
-        cost: { seed: 4, water: 3 },  line: 'حقل جديد! بنزرعه سوا.' },
-      { id: 'well',  name: 'بئر ماء',   img: 'buildings/well.webp',       w: 118, pad: true,
-        cost: { stone: 6, wood: 2 },  line: 'موية أكثر يعني جزر أكبر!' },
-      { id: 'barn',  name: 'حظيرة',     img: 'buildings/barn.webp',       w: 152, pad: true,
-        cost: { wood: 8, stone: 3 },  line: 'الحظيرة جاهزة تستقبل الرفاق.' },
-    ];
-    const ICONS = {
-      wood: 'resources/wood.webp', stone: 'resources/stone.webp',
-      water: 'resources/water.webp', light: 'resources/light.webp', seed: 'resources/seed.webp',
+  (() => {
+    const STORAGE_KEY='jazarah-farm-v2';
+    const VERSION='ab1';
+    const GROW={sprout:2*60*1000,ready:10*60*1000};
+    const ICONS={wood:'resources/wood.webp',stone:'resources/stone.webp',water:'resources/water.webp',light:'resources/light.webp',seed:'resources/seed.webp'};
+    const ZONES={
+      serviceNorth:{kind:'service',label:'ساحة البئر',x:920,y:226,w:124},
+      serviceSouth:{kind:'service',label:'ساحة الخدمة',x:874,y:422,w:120},
+      companion:{kind:'companion',label:'عش الرفيق',x:688,y:430,w:86},
+      fieldA:{kind:'field',label:'حقل الجزر',x:350,y:451,w:192}
     };
-
-    /* مواقع البناء على الأرض المرسومة (إحداثيات داخل عالم 1180×664) */
-    /* اختيرت على العشب المفتوح فقط: لا فوق ممر، ولا فوق بناء مرسوم أصلًا */
-    const SLOTS = [
-      { x: 678, y: 424, r: 58 },
-      { x: 878, y: 422, r: 60 },
-      { x: 970, y: 492, r: 56 },
-      { x: 884, y: 556, r: 58 },
-    ];
-
-    const RES = { wood: 14, stone: 10, water: 8, light: 5, seed: 12 };
-    const arabicDigits = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
-
-    const pan = { x: 0, y: 0, minX: 0, maxX: 0, minY: 0, maxY: 0 };
-    let drag = null;
-    let moved = 0;
-    let openSlot = null;
-    let speechTimer;
-    let toastTimer;
-
-    function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-
-    let worldScale = 1;
-    function paintWorld() {
-      world.style.transform = `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${worldScale})`;
-    }
-
-    /* حدود الكاميرا تُحسب من المقاسات الحقيقية لا بأرقام ثابتة، حتى لا تنكشف
-       أرضية فارغة تحت الرسمة على الشاشات الطويلة. */
-    function fitWorld() {
-      const vp = viewport.getBoundingClientRect();
-      const card = document.querySelector('.objective');
-      const bandBottom = card ? card.getBoundingClientRect().top - vp.top : vp.height;
-      const left = world.offsetLeft, top = world.offsetTop;
-      const W = world.offsetWidth, H = world.offsetHeight;
-
-      worldScale = Math.max(1, vp.width / W, (bandBottom - top) / H);
-      const w = W * worldScale, h = H * worldScale;
-
-      pan.maxX = -left;
-      pan.minX = vp.width - (left + w);
-      pan.maxY = 0;
-      pan.minY = bandBottom - (top + h);
-      if (pan.minX > pan.maxX) pan.minX = pan.maxX = (vp.width - w) / 2 - left;
-      if (pan.minY > pan.maxY) pan.minY = pan.maxY = 0;
-
-      pan.x = clamp(pan.x, pan.minX, pan.maxX);
-      pan.y = clamp(pan.y, pan.minY, pan.maxY);
-      paintWorld();
-    }
-
-    /* ═══ الموارد ═══ */
-    function paintResources() {
-      for (const [key, value] of Object.entries(RES)) {
-        const span = document.querySelector(`[data-resource="${key}"] span`);
-        if (span) span.textContent = arabicDigits(value);
-      }
-    }
-    const canAfford = cost => Object.entries(cost).every(([k, n]) => RES[k] >= n);
-    function bump(resource) {
-      const el = document.querySelector(`[data-resource="${resource}"]`);
-      if (!el) return;
-      el.classList.remove('bump');
-      void el.offsetWidth;
-      el.classList.add('bump');
-    }
-    function spend(cost) {
-      for (const [k, n] of Object.entries(cost)) { RES[k] -= n; bump(k); }
-      paintResources();
-    }
-    paintResources();
-
-    /* ═══ كلام جزّور ═══ */
-    function say(text, pose = 'hero.webp') {
-      speech.textContent = text;
-      speech.classList.add('on');
-      jazourImage.src = `characters/jazour/${pose}?v=2`;
-      clearTimeout(speechTimer);
-      speechTimer = setTimeout(() => {
-        speech.classList.remove('on');
-        jazourImage.src = 'characters/jazour/hero.webp?v=2';
-      }, 2600);
-    }
-    function notify(text) {
-      toast.textContent = text;
-      toast.classList.add('show');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.remove('show'), 2300);
-    }
-
-    /* ═══ علامات ＋ على الأرض ═══ */
-    function drawSlots() {
-      slotsLayer.innerHTML = SLOTS.map((s, i) => `
-        <button class="slot" type="button" data-slot="${i}" aria-label="ابنِ هنا"
-          style="left:${s.x - s.r}px;top:${s.y - s.r * 0.62}px;width:${s.r * 2}px;height:${s.r * 1.24}px;z-index:${Math.round(s.y)}">
-          <span class="slot-ring"></span><span class="slot-plus">＋</span>
-        </button>`).join('');
-      slotsLayer.querySelectorAll('.slot').forEach(el => {
-        el.style.animationDelay = (Number(el.dataset.slot) * 0.35) + 's';
-        el.addEventListener('click', () => {
-          if (moved > 12) return;
-          openBuild(Number(el.dataset.slot));
-        });
-      });
-    }
-
-    function freeSlots() {
-      return [...slotsLayer.querySelectorAll('.slot')].filter(el => !el.hidden);
-    }
-
-    function refreshObjective() {
-      const left = freeSlots().length;
-      if (left) {
-        objectiveTitle.textContent = 'ابنِ في مزرعتك';
-        objectiveCopy.textContent = `باقي ${arabicDigits(left)} مواقع فيها علامة ＋ — اضغط أي واحدة.`;
-        focusButton.textContent = 'وين؟';
-        focusButton.hidden = false;
-      } else {
-        objectiveIcon.src = 'companions/egg_brown.webp';
-        objectiveTitle.textContent = 'مزرعتك اكتملت!';
-        objectiveCopy.textContent = 'أنجز مهام جديدة لتفتح أرضًا أوسع.';
-        focusButton.hidden = true;
-      }
-    }
-
-    /* الكاميرا تروح لأقرب موقع فارغ وتومض عليه — جواب سؤال «وين أبني؟» */
-    function showNextSlot() {
-      const el = freeSlots()[0];
-      if (!el) { say('كل المواقع صارت مبنية! ما شاء الله.', 'proud.webp'); return; }
-      const i = Number(el.dataset.slot), s = SLOTS[i];
-      const vp = viewport.getBoundingClientRect();
-      pan.x = clamp(vp.width / 2 - (world.offsetLeft + s.x * worldScale), pan.minX, pan.maxX);
-      pan.y = clamp(vp.height * 0.45 - (world.offsetTop + s.y * worldScale), pan.minY, pan.maxY);
-      paintWorld();
-      walkTip.classList.add('hide');
-      el.classList.remove('hint');
-      void el.offsetWidth;
-      el.classList.add('hint');
-      say('هنا! اضغط ＋ واختر.', 'thinking.webp');
-    }
-
-    /* ═══ لوحة الاختيار ═══ */
-    function openBuild(index) {
-      openSlot = index;
-      pickGrid.innerHTML = CATALOG.map(item => {
-        const ok = canAfford(item.cost);
-        const cost = Object.entries(item.cost)
-          .map(([k, n]) => `<span><img src="${ICONS[k]}" alt="">${arabicDigits(n)}</span>`).join('');
-        return `<button class="pick ${ok ? '' : 'locked'}" type="button" data-pick="${item.id}">
-            <img src="${item.img}" alt="">
-            <span><span class="pick-name">${item.name}</span>
-            <span class="pick-cost">${cost}</span></span>
-          </button>`;
-      }).join('');
-      pickGrid.querySelectorAll('.pick').forEach(el => el.addEventListener('click', () => {
-        const item = CATALOG.find(c => c.id === el.dataset.pick);
-        if (!canAfford(item.cost)) {
-          say('ناقصنا شوي موارد… أنجز مهمة وارجع!', 'thinking.webp');
-          notify('الموارد ما تكفي بعد');
-          return;
-        }
-        build(openSlot, item);
-        closeBuild();
-      }));
-      sheet.classList.add('open');
-      sheet.setAttribute('aria-hidden', 'false');
-    }
-    function closeBuild() {
-      sheet.classList.remove('open');
-      sheet.setAttribute('aria-hidden', 'true');
-    }
-
-    /* ═══ لحظة البناء ═══ */
-    function build(index, item) {
-      const s = SLOTS[index];
-      const slotEl = slotsLayer.querySelector(`[data-slot="${index}"]`);
-      spend(item.cost);
-      slotEl.hidden = true;
-      walkTip.classList.add('hide');
-      refreshObjective();
-
-      const scaffold = document.createElement('div');
-      scaffold.className = 'scaffold';
-      scaffold.style.cssText = `left:${s.x - 66}px;top:${s.y - 118}px;width:132px;z-index:${Math.round(s.y)}`;
-      scaffold.innerHTML = '<img src="buildings/scaffold.webp" alt="">';
-      world.appendChild(scaffold);
-      say('نبنيه الحين…', 'encourage.webp');
-      notify('بدأ البناء…');
-
-      setTimeout(() => {
-        scaffold.remove();
-        dustBurst(s.x, s.y);
-
-        /* رقعة أرض مهيّأة لمن يقف على العشب مباشرة.
-           الحقل والعش لهما قاعدتهما (إطار خشبي / عش قش) فلا رقعة لهما. */
-        if (item.pad) {
-          const pad = document.createElement('span');
-          pad.className = 'pad';
-          pad.style.cssText =
-            `width:${item.w * 0.66}px;height:${item.w * 0.24}px;left:${s.x - item.w * 0.33}px;top:${s.y - item.w * 0.12}px;z-index:${Math.round(s.y) - 2}`;
-          world.appendChild(pad);
-        }
-
-        const shadow = document.createElement('span');
-        shadow.className = 'ground-shadow';
-        shadow.style.cssText =
-          `width:${item.w * 0.6}px;height:${item.w * 0.14}px;left:${s.x - item.w * 0.3}px;top:${s.y - item.w * 0.06}px;z-index:${Math.round(s.y) - 1}`;
-        world.appendChild(shadow);
-
-        const el = document.createElement('button');
-        el.className = 'placed grow';
-        el.type = 'button';
-        el.setAttribute('aria-label', item.name);
-        el.style.cssText = `left:${s.x - item.w / 2}px;top:${s.y - item.w * 0.9}px;width:${item.w}px;z-index:${Math.round(s.y)}`;
-        el.innerHTML = `<img src="${item.img}" alt="">`;
-        el.addEventListener('click', () => say(item.line, 'happy.webp'));
-        world.appendChild(el);
-
-        jazour.animate([
-          { transform: 'translate(0,0) scale(1)' },
-          { transform: 'translate(-9px,-8px) scale(1.08)' },
-          { transform: 'translate(0,0) scale(1)' }
-        ], { duration: 680, easing: 'cubic-bezier(.34,1.56,.64,1)' });
-        say(item.line, 'celebrate.webp');
-        notify('اكتمل ' + item.name + ' 🎉');
-        objectiveIcon.src = item.img;
-      }, 1200);
-    }
-
-    function dustBurst(x, y) {
-      for (let i = 0; i < 12; i++) {
-        const d = document.createElement('i');
-        d.className = 'dust';
-        d.style.cssText = `left:${x - 7}px;top:${y - 7}px`;
-        world.appendChild(d);
-        const a = Math.PI * 2 * i / 12, r = 40 + Math.random() * 30;
-        d.animate([
-          { transform: 'translate(0,0) scale(.5)', opacity: .95 },
-          { transform: `translate(${Math.cos(a) * r}px, ${Math.sin(a) * r * .45 - 14}px) scale(1.6)`, opacity: 0 },
-        ], { duration: 620, easing: 'ease-out' }).onfinish = () => d.remove();
-      }
-    }
-
-    /* ═══ الكاميرا ═══ */
-    viewport.addEventListener('pointerdown', event => {
-      /* يجب أن يصفَّر العدّاد مع كل ضغطة أيًّا كان هدفها.
-         لو صُفِّر بعد الخروج المبكر أدناه، بقي كبيرًا بعد أول سحب فرُفضت
-         كل ضغطة على علامة ＋ بعده — وهذا ما كان يمنع البناء أصلًا. */
-      moved = 0;
-      if (event.target.closest('button, .objective, .build-sheet, .top-ui')) return;
-      drag = { x: event.clientX, y: event.clientY };
-      viewport.classList.add('is-dragging');
-      walkTip.classList.add('hide');
-    });
-    addEventListener('pointermove', event => {
-      if (!drag) return;
-      const dx = event.clientX - drag.x;
-      const dy = event.clientY - drag.y;
-      moved += Math.abs(dx) + Math.abs(dy);
-      pan.x = clamp(pan.x + dx, pan.minX, pan.maxX);
-      pan.y = clamp(pan.y + dy, pan.minY, pan.maxY);
-      drag = { x: event.clientX, y: event.clientY };
-      paintWorld();
-    });
-    function endDrag() { drag = null; viewport.classList.remove('is-dragging'); }
-    addEventListener('pointerup', endDrag);
-    addEventListener('pointercancel', endDrag);
-
-    /* ═══ الربط ═══ */
-    document.getElementById('home').addEventListener('click', () => say('هذا بيتي… تعال نرتب المزرعة سوا!', 'happy.webp'));
-    document.getElementById('barn').addEventListener('click', () => say('الحظيرة جاهزة تستقبل الرفيق.', 'encourage.webp'));
-    document.getElementById('well').addEventListener('click', () => say('موية البئر تساعد حقلنا يكبر.', 'happy.webp'));
-    document.getElementById('field').addEventListener('click', () => say('شوف الجزر! كل إنجاز يساعده ينمو.', 'proud.webp'));
-    jazour.addEventListener('click', () => {
-      const lines = [
-        ['اضغط أي ＋ ونبني شيئًا جديدًا!', 'excited.webp'],
-        ['مزرعتنا صارت أجمل بكثير!', 'celebrate.webp'],
-        ['كل مهمة تعطينا موارد نبني فيها.', 'proud.webp']
-      ];
-      const line = lines[Math.floor(Math.random() * lines.length)];
-      say(line[0], line[1]);
-    });
-    focusButton.addEventListener('click', showNextSlot);
-    document.getElementById('cancelButton').addEventListener('click', closeBuild);
-
-    drawSlots();
-    refreshObjective();
-    fitWorld();
-    addEventListener('resize', fitWorld);
-    addEventListener('orientationchange', fitWorld);
-
-    setTimeout(() => say('هلا يا بطل! اضغط علامة ＋ ونبني سوا.', 'wave.webp'), 650);
+    const ASSETS={well:'buildings/well.webp?v='+VERSION,egg:'companions/egg_brown.webp?v='+VERSION,fieldReady:'buildings/field.webp?v='+VERSION,fieldSeed:'fields/carrot_seed.webp?v='+VERSION,fieldSprout:'fields/carrot_sprout.webp?v='+VERSION};
+    const viewport=document.getElementById('viewport'),world=document.getElementById('world'),entities=document.getElementById('farmEntities'),walkTip=document.getElementById('walkTip'),speech=document.getElementById('speech'),jazour=document.getElementById('jazour'),jazourImage=document.getElementById('jazourImage'),toast=document.getElementById('toast'),sheet=document.getElementById('buildSheet'),pickGrid=document.getElementById('pickGrid'),sheetTitle=document.getElementById('sheetTitle'),sheetCopy=document.getElementById('sheetCopy'),objectiveIcon=document.getElementById('objectiveIcon'),objectiveTitle=document.getElementById('objectiveTitle'),objectiveCopy=document.getElementById('objectiveCopy'),focusButton=document.getElementById('focusButton'),undoBar=document.getElementById('undoBar'),undoText=document.getElementById('undoText');
+    const digits=n=>String(n).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);
+    const copy=o=>JSON.parse(JSON.stringify(o));
+    function defaults(){const now=Date.now();return {version:2,lastVisitAt:now,resources:{wood:14,stone:10,water:8,light:5,seed:12},inventory:[],zones:{serviceNorth:'well',serviceSouth:null,companion:'egg',fieldA:{stage:'ready',changedAt:now-GROW.ready,wateredAt:now-GROW.ready}}};}
+    function load(){try{const raw=JSON.parse(localStorage.getItem(STORAGE_KEY));if(raw&&raw.version===2)return raw;}catch(e){}return defaults();}
+    let state=load(),undoSnapshot=null,undoTimer=null,speechTimer=null,toastTimer=null,drag=null,moved=0,worldScale=1;
+    function save(){state.lastVisitAt=Date.now();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
+    function grow(){const f=state.zones.fieldA;if(!f||!f.wateredAt)return;const age=Date.now()-f.wateredAt;const before=f.stage;if(age>=GROW.ready)f.stage='ready';else if(age>=GROW.sprout)f.stage='sprout';else if(f.stage==='seed')f.stage='watered';if(before!==f.stage)notify(f.stage==='ready'?'كبر الجزر وهو ينتظرك!':'طلعت براعم الجزر!');}
+    function captureUndo(text){undoSnapshot=copy(state);undoText.textContent=text;undoBar.classList.add('show');clearTimeout(undoTimer);undoTimer=setTimeout(()=>undoBar.classList.remove('show'),7000);}
+    document.getElementById('undoButton').onclick=()=>{if(!undoSnapshot)return;state=undoSnapshot;undoSnapshot=null;undoBar.classList.remove('show');save();renderAll();notify('رجعنا آخر خطوة');say('ولا يهمك، نرتبها من جديد.', 'happy.webp');};
+    function say(text,pose='hero.webp'){speech.textContent=text;speech.classList.add('on');jazourImage.src=`characters/jazour/${pose}?v=${VERSION}`;clearTimeout(speechTimer);speechTimer=setTimeout(()=>{speech.classList.remove('on');jazourImage.src=`characters/jazour/hero.webp?v=${VERSION}`},2600)}
+    function notify(text){toast.textContent=text;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2300)}
+    function paintResources(){Object.entries(state.resources).forEach(([key,value])=>{const el=document.querySelector(`[data-resource="${key}"] span`);if(el)el.textContent=digits(value);});}
+    function bump(key){const el=document.querySelector(`[data-resource="${key}"]`);if(!el)return;el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');}
+    function spend(cost){Object.entries(cost).forEach(([key,value])=>{state.resources[key]-=value;bump(key);});paintResources();}
+    function fieldAsset(stage){return stage==='ready'?ASSETS.fieldReady:stage==='sprout'?ASSETS.fieldSprout:ASSETS.fieldSeed}
+    function itemMarkup(zoneId,item){const z=ZONES[zoneId];if(item==='well'){return `<span class="entity-shadow" style="width:75px;height:14px;left:${z.x-37}px;top:${z.y-3}px;z-index:${z.y-1}"></span><button class="farm-entity" data-zone="${zoneId}" type="button" aria-label="${z.label}" style="width:${z.w}px;left:${z.x-z.w/2}px;top:${z.y-z.w*.88}px;z-index:${z.y}"><img src="${ASSETS.well}" alt="بئر المزرعة"></button>`;} if(item==='egg'){return `<span class="entity-shadow" style="width:49px;height:11px;left:${z.x-24}px;top:${z.y-2}px;z-index:${z.y-1}"></span><button class="farm-entity" data-zone="${zoneId}" type="button" aria-label="عش الرفيق" style="width:${z.w}px;left:${z.x-z.w/2}px;top:${z.y-z.w*.75}px;z-index:${z.y}"><img src="${ASSETS.egg}" alt="عش الرفيق"></button>`;}return ''}
+    function fieldMarkup(){const z=ZONES.fieldA,f=state.zones.fieldA,stage=f.stage,watered=stage==='watered';return `<span class="entity-shadow" style="width:116px;height:18px;left:${z.x-58}px;top:${z.y+5}px;z-index:${z.y-1}"></span><button class="farm-entity field ${stage} ${watered?'field-watered':''} ${stage==='sprout'?'field-sprout':''}" data-zone="fieldA" type="button" aria-label="حقل الجزر: ${fieldLabel(stage)}" style="width:${z.w}px;left:${z.x-z.w/2}px;top:${z.y-z.w*.72}px;z-index:${z.y}"><img src="${fieldAsset(stage)}" alt="${fieldLabel(stage)}"></button>`}
+    function emptyZoneMarkup(zoneId){const z=ZONES[zoneId];let item=null;if(z.kind==='service'&&state.inventory.includes('well'))item='well';if(z.kind==='companion'&&state.inventory.includes('egg'))item='egg';if(!item)return '';const label=item==='well'?'ضع البئر هنا':'ضع عش الرفيق هنا';return `<button class="zone-anchor" data-empty-zone="${zoneId}" type="button" style="left:${z.x-65}px;top:${z.y-40}px;z-index:${z.y}"><span>${label}</span></button>`}
+    function renderEntities(){grow();const h=[];Object.entries(state.zones).forEach(([zoneId,item])=>{if(zoneId==='fieldA')return;if(item)h.push(itemMarkup(zoneId,item));else h.push(emptyZoneMarkup(zoneId));});h.push(fieldMarkup());entities.innerHTML=h.join('');entities.querySelectorAll('[data-zone]').forEach(el=>el.addEventListener('click',()=>{if(moved<=12){const zone=el.dataset.zone;zone==='fieldA'?openField():openObject(zone);}}));entities.querySelectorAll('[data-empty-zone]').forEach(el=>el.addEventListener('click',()=>{if(moved<=12)restoreTo(el.dataset.emptyZone);}));}
+    function fieldLabel(stage){return ({empty:'حوض جزر جاهز للزرع',seed:'بذور الجزر',watered:'حوض تم سقيه',sprout:'براعم الجزر',ready:'جزر جاهز للحصاد'})[stage]||'حقل الجزر'}
+    function refreshObjective(){const f=state.zones.fieldA;let title,copyText,icon,focus='fieldA';if(f.stage==='ready'){title='احصد جزر مزرعتك';copyText='اضغط الحقل؛ الجزر صار جاهزًا.';icon=ASSETS.fieldReady;}else if(f.stage==='empty'){title='ازرع حوض الجزر';copyText='بذرة واحدة تفتح مرحلة نمو جديدة.';icon=ICONS.seed;}else if(f.stage==='seed'){title='اسقِ البذور';copyText='قطرة ماء تساعد البراعم على الظهور.';icon=ICONS.water;}else if(f.stage==='watered'){title='البذور شربت الماء';copyText='ارجع بعد قليل لتشاهد أول براعم.';icon=ASSETS.fieldSeed;}else{title='براعم الجزر تكبر';copyText='ستصبح جاهزة للحصاد بعد أن تنمو.';icon=ASSETS.fieldSprout;}objectiveTitle.textContent=title;objectiveCopy.textContent=copyText;objectiveIcon.src=icon;focusButton.dataset.target=focus;}
+    function openSheet(title,copyText,cards){sheetTitle.textContent=title;sheetCopy.textContent=copyText;pickGrid.innerHTML=cards.map(c=>`<button class="pick" type="button" data-action="${c.id}"><img src="${c.img}" alt=""><span><span class="pick-name">${c.name}</span><span class="pick-copy">${c.copy}</span></span></button>`).join('');pickGrid.querySelectorAll('[data-action]').forEach(btn=>btn.onclick=()=>{const card=cards.find(c=>c.id===btn.dataset.action);card.run();});sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');}
+    function closeSheet(){sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');}
+    function openField(){const f=state.zones.fieldA;if(f.stage==='empty'){openSheet('حوض الجزر جاهز','اختر فعلًا واحدًا واضحًا الآن.',[{id:'plant',name:'ازرع جزرًا',copy:'استخدم بذرة واحدة',img:ICONS.seed,run:plant}]);return;}if(f.stage==='seed'){openSheet('البذور تنتظر الماء','السقي هو خطوتنا التالية.',[{id:'water',name:'اسقِ الحوض',copy:'استخدم قطرة ماء واحدة',img:ICONS.water,run:water} ,{id:'uproot',name:'اقتلع البذور',copy:'افرغ الحوض بأمان',img:ICONS.seed,run:uproot}]);return;}if(f.stage==='watered'){openSheet('سقينا الحوض','البراعم تحتاج وقتًا قصيرًا لتظهر.',[{id:'uproot',name:'اقتلع البذور',copy:'افرغ الحوض بأمان',img:ICONS.seed,run:uproot}]);return;}if(f.stage==='sprout'){openSheet('براعم صغيرة جميلة','دعها تكبر أو غيّر خطتك.',[{id:'uproot',name:'اقتلع البراعم',copy:'افرغ الحوض بأمان',img:ICONS.seed,run:uproot}]);return;}openSheet('الجزر جاهز!','الحصاد يفرغ الحوض لدورة جديدة.',[{id:'harvest',name:'احصد الجزر',copy:'اكسب بذرتين للدورة القادمة',img:ASSETS.fieldReady,run:harvest}]);}
+    function plant(){if(state.resources.seed<1){notify('نحتاج بذرة من مهمة لطيفة');return;}captureUndo('يمكنك التراجع عن الزراعة');spend({seed:1});state.zones.fieldA={stage:'seed',changedAt:Date.now(),wateredAt:null};save();closeSheet();renderAll();notify('زرعنا البذور في صف مرتب');say('حلو! الآن نرويها.', 'excited.webp');}
+    function water(){if(state.resources.water<1){notify('ناقصنا ماء للحقل');return;}captureUndo('يمكنك التراجع عن السقي');spend({water:1});state.zones.fieldA.stage='watered';state.zones.fieldA.wateredAt=Date.now();save();closeSheet();renderAll();notify('ارتوى الحقل');say('يا سلام! ننتظر البراعم.', 'happy.webp');}
+    function uproot(){captureUndo('يمكنك التراجع عن الإزالة');const f=state.zones.fieldA;if(f.stage!=='empty')state.resources.seed+=1;state.zones.fieldA={stage:'empty',changedAt:Date.now(),wateredAt:null};save();closeSheet();renderAll();notify('أفرغنا الحوض بترتيب');say('تمام، نبدأ من جديد وقت ما تحب.', 'thinking.webp');}
+    function harvest(){captureUndo('يمكنك التراجع عن الحصاد');state.resources.seed+=2;state.zones.fieldA={stage:'empty',changedAt:Date.now(),wateredAt:null};save();closeSheet();renderAll();notify('أحسنت! جمعت جزرك وبذرتين');say('يا سلام! حصاد جميل يا بطل.', 'celebrate.webp');}
+    function openObject(zoneId){const item=state.zones[zoneId],z=ZONES[zoneId],other=Object.keys(ZONES).find(id=>ZONES[id].kind===z.kind&&id!==zoneId&&!state.zones[id]);const name=item==='well'?'البئر':'عش الرفيق';const cards=[];if(other)cards.push({id:'move',name:'انقل '+name,copy:'إلى موقع مناسب آخر',img:item==='well'?ASSETS.well:ASSETS.egg,run:()=>moveItem(zoneId,other)});cards.push({id:'store',name:'خزّن '+name,copy:'يمكنك وضعه لاحقًا بلا تكلفة',img:item==='well'?ASSETS.well:ASSETS.egg,run:()=>storeItem(zoneId)});openSheet(name,'كل خيار يحافظ على ترتيب المزرعة.',cards);}
+    function moveItem(from,to){captureUndo('يمكنك إعادة العنصر لمكانه');state.zones[to]=state.zones[from];state.zones[from]=null;save();closeSheet();renderAll();notify('انتقل العنصر إلى مكانه الجديد');say('كذا صارت المزرعة أرتب!', 'proud.webp');}
+    function storeItem(zoneId){const item=state.zones[zoneId];captureUndo('يمكنك استرجاع العنصر');state.zones[zoneId]=null;if(!state.inventory.includes(item))state.inventory.push(item);save();closeSheet();renderAll();notify('حفظناه في صندوق المزرعة');say('ممتاز، نقدر نرجعه وقت ما نبي.', 'happy.webp');}
+    function restoreTo(zoneId){const item=ZONES[zoneId].kind==='service'?'well':'egg';captureUndo('يمكنك التراجع عن الوضع');state.zones[zoneId]=item;state.inventory=state.inventory.filter(x=>x!==item);save();renderAll();notify('رجعنا العنصر إلى مكانه');say('رجع لمكانه الصح!', 'celebrate.webp');}
+    function focusTarget(){const z=ZONES[focusButton.dataset.target||'fieldA'];const vp=viewport.getBoundingClientRect();pan.x=clamp(vp.width/2-(world.offsetLeft+z.x*worldScale),pan.minX,pan.maxX);pan.y=clamp(vp.height*.43-(world.offsetTop+z.y*worldScale),pan.minY,pan.maxY);paintWorld();say('هنا خطوتنا التالية.', 'thinking.webp');}
+    const pan={x:0,y:0,minX:0,maxX:0,minY:0,maxY:0};function clamp(v,min,max){return Math.max(min,Math.min(max,v));}function paintWorld(){world.style.transform=`translate3d(${pan.x}px,${pan.y}px,0) scale(${worldScale})`}function fitWorld(){const vp=viewport.getBoundingClientRect(),card=document.querySelector('.objective'),band=card?card.getBoundingClientRect().top-vp.top:vp.height,left=world.offsetLeft,top=world.offsetTop,W=world.offsetWidth,H=world.offsetHeight;worldScale=Math.max(1,vp.width/W,(band-top)/H);const w=W*worldScale,h=H*worldScale;pan.maxX=-left;pan.minX=vp.width-(left+w);pan.maxY=0;pan.minY=band-(top+h);if(pan.minX>pan.maxX)pan.minX=pan.maxX=(vp.width-w)/2-left;if(pan.minY>pan.maxY)pan.minY=pan.maxY=0;pan.x=clamp(pan.x,pan.minX,pan.maxX);pan.y=clamp(pan.y,pan.minY,pan.maxY);paintWorld()}
+    viewport.addEventListener('pointerdown',e=>{moved=0;if(e.target.closest('button,.objective,.build-sheet,.top-ui,.undo-bar'))return;drag={x:e.clientX,y:e.clientY};viewport.classList.add('is-dragging');walkTip.classList.add('hide')});addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;moved+=Math.abs(dx)+Math.abs(dy);pan.x=clamp(pan.x+dx,pan.minX,pan.maxX);pan.y=clamp(pan.y+dy,pan.minY,pan.maxY);drag={x:e.clientX,y:e.clientY};paintWorld()});function endDrag(){drag=null;viewport.classList.remove('is-dragging')}addEventListener('pointerup',endDrag);addEventListener('pointercancel',endDrag);
+    function renderAll(){renderEntities();paintResources();refreshObjective();}
+    document.getElementById('home').onclick=()=>say('هذا بيتي… تعال نرتب المزرعة سوا!', 'happy.webp');document.getElementById('barn').onclick=()=>say('الحظيرة قريبة من عش الرفيق.', 'encourage.webp');jazour.onclick=()=>say('نزرع ونروي ونحصد… خطوة خطوة!', 'celebrate.webp');focusButton.onclick=focusTarget;document.getElementById('cancelButton').onclick=closeSheet;addEventListener('resize',fitWorld);addEventListener('orientationchange',fitWorld);addEventListener('storage',e=>{if(e.key===STORAGE_KEY){state=load();renderAll();}});
+    grow();save();renderAll();fitWorld();setTimeout(()=>say(state.zones.fieldA.stage==='ready'?'هلا يا بطل! جزرك جاهز للحصاد.':'هلا يا بطل! خلّنا نعتني بحقلنا.', 'wave.webp'),650);
+  })();
   </script>
 </body>
 </html>
