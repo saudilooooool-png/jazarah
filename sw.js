@@ -1,7 +1,7 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v17';
+const CACHE = 'jazarah-v18';
 const ASSETS = [
   './',
   './index.html',
@@ -10,12 +10,19 @@ const ASSETS = [
   './audio.js',
   './voice.js',
   './sync.js',
+  './farm.js',
   './qrcode.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
   './icons/apple-touch-icon.png',
+  // مزرعة جزّور — تعمل دون إنترنت أيضًا
+  './farm/land/world_farm_single_plot.webp',
+  ...['wood', 'stone', 'water', 'light', 'seed'].map(r => `./farm/resources/${r}.webp`),
+  ...['carrot_seedling', 'carrot_growing', 'carrot_ready'].map(c => `./farm/crops/${c}.webp`),
+  ...['home_exact', 'barn_exact', 'well', 'barn', 'field'].map(b => `./farm/buildings/${b}.webp`),
+  './farm/companions/egg_brown.webp',
   // شخصيات الجزر + حالات جزّور
   ...Array.from({ length: 12 }, (_, i) => `./avatars/c${i + 1}.svg`),
   ...['hero', 'happy', 'thinking', 'wave', 'encourage', 'surprised',

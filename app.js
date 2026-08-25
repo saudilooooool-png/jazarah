@@ -561,6 +561,8 @@ function defaultChild(name, avatarBase, avatarBg) {
     reminders: { enabled: false, slots: [] }, // حتى تذكيرين اختياريين في اليوم، مرتبطين بروتين الطفل
     worldBloom: { earned: 0, restored: 0, lastMilestone: 0 }, // أثر إنجازات الطفل في عالم جزّور
     weeklyReview: { actions: {}, seenWeeks: {} }, // قرارات مراجعة الأسبوع المحلية
+    farm: null,             // مزرعة جزّور — تُهيّأ عند أول فتح (JazarahFarm.blank)
+    tourDone: false,        // هل شاهد الطفل جولة «كيف ألعب؟» أول مرة
   };
 }
 
@@ -1072,7 +1074,7 @@ const ReminderEngine = {
     const copy = this.copy(child, due);
     if (window.App && App.toast) App.toast('🔔 ' + copy.body);
     const routine = this.routineFor(child, due);
-    if (routine && routine.audio) speak(copy.body, 'ar-SA');
+    if (routine && routine.audio) VoiceLines.say(null, {}, copy.body);
   },
 };
 
@@ -1173,6 +1175,9 @@ function grantCompletion(t, dateKey) {
   C().coins += t.coins;
   C().lifetimeCoins += t.coins;
   if (t.cat === 'health') C().hp = Math.min(100, C().hp + 10);
+
+  // نوع المهمة يحدد المورد: معرفة←خشب · طاقة←حجر · صحة←ماء · نور القلب←نور · قلوب طيبة←بذور
+  if (window.JazarahFarm) App._farmGain = JazarahFarm.grant(C(), t.cat);
 
   // محفظة وقت الشاشة: كل مهمة منجزة = دقائق لعب (يضبطها الوالد)
   if (S.screenPerTask > 0) {
@@ -1281,7 +1286,7 @@ const App = {
       this.celebrate(`عيد ميلاد سعيد يا ${esc(c.name)}! 🎂`,
         `${age ? `أتممت ${age} سنة اليوم — ` : ''}كل عام وأنت بطل! هديتك من جَزَرة 🎁`,
         [`+${gift} 🥕 هدية العيد`], '🎂');
-      speak(`عيد ميلاد سعيد يا ${c.name}! كل عام وأنت بخير`, 'ar-SA');
+      VoiceLines.say('birthday');
       this.refreshKidHeader();
       return;
     }
@@ -3222,10 +3227,60 @@ const App = {
     document.querySelectorAll('.knav').forEach(b => b.classList.toggle('active', b.dataset.ktab === tab));
     document.querySelectorAll('.ktab-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('ktab-' + tab).classList.add('active');
-    const renderers = { map: this.renderKMap, hero: this.renderKHero, shop: this.renderKShop, badges: this.renderKBadges };
+    const renderers = { map: this.renderKMap, farm: () => JazarahFarm.render(), hero: this.renderKHero, shop: this.renderKShop, badges: this.renderKBadges };
     renderers[tab].call(this);
     this.refreshKidHeader();
     window.scrollTo(0, 0);
+    if (tab === 'map') this.startTour(false);   // أول دخول فقط
+  },
+
+  /* ═══ جولة أول مرة: ثلاث بطاقات تشرح كيف يبدأ الطفل ═══
+     تظهر تلقائيًا عند أول دخول، وتُعاد من زر «؟» في الترويسة متى شاء. */
+  TOUR: [
+    { pose: 'wave', title: 'أهلًا! أنا جزّور', body: 'رفيقك في المغامرة. اضغط عليّ في أي وقت وسأشجّعك.', cta: 'وبعدين؟' },
+    { pose: 'thinking', title: 'خطوة واحدة كل مرة', body: 'بطاقة «التالي لك الآن» تقول لك ماذا تفعل الآن. اضغط زرها الأخضر فقط — لا تفكر في الباقي.', cta: 'ثم؟' },
+    { pose: 'excited', title: 'مزرعتك تكبر معك', body: 'كل مهمة تنجزها تعطيك موردًا في مزرعتك 🌾 — تزرع به جزرًا وتبني بيوتًا. افتحها من الشريط السفلي.', cta: 'يلا نبدأ!' },
+  ],
+
+  startTour(force) {
+    if (!force && C().tourDone) return;
+    this._tourStep = 0;
+    this.renderTour();
+    VoiceLines.say('hello');
+  },
+
+  renderTour() {
+    const i = this._tourStep, step = this.TOUR[i], last = i === this.TOUR.length - 1;
+    let el = document.getElementById('kid-tour');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'kid-tour';
+      el.className = 'kid-tour';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `
+      <div class="kid-tour__card" role="dialog" aria-label="كيف ألعب">
+        <img class="kid-tour__jz" src="${this.jzSrc(step.pose)}" alt="جزّور" />
+        <h2>${step.title}</h2>
+        <p>${step.body}</p>
+        <div class="kid-tour__dots">${this.TOUR.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+        <button class="btn-primary big" onclick="App.tourNext()">${step.cta}</button>
+        ${last ? '' : '<button class="kid-tour__skip" onclick="App.tourEnd()">تخطَّ الشرح</button>'}
+      </div>`;
+    el.classList.add('on');
+  },
+
+  tourNext() {
+    if (this._tourStep >= this.TOUR.length - 1) return this.tourEnd();
+    this._tourStep += 1;
+    this.renderTour();
+  },
+
+  tourEnd() {
+    C().tourDone = true;
+    save();
+    const el = document.getElementById('kid-tour');
+    if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), 260); }
   },
 
   refreshKidHeader() {
@@ -3260,6 +3315,8 @@ const App = {
     mini.style.background = heroBg(C());
     document.getElementById('kid-name-mini').textContent = C().name;
     document.getElementById('stat-coins').textContent = C().coins;
+    const fdot = document.getElementById('farm-dot');
+    if (fdot && window.JazarahFarm) fdot.hidden = JazarahFarm.ready(C()) === 0;
     document.getElementById('stat-streak').textContent = C().streak;
   },
 
@@ -3363,7 +3420,7 @@ const App = {
     const text = intro
       ? `${routine.title}. ${routine.intro || 'نبدأ بهدوء.'} ${step ? 'أول خطوة: ' + step.title : 'أحسنت، أكملت كل الخطوات.'}`
       : (step ? `${step.title}. ${step.hint || 'خذ وقتك، أنا معك.'}` : 'أحسنت، أكملت روتينك اليوم.');
-    speak(text, 'ar-SA');
+    VoiceLines.say(null, {}, text);
   },
 
   completeRoutineStep(routineId, stepId) {
@@ -3381,7 +3438,8 @@ const App = {
     save();
     if (routine.audio) {
       const following = routine.steps.find(s => !state.done.includes(s.id));
-      speak(complete ? `أحسنت يا ${C().name}! أكملت ${routine.title}.` : `رائع! الخطوة التالية: ${following ? following.title : 'أكملت الروتين.'}`, 'ar-SA');
+      if (complete) VoiceLines.say('done');
+      else VoiceLines.say(null, {}, `رائع! الخطوة التالية: ${following ? following.title : 'أكملت الروتين.'}`);
     }
     if (complete) {
       this.closeModal();
@@ -3472,12 +3530,9 @@ const App = {
           </div>
           <div class="next-mission__actions">
             <button class="btn-primary big" onclick="${nextStep.action}">${nextStep.cta}</button>
-            <button class="listen-pill" data-say="${esc(nextStep.say)}" onclick="App.sayText(this)">🔊 اسمع المهمة</button>
+            <button class="listen-pill" data-say="${esc(nextStep.say)}"${nextStep.voice ? ` data-voice="${nextStep.voice}"` : ''} onclick="App.sayText(this)">🔊 اسمع المهمة</button>
           </div>
-          <div class="today-meter" aria-label="تقدم اليوم ${todayDone} من ${todayTotal || 1}">
-            <div><span>تقدم اليوم</span><b>${todayDone}/${todayTotal || 1}</b></div>
-            <i><em style="width:${progressPct}%"></em></i>
-          </div>
+          <i class="next-mission__bar" aria-label="تقدم اليوم ${todayDone} من ${todayTotal || 1}"><em style="width:${progressPct}%"></em></i>
         </section>`;
 
     if (C().lastDailyChest !== today) {
@@ -3606,9 +3661,14 @@ const App = {
     document.getElementById('ktab-map').innerHTML = html;
   },
 
-  /* نطق أي نص من زر (يقرأ data-say لتفادي مشاكل علامات الاقتباس) */
+  /* نطق أي نص من زر (يقرأ data-say لتفادي مشاكل علامات الاقتباس).
+     data-voice = معرّف مقطع مسجّل بصوت جزّور؛ بدونه يُنطق النص بهوية جزّور
+     لا بصوت الجهاز الافتراضي. data-lang يبقى لنطق كلمات الألعاب فقط. */
   sayText(btn) {
-    speak(btn.dataset.say, btn.dataset.lang || 'ar-SA');
+    const lang = btn.dataset.lang;
+    if (lang && lang !== 'ar-SA') { speak(btn.dataset.say, lang); return; }
+    if (btn.dataset.voice) return VoiceLines.say(btn.dataset.voice);
+    VoiceLines.say(null, {}, btn.dataset.say);
   },
 
   /* ── القراءة الصوتية للمهام ── */
@@ -3616,7 +3676,8 @@ const App = {
     const t = C().tasks.find(x => x.id === taskId);
     if (!t) return;
     const et = effectiveTask(t, todayKey());
-    speak(`${t.title}. تكسب ${et.xp} نقطة خبرة و ${et.coins} جزرة`, 'ar-SA');
+    VoiceLines.say('task_next');
+    setTimeout(() => VoiceLines.say(null, {}, `${t.title}. تكسب ${et.xp} نقطة خبرة و ${et.coins} جزرة`), 1400);
   },
 
   _nextKidStep(doneIds, pendingToday) {
@@ -3630,6 +3691,7 @@ const App = {
         icon: '📖',
         action: 'App.openQuranKids()',
         say: `ابدأ ورد القرآن. اقرأ ${C().quranDaily || 5} دقائق مع جزّور.`,
+        voice: 'quran_start',
       };
     }
     const today = todayKey();
@@ -3649,6 +3711,7 @@ const App = {
         icon: isPhoto ? '📸' : needsParent ? '👀' : CATEGORIES[nextTask.cat].emoji,
         action: `App.completeTask('${nextTask.id}')`,
         say: `مهمتك الآن: ${nextTask.title}.`,
+        voice: 'task_next',
       };
     }
     const wordGame = this._wordGameState();
@@ -3662,6 +3725,7 @@ const App = {
         icon: '🎮',
         action: 'App.openGamesHub()',
         say: 'افتح ألعاب اليوم. كلمات وحساب خفيفة.',
+        voice: 'game_start',
       };
     }
     return {
@@ -3672,6 +3736,7 @@ const App = {
       icon: '🏆',
       action: 'App.shareDayReport()',
       say: 'أحسنت. يومك مكتمل يا بطل.',
+      voice: 'allday',
     };
   },
 
@@ -3757,7 +3822,7 @@ const App = {
     const done = l === 'ar' ? wg.arDone : wg.enDone;
     if (done >= WORDS_PER_DAY) return;
     const q = this._dailyWord(l, done);
-    speak(q.word, l === 'ar' ? 'ar-SA' : 'en-US');
+    speak(q.word, l === 'ar' ? 'ar-SA' : 'en-US');  // نطق الكلمة نفسها: صوت الجهاز مقصود هنا لا صوت جزّور
   },
 
   wordGuess(ch) {
@@ -3782,7 +3847,7 @@ const App = {
     const langDone = (l === 'ar' ? wg.arDone : wg.enDone) >= WORDS_PER_DAY;
     if (langDone) { bonus = 5; c.coins += bonus; c.lifetimeCoins += bonus; }
     save();
-    speak(q.word, l === 'ar' ? 'ar-SA' : 'en-US');
+    speak(q.word, l === 'ar' ? 'ar-SA' : 'en-US');  // نطق الكلمة نفسها: صوت الجهاز مقصود هنا لا صوت جزّور
     this.refreshKidHeader();
     if (langDone) {
       this.closeModal();
@@ -4861,7 +4926,7 @@ const App = {
     c.lifetimeCoins += prize;
     c.xp += WORD_XP;
     save();
-    speak(p.target.w, 'ar-SA');
+    speak(p.target.w, 'ar-SA');  // نطق الكلمة نفسها: صوت الجهاز مقصود هنا لا صوت جزّور
     this.refreshKidHeader();
     this._blurLevel = 0;
     if (bg.done >= WORDS_PER_DAY) {
@@ -4929,7 +4994,7 @@ const App = {
     c.lifetimeCoins += prize;
     c.xp += WORD_XP;
     save();
-    speak(p.target.w, 'ar-SA');
+    speak(p.target.w, 'ar-SA');  // نطق الكلمة نفسها: صوت الجهاز مقصود هنا لا صوت جزّور
     this.refreshKidHeader();
     if (sg.done >= WORDS_PER_DAY) {
       this.closeModal();
@@ -5282,6 +5347,8 @@ const App = {
     }
     const gains = [`+${t.xp} ✨ XP`, `+${t.coins + res.bonus} 🥕`];
     if (res.worldBloom) gains.push(`${res.worldBloom.stage.emoji} رممت: ${res.worldBloom.stage.title}`);
+    // المورد الذي دخل المزرعة — يربط المهمة بالبناء أمام عين الطفل
+    if (this._farmGain) { gains.push(`🌾 +١ ${this._farmGain.name} لمزرعتك`); this._farmGain = null; }
     this.celebrate(title, msg, gains, emoji);
   },
 
@@ -5589,7 +5656,7 @@ const App = {
   /* ── الأوسمة ── */
   renderKBadges() {
     const cards = BADGES.map(b => {
-      const earned = b.check(S);
+      const earned = b.check(C());   // الفحوص تقرأ بيانات الطفل لا الحالة العامة
       return `
       <div class="badge-card ${earned ? '' : 'locked'}">
         <div class="b-emoji">${b.emoji}</div>
@@ -5597,7 +5664,7 @@ const App = {
         <div class="b-desc">${b.desc}</div>
       </div>`;
     }).join('');
-    const earnedCount = BADGES.filter(b => b.check(S)).length;
+    const earnedCount = BADGES.filter(b => b.check(C())).length;
     document.getElementById('ktab-badges').innerHTML = `
       <h2 class="map-title">🏅 أوسمتي (${earnedCount}/${BADGES.length})</h2>
       <p class="map-sub">كل إنجاز يفتح وسامًا جديدًا!</p>

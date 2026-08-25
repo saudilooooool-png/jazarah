@@ -121,17 +121,20 @@
       <div class="kid-stats">
         <span class="stat-chip stat-coins">🥕 <b id="stat-coins">0</b></span>
         <span class="stat-chip stat-streak">🔥 <b id="stat-streak">0</b></span>
+        <button class="btn-ghost small" title="كيف ألعب؟" aria-label="كيف ألعب؟" onclick="App.startTour(true)">؟</button>
         <button class="btn-ghost small" onclick="App.showScreen('screen-role')">✕</button>
       </div>
     </header>
 
     <div id="ktab-map" class="ktab-panel active"></div>
+    <div id="ktab-farm" class="ktab-panel"></div>
     <div id="ktab-hero" class="ktab-panel"></div>
     <div id="ktab-shop" class="ktab-panel"></div>
     <div id="ktab-badges" class="ktab-panel"></div>
 
     <nav class="kid-nav">
       <button class="knav active" data-ktab="map" onclick="App.kidTab('map')"><span>🗺️</span>المغامرة</button>
+      <button class="knav" data-ktab="farm" onclick="App.kidTab('farm')"><span>🌾</span>مزرعتي<i class="knav-dot" id="farm-dot" hidden></i></button>
       <button class="knav" data-ktab="hero" onclick="App.kidTab('hero')"><span>🦸</span>بطلي</button>
       <button class="knav" data-ktab="shop" onclick="App.kidTab('shop')"><span>🏪</span>المتجر</button>
       <button class="knav" data-ktab="badges" onclick="App.kidTab('badges')"><span>🏅</span>أوسمتي</button>
@@ -164,6 +167,7 @@
   <script src="audio.js?v=4"></script>
   <script src="voice.js"></script>
   <script src="app.js"></script>
+  <script src="farm.js?v=1"></script>
   <script src="sync.js?v=3"></script>
   <script>
     // داخل تطبيق أندرويد (Capacitor) الملفات محلية أصلًا — عامل الخدمة هناك
