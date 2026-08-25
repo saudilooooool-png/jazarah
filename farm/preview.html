@@ -660,9 +660,12 @@
 
     /* ═══ الكاميرا ═══ */
     viewport.addEventListener('pointerdown', event => {
+      /* يجب أن يصفَّر العدّاد مع كل ضغطة أيًّا كان هدفها.
+         لو صُفِّر بعد الخروج المبكر أدناه، بقي كبيرًا بعد أول سحب فرُفضت
+         كل ضغطة على علامة ＋ بعده — وهذا ما كان يمنع البناء أصلًا. */
+      moved = 0;
       if (event.target.closest('button, .objective, .build-sheet, .top-ui')) return;
       drag = { x: event.clientX, y: event.clientY };
-      moved = 0;
       viewport.classList.add('is-dragging');
       walkTip.classList.add('hide');
     });
