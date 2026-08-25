@@ -41,7 +41,7 @@
       top: 102px;
       left: -375px;
       transform: translate3d(0, 0, 0);
-      transform-origin: center;
+      transform-origin: 0 0;
       will-change: transform;
     }
     .world-base { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
@@ -349,7 +349,7 @@
     const objectiveCopy = document.getElementById('objectiveCopy');
     const focusButton = document.getElementById('focusButton');
 
-    const pan = { x: 0, y: 0, minX: -370, maxX: 116, minY: -62, maxY: 52 };
+    const pan = { x: 0, y: 0, minX: 0, maxX: 0, minY: 0, maxY: 0 };
     let drag = null;
     let moved = 0;
     let built = false;
@@ -357,8 +357,40 @@
     let toastTimer;
 
     function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-    function paintWorld() { world.style.transform = `translate3d(${pan.x}px, ${pan.y}px, 0)`; }
-    paintWorld();
+
+    let worldScale = 1;
+    function paintWorld() {
+      world.style.transform = `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${worldScale})`;
+    }
+
+    /* حدود الكاميرا تُحسب من المقاسات الحقيقية لا بأرقام ثابتة:
+       الشاشات الطويلة كانت تكشف أرضية خضراء فارغة تحت الرسمة عند السحب لأعلى.
+       نكبّر الرسمة أقل تكبير يضمن التغطية، ثم نقصر السحب على ما تغطيه فعلًا. */
+    function fitWorld() {
+      const vp = viewport.getBoundingClientRect();
+      const card = document.querySelector('.objective');
+      const bandBottom = card ? card.getBoundingClientRect().top - vp.top : vp.height;
+      const left = world.offsetLeft, top = world.offsetTop;
+      const W = world.offsetWidth, H = world.offsetHeight;
+
+      worldScale = Math.max(1, vp.width / W, (bandBottom - top) / H);
+      const w = W * worldScale, h = H * worldScale;
+
+      pan.maxX = -left;
+      pan.minX = vp.width - (left + w);
+      pan.maxY = 0;
+      pan.minY = bandBottom - (top + h);
+      if (pan.minX > pan.maxX) pan.minX = pan.maxX = (vp.width - w) / 2 - left;
+      if (pan.minY > pan.maxY) pan.minY = pan.maxY = 0;
+
+      pan.x = clamp(pan.x, pan.minX, pan.maxX);
+      pan.y = clamp(pan.y, pan.minY, pan.maxY);
+      paintWorld();
+    }
+
+    fitWorld();
+    addEventListener('resize', fitWorld);
+    addEventListener('orientationchange', fitWorld);
 
     function say(text, pose = 'hero.webp') {
       speech.textContent = text;
@@ -379,8 +411,8 @@
     }
 
     function moveToSite() {
-      pan.x = -120;
-      pan.y = -12;
+      pan.x = clamp(-120, pan.minX, pan.maxX);
+      pan.y = clamp(-12, pan.minY, pan.maxY);
       paintWorld();
       walkTip.classList.add('hide');
       setTimeout(() => { if (!built) say('هنا بيت الرفيق، وش رايك نبنيه؟', 'thinking.webp'); }, 460);
@@ -401,6 +433,32 @@
       sheet.setAttribute('aria-hidden', 'true');
     }
 
+    /* الموارد رقم حقيقي يُخصم فعلًا — كانت أرقامًا ثابتة لا تتغيّر
+       مع أن اللوحة تقول إن العش يكلّف ٤ نور و٥ بذور. */
+    const RES = { wood: 14, stone: 10, water: 8, light: 5, seed: 12 };
+    const NEST_COST = { light: 4, seed: 5 };
+    const arabicDigits = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+
+    function paintResources() {
+      for (const [key, value] of Object.entries(RES)) {
+        const span = document.querySelector(`[data-resource="${key}"] span`);
+        if (span) span.textContent = arabicDigits(value);
+      }
+    }
+    paintResources();
+
+    function canAfford(cost) {
+      return Object.entries(cost).every(([key, need]) => RES[key] >= need);
+    }
+
+    function spend(cost) {
+      for (const [key, need] of Object.entries(cost)) {
+        RES[key] -= need;
+        bump(key);
+      }
+      paintResources();
+    }
+
     function bump(resource) {
       const element = document.querySelector(`[data-resource="${resource}"]`);
       if (!element) return;
@@ -411,7 +469,13 @@
 
     function buildNest() {
       if (built) return;
+      if (!canAfford(NEST_COST)) {
+        say('ناقصنا شوي موارد… أنجز مهمة وارجع!', 'thinking.webp');
+        notify('الموارد ما تكفي بعد');
+        return;
+      }
       built = true;
+      spend(NEST_COST);
       closeBuild();
       sitePin.hidden = true;
       buildSite.style.pointerEvents = 'none';
@@ -420,8 +484,6 @@
       objectiveTitle.textContent = 'البيضة صارت دافئة';
       objectiveCopy.textContent = 'أنجز مهمة جديدة لتتحرك البيضة أكثر.';
       focusButton.textContent = 'شاهدها';
-      bump('light');
-      bump('seed');
       jazourImage.src = 'characters/jazour/celebrate.webp?v=2';
       jazour.animate([
         { transform: 'translate(0,0) scale(1)' },

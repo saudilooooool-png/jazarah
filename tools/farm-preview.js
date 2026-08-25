@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /* ═══════════════════════════════════════════════════
-   مولّد معاينة المزرعة
-   يبني farm/preview.html — نموذجًا حيًّا يعرض شكل المزرعة وحركتها
-   قبل دمجها في التطبيق: منظور أيزومتري، ترتيب بالعمق، كاميرا تُسحب،
-   ولوحة بناء تعمل فعلًا.
+   مولّد نموذج الشبكة الأيزومترية (مرجع تاريخي)
+   يبني ملفًا واحدًا مستقلًا يعرض المزرعة على شبكة أيزومترية محسوبة.
+   المعاينة المعتمدة الآن هي farm/preview.html — عالم مرسوم يدويًا،
+   ولا يُولَّد من هنا. هذا المولّد يبقى للمقارنة والتجريب فقط.
 
-     node tools/farm-preview.js            ← مسارات نسبية (داخل المستودع)
      node tools/farm-preview.js out.html   ← ملف واحد مستقل بصور مضمّنة
 
    الصور تُقرأ من ملفات WebP داخل farm — شغّل tools/farm-optimize.py أولًا.
@@ -466,13 +465,15 @@ return html;
 }
 
 const out = process.argv[2];
-if (out) {
-  const inl = page(true);
-  fs.writeFileSync(out, inl);
-  console.log(`✅  ${out} — ملف واحد مستقل (${(inl.length / 1024).toFixed(0)}KB)`);
-} else {
-  const rel = page(false);
-  const dst = path.join(ROOT, 'farm', 'preview.html');
-  fs.writeFileSync(dst, rel);
-  console.log(`✅  farm/preview.html (${(rel.length / 1024).toFixed(0)}KB)`);
+if (!out) {
+  console.error('\n  ⚠️  حدّد مسار الإخراج صراحةً:  node tools/farm-preview.js <ملف.html>');
+  console.error('     (farm/preview.html صار عالمًا مرسومًا يدويًا — لا يُولَّد من هنا)\n');
+  process.exit(1);
 }
+if (path.resolve(out) === path.join(ROOT, 'farm', 'preview.html')) {
+  console.error('\n  ⚠️  farm/preview.html هو المعاينة المعتمدة ولا يُكتب فوقه من هذا المولّد.\n');
+  process.exit(1);
+}
+const inl = page(true);
+fs.writeFileSync(out, inl);
+console.log(`✅  ${out} — ملف واحد مستقل (${(inl.length / 1024).toFixed(0)}KB)`);
