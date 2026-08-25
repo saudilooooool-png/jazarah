@@ -115,8 +115,8 @@
       position: absolute;
       bottom: 83%;
       right: 42%;
-      min-width: max-content;
-      max-width: 185px;
+      width: max-content;
+      max-width: min(168px, 42vw);
       padding: 8px 11px;
       background: #fffdf6;
       border-radius: 14px;
@@ -251,6 +251,80 @@
       .objective { bottom: 8px; }
       .walk-tip { top: 98px; }
     }
+
+    /* ── مواقع البناء: علامة ＋ واضحة على الأرض ── */
+    .slot {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      z-index: 12;
+    }
+    .slot-ring {
+      position: absolute;
+      inset: 0;
+      border: 3px dashed rgba(255, 255, 255, .85);
+      border-radius: 50%;
+      background: rgba(126, 190, 88, .3);
+      box-shadow: inset 0 0 22px rgba(255, 255, 255, .35);
+    }
+    .slot-plus {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #fffdf5;
+      color: #4f9138;
+      font: 900 30px Cairo, sans-serif;
+      line-height: 1;
+      border: 3px solid #6fb84e;
+      box-shadow: 0 5px 0 rgba(52, 118, 46, .5), 0 9px 16px rgba(40, 70, 25, .28);
+      animation: slotBeat 2s ease-in-out infinite;
+    }
+    @keyframes slotBeat {
+      0%, 72%, 100% { transform: translateY(0) scale(1); }
+      80% { transform: translateY(-6px) scale(1.1); }
+      90% { transform: translateY(0) scale(.97); }
+    }
+    .slot:active .slot-plus { transform: scale(.92); }
+    .slot.hint .slot-ring { animation: slotHint 1s ease-in-out 3; }
+    @keyframes slotHint { 50% { background: rgba(255, 235, 130, .7); border-color: #fff; } }
+    .slot[hidden] { display: none; }
+
+    .scaffold { position: absolute; z-index: 13; filter: drop-shadow(0 8px 6px var(--shadow)); pointer-events: none; }
+    .scaffold img { width: 100%; display: block; }
+    .placed { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer; filter: drop-shadow(0 9px 7px var(--shadow)); transform-origin: 50% 92%; }
+    .placed img { width: 100%; display: block; pointer-events: none; }
+    .placed.grow { animation: placeGrow .55s cubic-bezier(.34, 1.56, .64, 1); }
+    @keyframes placeGrow { 0% { transform: scale(.55); } 62% { transform: scale(1.09); } 100% { transform: scale(1); } }
+    .dust { position: absolute; width: 15px; height: 15px; border-radius: 50%; background: rgba(214, 189, 152, .92); pointer-events: none; z-index: 14; }
+
+    /* ── لوحة الاختيار ── */
+    .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+    .pick {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border: 2px solid #ece1cb;
+      border-radius: 16px;
+      background: #f9f4e8;
+      text-align: right;
+      cursor: pointer;
+      transition: transform .12s;
+    }
+    .pick:active { transform: scale(.96); }
+    .pick.locked { opacity: .45; }
+    .pick > img { width: 46px; height: 46px; object-fit: contain; flex: none; }
+    .pick-name { color: #3a2919; font: 900 12.5px Cairo, sans-serif; }
+    .pick-cost { display: flex; gap: 7px; margin-top: 3px; }
+    .pick-cost span { display: flex; align-items: center; gap: 3px; color: #7d6950; font: 800 10.5px Cairo, sans-serif; }
+    .pick-cost img { width: 14px; height: 14px; object-fit: contain; }
   </style>
 </head>
 <body>
@@ -272,13 +346,7 @@
         <button class="farm-spot well-spot" id="well" type="button" aria-label="بئر المزرعة"></button>
         <button class="farm-spot field-spot" id="field" type="button" aria-label="حقل الجزر"></button>
 
-        <button class="farm-spot site-spot" id="buildSite" type="button" aria-label="موقع بناء عش الرفيق">
-          <span class="site-pin" id="sitePin">عش الرفيق هنا</span>
-        </button>
-        <span class="ground-shadow egg-shadow" id="eggShadow" hidden></span>
-        <button class="world-object egg" id="egg" type="button" aria-label="بيضة الرفيق البني" hidden>
-          <img src="companions/egg_brown.webp" alt="بيضة الرفيق البني">
-        </button>
+        <div id="slots"></div>
 
         <button class="jazour" id="jazour" type="button" aria-label="تحدث مع جزّور">
           <span class="character-shadow"></span>
@@ -299,34 +367,29 @@
       </div>
     </div>
 
-    <p class="walk-tip" id="walkTip">اسحب لتتجول في المزرعة</p>
+    <p class="walk-tip" id="walkTip">اسحب لتتجول · اضغط ＋ لتبني</p>
     <div class="toast" id="toast" role="status"></div>
 
     <section class="objective" aria-label="الخطوة التالية">
-      <div class="objective-icon"><img src="companions/egg_brown.webp" alt=""></div>
+      <div class="objective-icon"><img id="objectiveIcon" src="resources/wood.webp" alt=""></div>
       <div>
         <div class="objective-kicker">خطوتنا التالية</div>
-        <div class="objective-title" id="objectiveTitle">نجهّز عش الرفيق</div>
-        <span class="objective-copy" id="objectiveCopy">اضغط اللوحة الخشبية في الأرض الخضراء.</span>
+        <div class="objective-title" id="objectiveTitle">ابنِ أول شيء في مزرعتك</div>
+        <span class="objective-copy" id="objectiveCopy">اضغط علامة ＋ الخضراء على الأرض.</span>
       </div>
-      <button class="focus-button" id="focusButton" type="button">أرِني</button>
+      <button class="focus-button" id="focusButton" type="button">وين؟</button>
     </section>
 
     <section class="build-sheet" id="buildSheet" aria-labelledby="sheetTitle" aria-hidden="true">
       <div class="sheet-handle"></div>
       <div class="sheet-header">
-        <img src="companions/egg_brown.webp" alt="بيضة الرفيق البني">
         <div>
-          <h2 class="sheet-title" id="sheetTitle">عش الرفيق البني</h2>
-          <p class="sheet-copy">عندما نكمله، تبدأ البيضة بالدفء.</p>
+          <h2 class="sheet-title" id="sheetTitle">وش نبني هنا؟</h2>
+          <p class="sheet-copy">اختر، وجزّور يبنيه لك حالًا.</p>
         </div>
       </div>
-      <div class="cost-row" aria-label="الموارد المطلوبة">
-        <div class="cost"><img src="resources/light.webp" alt="">٤ نور</div>
-        <div class="cost"><img src="resources/seed.webp" alt="">٥ بذور</div>
-      </div>
-      <div class="sheet-actions">
-        <button class="build-button" id="buildButton" type="button">ابنِ العش</button>
+      <div class="pick-grid" id="pickGrid"></div>
+      <div class="sheet-actions" style="grid-template-columns: 1fr; margin-top: 12px">
         <button class="cancel-button" id="cancelButton" type="button">ليس الآن</button>
       </div>
     </section>
@@ -335,24 +398,50 @@
   <script>
     const viewport = document.getElementById('viewport');
     const world = document.getElementById('world');
+    const slotsLayer = document.getElementById('slots');
     const walkTip = document.getElementById('walkTip');
     const speech = document.getElementById('speech');
     const jazour = document.getElementById('jazour');
     const jazourImage = document.getElementById('jazourImage');
-    const buildSite = document.getElementById('buildSite');
-    const sitePin = document.getElementById('sitePin');
-    const egg = document.getElementById('egg');
-    const eggShadow = document.getElementById('eggShadow');
     const sheet = document.getElementById('buildSheet');
+    const pickGrid = document.getElementById('pickGrid');
     const toast = document.getElementById('toast');
+    const objectiveIcon = document.getElementById('objectiveIcon');
     const objectiveTitle = document.getElementById('objectiveTitle');
     const objectiveCopy = document.getElementById('objectiveCopy');
     const focusButton = document.getElementById('focusButton');
 
+    /* ═══ ما يمكن بناؤه ═══ */
+    const CATALOG = [
+      { id: 'egg',   name: 'عش الرفيق', img: 'companions/egg_brown.webp', w: 86,
+        cost: { light: 4, seed: 5 }, line: 'يا سلام! صار للرفيق بيت دافئ!' },
+      { id: 'field', name: 'حقل جزر',   img: 'buildings/field.webp',      w: 172,
+        cost: { seed: 4, water: 3 },  line: 'حقل جديد! بنزرعه سوا.' },
+      { id: 'well',  name: 'بئر ماء',   img: 'buildings/well.webp',       w: 118,
+        cost: { stone: 6, wood: 2 },  line: 'موية أكثر يعني جزر أكبر!' },
+      { id: 'barn',  name: 'حظيرة',     img: 'buildings/barn.webp',       w: 152,
+        cost: { wood: 8, stone: 3 },  line: 'الحظيرة جاهزة تستقبل الرفاق.' },
+    ];
+    const ICONS = {
+      wood: 'resources/wood.webp', stone: 'resources/stone.webp',
+      water: 'resources/water.webp', light: 'resources/light.webp', seed: 'resources/seed.webp',
+    };
+
+    /* مواقع البناء على الأرض المرسومة (إحداثيات داخل عالم 1180×664) */
+    const SLOTS = [
+      { x: 690, y: 452, r: 62 },
+      { x: 862, y: 408, r: 60 },
+      { x: 1002, y: 470, r: 58 },
+      { x: 140, y: 268, r: 56 },
+    ];
+
+    const RES = { wood: 14, stone: 10, water: 8, light: 5, seed: 12 };
+    const arabicDigits = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+
     const pan = { x: 0, y: 0, minX: 0, maxX: 0, minY: 0, maxY: 0 };
     let drag = null;
     let moved = 0;
-    let built = false;
+    let openSlot = null;
     let speechTimer;
     let toastTimer;
 
@@ -363,9 +452,8 @@
       world.style.transform = `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${worldScale})`;
     }
 
-    /* حدود الكاميرا تُحسب من المقاسات الحقيقية لا بأرقام ثابتة:
-       الشاشات الطويلة كانت تكشف أرضية خضراء فارغة تحت الرسمة عند السحب لأعلى.
-       نكبّر الرسمة أقل تكبير يضمن التغطية، ثم نقصر السحب على ما تغطيه فعلًا. */
+    /* حدود الكاميرا تُحسب من المقاسات الحقيقية لا بأرقام ثابتة، حتى لا تنكشف
+       أرضية فارغة تحت الرسمة على الشاشات الطويلة. */
     function fitWorld() {
       const vp = viewport.getBoundingClientRect();
       const card = document.querySelector('.objective');
@@ -388,10 +476,28 @@
       paintWorld();
     }
 
-    fitWorld();
-    addEventListener('resize', fitWorld);
-    addEventListener('orientationchange', fitWorld);
+    /* ═══ الموارد ═══ */
+    function paintResources() {
+      for (const [key, value] of Object.entries(RES)) {
+        const span = document.querySelector(`[data-resource="${key}"] span`);
+        if (span) span.textContent = arabicDigits(value);
+      }
+    }
+    const canAfford = cost => Object.entries(cost).every(([k, n]) => RES[k] >= n);
+    function bump(resource) {
+      const el = document.querySelector(`[data-resource="${resource}"]`);
+      if (!el) return;
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      el.classList.add('bump');
+    }
+    function spend(cost) {
+      for (const [k, n] of Object.entries(cost)) { RES[k] -= n; bump(k); }
+      paintResources();
+    }
+    paintResources();
 
+    /* ═══ كلام جزّور ═══ */
     function say(text, pose = 'hero.webp') {
       speech.textContent = text;
       speech.classList.add('on');
@@ -402,7 +508,6 @@
         jazourImage.src = 'characters/jazour/hero.webp?v=2';
       }, 2600);
     }
-
     function notify(text) {
       toast.textContent = text;
       toast.classList.add('show');
@@ -410,100 +515,158 @@
       toastTimer = setTimeout(() => toast.classList.remove('show'), 2300);
     }
 
-    function moveToSite() {
-      pan.x = clamp(-120, pan.minX, pan.maxX);
-      pan.y = clamp(-12, pan.minY, pan.maxY);
+    /* ═══ علامات ＋ على الأرض ═══ */
+    function drawSlots() {
+      slotsLayer.innerHTML = SLOTS.map((s, i) => `
+        <button class="slot" type="button" data-slot="${i}" aria-label="ابنِ هنا"
+          style="left:${s.x - s.r}px;top:${s.y - s.r * 0.62}px;width:${s.r * 2}px;height:${s.r * 1.24}px">
+          <span class="slot-ring"></span><span class="slot-plus">＋</span>
+        </button>`).join('');
+      slotsLayer.querySelectorAll('.slot').forEach(el => {
+        el.style.animationDelay = (Number(el.dataset.slot) * 0.35) + 's';
+        el.addEventListener('click', () => {
+          if (moved > 12) return;
+          openBuild(Number(el.dataset.slot));
+        });
+      });
+    }
+
+    function freeSlots() {
+      return [...slotsLayer.querySelectorAll('.slot')].filter(el => !el.hidden);
+    }
+
+    function refreshObjective() {
+      const left = freeSlots().length;
+      if (left) {
+        objectiveTitle.textContent = 'ابنِ في مزرعتك';
+        objectiveCopy.textContent = `باقي ${arabicDigits(left)} مواقع فيها علامة ＋ — اضغط أي واحدة.`;
+        focusButton.textContent = 'وين؟';
+        focusButton.hidden = false;
+      } else {
+        objectiveIcon.src = 'companions/egg_brown.webp';
+        objectiveTitle.textContent = 'مزرعتك اكتملت!';
+        objectiveCopy.textContent = 'أنجز مهام جديدة لتفتح أرضًا أوسع.';
+        focusButton.hidden = true;
+      }
+    }
+
+    /* الكاميرا تروح لأقرب موقع فارغ وتومض عليه — جواب سؤال «وين أبني؟» */
+    function showNextSlot() {
+      const el = freeSlots()[0];
+      if (!el) { say('كل المواقع صارت مبنية! ما شاء الله.', 'proud.webp'); return; }
+      const i = Number(el.dataset.slot), s = SLOTS[i];
+      const vp = viewport.getBoundingClientRect();
+      pan.x = clamp(vp.width / 2 - (world.offsetLeft + s.x * worldScale), pan.minX, pan.maxX);
+      pan.y = clamp(vp.height * 0.45 - (world.offsetTop + s.y * worldScale), pan.minY, pan.maxY);
       paintWorld();
       walkTip.classList.add('hide');
-      setTimeout(() => { if (!built) say('هنا بيت الرفيق، وش رايك نبنيه؟', 'thinking.webp'); }, 460);
+      el.classList.remove('hint');
+      void el.offsetWidth;
+      el.classList.add('hint');
+      say('هنا! اضغط ＋ واختر.', 'thinking.webp');
     }
 
-    function openBuild() {
-      if (built) {
-        say('البيضة تدفأ شوي شوي… نرجع لها بكرا!', 'happy.webp');
-        return;
-      }
+    /* ═══ لوحة الاختيار ═══ */
+    function openBuild(index) {
+      openSlot = index;
+      pickGrid.innerHTML = CATALOG.map(item => {
+        const ok = canAfford(item.cost);
+        const cost = Object.entries(item.cost)
+          .map(([k, n]) => `<span><img src="${ICONS[k]}" alt="">${arabicDigits(n)}</span>`).join('');
+        return `<button class="pick ${ok ? '' : 'locked'}" type="button" data-pick="${item.id}">
+            <img src="${item.img}" alt="">
+            <span><span class="pick-name">${item.name}</span>
+            <span class="pick-cost">${cost}</span></span>
+          </button>`;
+      }).join('');
+      pickGrid.querySelectorAll('.pick').forEach(el => el.addEventListener('click', () => {
+        const item = CATALOG.find(c => c.id === el.dataset.pick);
+        if (!canAfford(item.cost)) {
+          say('ناقصنا شوي موارد… أنجز مهمة وارجع!', 'thinking.webp');
+          notify('الموارد ما تكفي بعد');
+          return;
+        }
+        build(openSlot, item);
+        closeBuild();
+      }));
       sheet.classList.add('open');
       sheet.setAttribute('aria-hidden', 'false');
-      say('إذا بنيناه، تقترب لحظة الفقس!', 'happy.webp');
     }
-
     function closeBuild() {
       sheet.classList.remove('open');
       sheet.setAttribute('aria-hidden', 'true');
     }
 
-    /* الموارد رقم حقيقي يُخصم فعلًا — كانت أرقامًا ثابتة لا تتغيّر
-       مع أن اللوحة تقول إن العش يكلّف ٤ نور و٥ بذور. */
-    const RES = { wood: 14, stone: 10, water: 8, light: 5, seed: 12 };
-    const NEST_COST = { light: 4, seed: 5 };
-    const arabicDigits = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+    /* ═══ لحظة البناء ═══ */
+    function build(index, item) {
+      const s = SLOTS[index];
+      const slotEl = slotsLayer.querySelector(`[data-slot="${index}"]`);
+      spend(item.cost);
+      slotEl.hidden = true;
+      walkTip.classList.add('hide');
+      refreshObjective();
 
-    function paintResources() {
-      for (const [key, value] of Object.entries(RES)) {
-        const span = document.querySelector(`[data-resource="${key}"] span`);
-        if (span) span.textContent = arabicDigits(value);
+      const scaffold = document.createElement('div');
+      scaffold.className = 'scaffold';
+      scaffold.style.cssText = `left:${s.x - 66}px;top:${s.y - 118}px;width:132px`;
+      scaffold.innerHTML = '<img src="buildings/scaffold.webp" alt="">';
+      world.appendChild(scaffold);
+      say('نبنيه الحين…', 'encourage.webp');
+      notify('بدأ البناء…');
+
+      setTimeout(() => {
+        scaffold.remove();
+        dustBurst(s.x, s.y);
+
+        const shadow = document.createElement('span');
+        shadow.className = 'ground-shadow';
+        shadow.style.cssText =
+          `width:${item.w * 0.6}px;height:${item.w * 0.14}px;left:${s.x - item.w * 0.3}px;top:${s.y - item.w * 0.06}px`;
+        world.appendChild(shadow);
+
+        const el = document.createElement('button');
+        el.className = 'placed grow';
+        el.type = 'button';
+        el.setAttribute('aria-label', item.name);
+        el.style.cssText = `left:${s.x - item.w / 2}px;top:${s.y - item.w * 0.9}px;width:${item.w}px`;
+        el.innerHTML = `<img src="${item.img}" alt="">`;
+        el.addEventListener('click', () => say(item.line, 'happy.webp'));
+        world.appendChild(el);
+
+        jazour.animate([
+          { transform: 'translate(0,0) scale(1)' },
+          { transform: 'translate(-9px,-8px) scale(1.08)' },
+          { transform: 'translate(0,0) scale(1)' }
+        ], { duration: 680, easing: 'cubic-bezier(.34,1.56,.64,1)' });
+        say(item.line, 'celebrate.webp');
+        notify('اكتمل ' + item.name + ' 🎉');
+        objectiveIcon.src = item.img;
+      }, 1200);
+    }
+
+    function dustBurst(x, y) {
+      for (let i = 0; i < 12; i++) {
+        const d = document.createElement('i');
+        d.className = 'dust';
+        d.style.cssText = `left:${x - 7}px;top:${y - 7}px`;
+        world.appendChild(d);
+        const a = Math.PI * 2 * i / 12, r = 40 + Math.random() * 30;
+        d.animate([
+          { transform: 'translate(0,0) scale(.5)', opacity: .95 },
+          { transform: `translate(${Math.cos(a) * r}px, ${Math.sin(a) * r * .45 - 14}px) scale(1.6)`, opacity: 0 },
+        ], { duration: 620, easing: 'ease-out' }).onfinish = () => d.remove();
       }
     }
-    paintResources();
 
-    function canAfford(cost) {
-      return Object.entries(cost).every(([key, need]) => RES[key] >= need);
-    }
-
-    function spend(cost) {
-      for (const [key, need] of Object.entries(cost)) {
-        RES[key] -= need;
-        bump(key);
-      }
-      paintResources();
-    }
-
-    function bump(resource) {
-      const element = document.querySelector(`[data-resource="${resource}"]`);
-      if (!element) return;
-      element.classList.remove('bump');
-      void element.offsetWidth;
-      element.classList.add('bump');
-    }
-
-    function buildNest() {
-      if (built) return;
-      if (!canAfford(NEST_COST)) {
-        say('ناقصنا شوي موارد… أنجز مهمة وارجع!', 'thinking.webp');
-        notify('الموارد ما تكفي بعد');
-        return;
-      }
-      built = true;
-      spend(NEST_COST);
-      closeBuild();
-      sitePin.hidden = true;
-      buildSite.style.pointerEvents = 'none';
-      egg.hidden = false;
-      eggShadow.hidden = false;
-      objectiveTitle.textContent = 'البيضة صارت دافئة';
-      objectiveCopy.textContent = 'أنجز مهمة جديدة لتتحرك البيضة أكثر.';
-      focusButton.textContent = 'شاهدها';
-      jazourImage.src = 'characters/jazour/celebrate.webp?v=2';
-      jazour.animate([
-        { transform: 'translate(0,0) scale(1)' },
-        { transform: 'translate(-9px,-8px) scale(1.08)' },
-        { transform: 'translate(0,0) scale(1)' }
-      ], { duration: 680, easing: 'cubic-bezier(.34,1.56,.64,1)' });
-      say('يا سلام! صار للرفيق بيت دافئ!', 'celebrate.webp');
-      notify('اكتمل عش الرفيق البني');
-    }
-
+    /* ═══ الكاميرا ═══ */
     viewport.addEventListener('pointerdown', event => {
       if (event.target.closest('button, .objective, .build-sheet, .top-ui')) return;
       drag = { x: event.clientX, y: event.clientY };
       moved = 0;
-      viewport.setPointerCapture?.(event.pointerId);
       viewport.classList.add('is-dragging');
       walkTip.classList.add('hide');
     });
-
-    viewport.addEventListener('pointermove', event => {
+    addEventListener('pointermove', event => {
       if (!drag) return;
       const dx = event.clientX - drag.x;
       const dy = event.clientY - drag.y;
@@ -513,40 +676,34 @@
       drag = { x: event.clientX, y: event.clientY };
       paintWorld();
     });
-
     function endDrag() { drag = null; viewport.classList.remove('is-dragging'); }
-    viewport.addEventListener('pointerup', endDrag);
-    viewport.addEventListener('pointercancel', endDrag);
+    addEventListener('pointerup', endDrag);
+    addEventListener('pointercancel', endDrag);
 
+    /* ═══ الربط ═══ */
     document.getElementById('home').addEventListener('click', () => say('هذا بيتي… تعال نرتب المزرعة سوا!', 'happy.webp'));
     document.getElementById('barn').addEventListener('click', () => say('الحظيرة جاهزة تستقبل الرفيق.', 'encourage.webp'));
     document.getElementById('well').addEventListener('click', () => say('موية البئر تساعد حقلنا يكبر.', 'happy.webp'));
     document.getElementById('field').addEventListener('click', () => say('شوف الجزر! كل إنجاز يساعده ينمو.', 'proud.webp'));
-    buildSite.addEventListener('click', openBuild);
-    egg.addEventListener('click', () => say('أحس إنها تتحرك… خلّنا نرجع بكرا.', 'surprised.webp'));
     jazour.addEventListener('click', () => {
       const lines = [
+        ['اضغط أي ＋ ونبني شيئًا جديدًا!', 'excited.webp'],
         ['مزرعتنا صارت أجمل بكثير!', 'celebrate.webp'],
-        ['تبغى نمشي عند الحقل؟', 'happy.webp'],
-        ['كل مهمة تساعدنا نبني شيء جديد.', 'proud.webp']
+        ['كل مهمة تعطينا موارد نبني فيها.', 'proud.webp']
       ];
       const line = lines[Math.floor(Math.random() * lines.length)];
       say(line[0], line[1]);
     });
-    focusButton.addEventListener('click', () => {
-      if (built) {
-        pan.x = -115;
-        pan.y = -10;
-        paintWorld();
-        say('شوف! صارت البيضة في أمان.', 'happy.webp');
-      } else {
-        moveToSite();
-      }
-    });
-    document.getElementById('buildButton').addEventListener('click', buildNest);
+    focusButton.addEventListener('click', showNextSlot);
     document.getElementById('cancelButton').addEventListener('click', closeBuild);
 
-    setTimeout(() => say('هلا يا بطل! خلّنا نتمشى في مزرعتنا.', 'wave.webp'), 650);
+    drawSlots();
+    refreshObjective();
+    fitWorld();
+    addEventListener('resize', fitWorld);
+    addEventListener('orientationchange', fitWorld);
+
+    setTimeout(() => say('هلا يا بطل! اضغط علامة ＋ ونبني سوا.', 'wave.webp'), 650);
   </script>
 </body>
 </html>
