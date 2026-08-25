@@ -24,6 +24,7 @@
       position: relative;
       width: min(430px, 100vw);
       height: min(860px, 100vh);
+      height: min(860px, 100dvh);   /* سفاري يخفي شريطه فيتغير الارتفاع — dvh يتبعه */
       overflow: hidden;
       isolation: isolate;
       background: linear-gradient(#9eddf0 0 15%, #77c461 16% 100%);
@@ -48,8 +49,8 @@
 
     .world-object { position: absolute; transform-origin: 50% 100%; border: 0; padding: 0; background: transparent; filter: drop-shadow(0 9px 7px var(--shadow)); cursor: pointer; }
     .world-object img { width: 100%; display: block; pointer-events: none; }
-    .home { width: 192px; left: 498px; top: 110px; animation: homeBreathe 4.6s ease-in-out infinite; }
-    .barn { width: 184px; left: 197px; top: 193px; animation: barnSway 5.8s ease-in-out infinite; }
+    .home { z-index: 283; width: 192px; left: 498px; top: 110px; animation: homeBreathe 4.6s ease-in-out infinite; }
+    .barn { z-index: 321; width: 184px; left: 197px; top: 193px; animation: barnSway 5.8s ease-in-out infinite; }
     .egg { width: 78px; left: 640px; top: 392px; animation: eggWarm 2.6s ease-in-out infinite; }
     .egg[hidden] { display: none; }
     .ground-shadow { position: absolute; border-radius: 50%; background: rgba(34, 77, 27, .24); filter: blur(5px); pointer-events: none; }
@@ -103,7 +104,7 @@
       left: 566px;
       top: 282px;
       width: 94px;
-      z-index: 15;
+      z-index: 392;
       cursor: pointer;
       transition: transform 1.25s cubic-bezier(.34, 1.1, .64, 1);
       filter: drop-shadow(0 10px 7px rgba(35, 72, 25, .3));
@@ -166,7 +167,7 @@
       position: absolute;
       right: 12px;
       left: 12px;
-      bottom: 15px;
+      bottom: calc(15px + env(safe-area-inset-bottom));
       z-index: 35;
       display: grid;
       grid-template-columns: 42px 1fr auto;
@@ -206,6 +207,12 @@
       background: #fffdf7;
       border-radius: 25px 25px 0 0;
       box-shadow: 0 -10px 28px rgba(41, 49, 26, .28);
+      /* تُمرَّر بالإصبع، ولا تختفي خياراتها تحت شريط المتصفح */
+      max-height: 76%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
       transform: translateY(108%);
       transition: transform .35s cubic-bezier(.34, 1.25, .64, 1);
     }
@@ -261,7 +268,6 @@
       padding: 0;
       background: transparent;
       cursor: pointer;
-      z-index: 12;
     }
     .slot-ring {
       position: absolute;
@@ -296,13 +302,16 @@
     @keyframes slotHint { 50% { background: rgba(255, 235, 130, .7); border-color: #fff; } }
     .slot[hidden] { display: none; }
 
-    .scaffold { position: absolute; z-index: 13; filter: drop-shadow(0 8px 6px var(--shadow)); pointer-events: none; }
+    .scaffold { position: absolute; filter: drop-shadow(0 8px 6px var(--shadow)); pointer-events: none; }
     .scaffold img { width: 100%; display: block; }
     .placed { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer; filter: drop-shadow(0 9px 7px var(--shadow)); transform-origin: 50% 92%; }
     .placed img { width: 100%; display: block; pointer-events: none; }
     .placed.grow { animation: placeGrow .55s cubic-bezier(.34, 1.56, .64, 1); }
     @keyframes placeGrow { 0% { transform: scale(.55); } 62% { transform: scale(1.09); } 100% { transform: scale(1); } }
-    .dust { position: absolute; width: 15px; height: 15px; border-radius: 50%; background: rgba(214, 189, 152, .92); pointer-events: none; z-index: 14; }
+    .dust { position: absolute; width: 15px; height: 15px; border-radius: 50%; background: rgba(214, 189, 152, .92); pointer-events: none; z-index: 9000; }
+    /* رقعة أرض مهيّأة تحت كل مبنى جديد — بدونها يبدو ملصوقًا على العشب */
+    .pad { position: absolute; border-radius: 50%; pointer-events: none;
+      background: radial-gradient(ellipse at 50% 45%, rgba(190,153,102,.72) 0%, rgba(174,137,88,.55) 58%, rgba(178,140,90,0) 100%); }
 
     /* ── لوحة الاختيار ── */
     .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
@@ -417,9 +426,9 @@
         cost: { light: 4, seed: 5 }, line: 'يا سلام! صار للرفيق بيت دافئ!' },
       { id: 'field', name: 'حقل جزر',   img: 'buildings/field.webp',      w: 172,
         cost: { seed: 4, water: 3 },  line: 'حقل جديد! بنزرعه سوا.' },
-      { id: 'well',  name: 'بئر ماء',   img: 'buildings/well.webp',       w: 118,
+      { id: 'well',  name: 'بئر ماء',   img: 'buildings/well.webp',       w: 118, pad: true,
         cost: { stone: 6, wood: 2 },  line: 'موية أكثر يعني جزر أكبر!' },
-      { id: 'barn',  name: 'حظيرة',     img: 'buildings/barn.webp',       w: 152,
+      { id: 'barn',  name: 'حظيرة',     img: 'buildings/barn.webp',       w: 152, pad: true,
         cost: { wood: 8, stone: 3 },  line: 'الحظيرة جاهزة تستقبل الرفاق.' },
     ];
     const ICONS = {
@@ -428,11 +437,12 @@
     };
 
     /* مواقع البناء على الأرض المرسومة (إحداثيات داخل عالم 1180×664) */
+    /* اختيرت على العشب المفتوح فقط: لا فوق ممر، ولا فوق بناء مرسوم أصلًا */
     const SLOTS = [
-      { x: 690, y: 452, r: 62 },
-      { x: 862, y: 408, r: 60 },
-      { x: 1002, y: 470, r: 58 },
-      { x: 140, y: 268, r: 56 },
+      { x: 678, y: 424, r: 58 },
+      { x: 878, y: 422, r: 60 },
+      { x: 970, y: 492, r: 56 },
+      { x: 884, y: 556, r: 58 },
     ];
 
     const RES = { wood: 14, stone: 10, water: 8, light: 5, seed: 12 };
@@ -519,7 +529,7 @@
     function drawSlots() {
       slotsLayer.innerHTML = SLOTS.map((s, i) => `
         <button class="slot" type="button" data-slot="${i}" aria-label="ابنِ هنا"
-          style="left:${s.x - s.r}px;top:${s.y - s.r * 0.62}px;width:${s.r * 2}px;height:${s.r * 1.24}px">
+          style="left:${s.x - s.r}px;top:${s.y - s.r * 0.62}px;width:${s.r * 2}px;height:${s.r * 1.24}px;z-index:${Math.round(s.y)}">
           <span class="slot-ring"></span><span class="slot-plus">＋</span>
         </button>`).join('');
       slotsLayer.querySelectorAll('.slot').forEach(el => {
@@ -608,7 +618,7 @@
 
       const scaffold = document.createElement('div');
       scaffold.className = 'scaffold';
-      scaffold.style.cssText = `left:${s.x - 66}px;top:${s.y - 118}px;width:132px`;
+      scaffold.style.cssText = `left:${s.x - 66}px;top:${s.y - 118}px;width:132px;z-index:${Math.round(s.y)}`;
       scaffold.innerHTML = '<img src="buildings/scaffold.webp" alt="">';
       world.appendChild(scaffold);
       say('نبنيه الحين…', 'encourage.webp');
@@ -618,17 +628,27 @@
         scaffold.remove();
         dustBurst(s.x, s.y);
 
+        /* رقعة أرض مهيّأة لمن يقف على العشب مباشرة.
+           الحقل والعش لهما قاعدتهما (إطار خشبي / عش قش) فلا رقعة لهما. */
+        if (item.pad) {
+          const pad = document.createElement('span');
+          pad.className = 'pad';
+          pad.style.cssText =
+            `width:${item.w * 0.66}px;height:${item.w * 0.24}px;left:${s.x - item.w * 0.33}px;top:${s.y - item.w * 0.12}px;z-index:${Math.round(s.y) - 2}`;
+          world.appendChild(pad);
+        }
+
         const shadow = document.createElement('span');
         shadow.className = 'ground-shadow';
         shadow.style.cssText =
-          `width:${item.w * 0.6}px;height:${item.w * 0.14}px;left:${s.x - item.w * 0.3}px;top:${s.y - item.w * 0.06}px`;
+          `width:${item.w * 0.6}px;height:${item.w * 0.14}px;left:${s.x - item.w * 0.3}px;top:${s.y - item.w * 0.06}px;z-index:${Math.round(s.y) - 1}`;
         world.appendChild(shadow);
 
         const el = document.createElement('button');
         el.className = 'placed grow';
         el.type = 'button';
         el.setAttribute('aria-label', item.name);
-        el.style.cssText = `left:${s.x - item.w / 2}px;top:${s.y - item.w * 0.9}px;width:${item.w}px`;
+        el.style.cssText = `left:${s.x - item.w / 2}px;top:${s.y - item.w * 0.9}px;width:${item.w}px;z-index:${Math.round(s.y)}`;
         el.innerHTML = `<img src="${item.img}" alt="">`;
         el.addEventListener('click', () => say(item.line, 'happy.webp'));
         world.appendChild(el);
