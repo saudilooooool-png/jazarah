@@ -523,6 +523,10 @@ function defaultChild(name, avatarBase, avatarBg) {
     name: name || 'البطل',
     username: 'hero_' + uid().slice(0, 5),   // اسم مستخدم فريد — لبطاقة QR والمزامنة مستقبلًا
     avatar: { base: avatarBase || 'c1', bg: avatarBg || AVATAR_BGS[0] },
+    identityStyle: 'jazour_friend',
+    copyStyle: 'matched',
+    deviceCode: null,
+    accessPin: null,
     xp: 0, coins: 0, lifetimeCoins: 0, hp: 100,
     streak: 0, bestStreak: 0, lastFullDay: null,
     gear: [], equipped: [],
@@ -571,6 +575,7 @@ function defaultState() {
   return {
     v: 2,
     pin: null,
+    parentAccount: { email: '', confirmed: false, mode: 'temporary', confirmedAt: null },
     children: [first],
     activeChildId: first.id,
     joinRequests: [],      // طلبات انضمام أرسلها أطفال بانتظار موافقة الوالد
@@ -598,6 +603,14 @@ function C() {
 function heroBase(c) { return (c && c.avatar && c.avatar.base) || 'c1'; }
 function heroFace(c) { return faceHTML(heroBase(c)); }
 function heroBg(c) { return (c && c.avatar && c.avatar.bg) || AVATAR_BGS[0]; }
+function childRole(c) {
+  if (!c || c.copyStyle === 'name_only') return 'صديق جزّور';
+  return c.identityStyle === 'hero' ? 'بطل' : c.identityStyle === 'heroine' ? 'بطلة' : 'صديق جزّور';
+}
+function childGreeting(c) {
+  if (!c || c.copyStyle === 'name_only' || c.identityStyle === 'jazour_friend') return 'يا ' + (c ? c.name : 'صديق جزّور');
+  return c.identityStyle === 'heroine' ? 'يا بطلة' : 'يا بطل';
+}
 
 /* ─────────────── أدوات مساعدة ─────────────── */
 
@@ -924,6 +937,7 @@ function load() {
         s.quizzes = s.quizzes || [];
         s.vouchers = s.vouchers || [];
         s.family = s.family || { city: '', district: '', school: '' };
+        s.parentAccount = Object.assign({ email: '', confirmed: false, mode: 'temporary', confirmedAt: null }, old.parentAccount || {});
         // لا نقطع على الأسر القديمة باستبيان جديد؛ يظهر الاستبيان تلقائيًا للأسر المنشأة بعد هذا الإصدار فقط.
         if (!old.onboarding) s.onboarding = { version: 1, status: 'legacy', draft: null, completedAt: null };
         else s.onboarding = Object.assign({ version: 1, status: 'pending', draft: null, completedAt: null }, old.onboarding);
@@ -1240,9 +1254,36 @@ const App = {
       <button class="cs-card" onclick="App.enterKidAs('${c.id}')">
         <span class="cs-avatar" style="background:${heroBg(c)}">${heroFace(c)}</span>
         <span class="cs-name">${esc(c.name)}</span>
-        <span class="cs-level">⭐ المستوى ${levelOf(c.xp)}</span>
+        <span class="cs-level">${childRole(c)} · ⭐ المستوى ${levelOf(c.xp)}</span>
       </button>`).join('') ||
-      '<p class="muted" style="grid-column:1/-1;text-align:center">لا يوجد أبطال بعد — اطلب من والدك إضافتك!</p>';
+      '<p class="muted" style="grid-column:1/-1;text-align:center">لا توجد ملفات أطفال بعد — اطلب من الوالد إضافتك!</p>';
+  },
+
+  childCodeForm() {
+    this.openModal(`
+      <section class="account-flow" aria-label="دخول الطفل بالكود">
+        <p class="onboarding-kicker">جهاز الطفل</p><h2>ادخل كودك الخاص</h2>
+        <p class="muted">الكود يفتحه الوالد من غرفة القيادة. في هذه النسخة التجريبية يعمل بعد مزامنة العائلة على الجهاز الجديد.</p>
+        <label>كود الطفل</label><input id="f-child-device-code" class="device-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="٦ أرقام" dir="ltr" />
+        <p id="child-code-error" class="pin-error"></p>
+        <button class="btn-primary big" onclick="App.enterChildWithDeviceCode()">فتح ملفي ←</button>
+      </section>`);
+  },
+
+  enterChildWithDeviceCode() {
+    const input = document.getElementById('f-child-device-code');
+    const code = (input && input.value || '').replace(/\D/g, '');
+    const c = S.children.find(child => child.deviceCode === code);
+    const error = document.getElementById('child-code-error');
+    if (!c) { if (error) error.textContent = 'هذا الكود غير معروف على هذا الجهاز'; return; }
+    this.closeModal();
+    this._childPinTarget = c.id;
+    this._pinBuffer = '';
+    this._pinMode = c.accessPin ? 'child-enter' : 'child-setup';
+    document.getElementById('pin-title').textContent = c.accessPin ? `مرحبًا ${esc(c.name)}، أدخل رقمك` : `اختر رقمك الشخصي يا ${esc(c.name)}`;
+    document.getElementById('pin-hint').textContent = c.accessPin ? 'أربعة أرقام لفتح ملفك فقط' : 'رقم شخصي من أربعة أرقام لا يفتح غرفة الوالدين';
+    document.getElementById('pin-error').textContent = '';
+    this.renderPinPad(); this.renderPinDots(); this.showScreen('screen-pin');
   },
 
   joinRequestForm() {
@@ -1345,6 +1386,49 @@ const App = {
   _pinMode: 'enter', // 'setup' | 'enter'
 
   enterParent() {
+    if (!S.parentAccount || !S.parentAccount.confirmed) { this.parentAccountForm(); return; }
+    this.enterParentPin();
+  },
+
+  parentAccountForm() {
+    const email = (S.parentAccount && S.parentAccount.email) || '';
+    this.openModal(`
+      <section class="account-flow" aria-label="حساب الوالد">
+        <p class="onboarding-kicker">حساب الوالد أو الوالدة</p><h2>ابدأ بحساب الأسرة</h2>
+        <p class="muted">هذه معاينة مؤقتة: لن تصل رسالة بريد حقيقية الآن. عند ربط خدمة البريد لاحقًا يستبدل هذا التأكيد التجريبي برسالة آمنة.</p>
+        <label>البريد الإلكتروني</label><input id="f-parent-email" type="email" value="${esc(email)}" inputmode="email" autocomplete="email" placeholder="name@example.com" />
+        <p id="parent-account-error" class="pin-error"></p>
+        <button class="btn-primary big" onclick="App.prepareTemporaryParentConfirmation()">متابعة التجربة ←</button>
+      </section>`);
+  },
+
+  prepareTemporaryParentConfirmation() {
+    const field = document.getElementById('f-parent-email');
+    const email = (field && field.value || '').trim().toLowerCase();
+    const error = document.getElementById('parent-account-error');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { if (error) error.textContent = 'اكتب بريدًا إلكترونيًا صحيحًا'; return; }
+    this._temporaryParentEmail = email;
+    this._temporaryParentCode = String(Math.floor(100000 + Math.random() * 900000));
+    this.openModal(`
+      <section class="account-flow" aria-label="تأكيد تجريبي للبريد">
+        <p class="onboarding-kicker">تأكيد تجريبي</p><h2>تحقق من حساب الأسرة</h2>
+        <p class="muted">لم نرسل بريدًا في هذه المعاينة. استخدم الرمز الظاهر لتجربة المسار فقط.</p>
+        <div class="temporary-code" dir="ltr">${this._temporaryParentCode}</div>
+        <label>رمز التأكيد</label><input id="f-parent-temp-code" class="device-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="٦ أرقام" dir="ltr" />
+        <p id="parent-confirm-error" class="pin-error"></p>
+        <button class="btn-primary big" onclick="App.confirmTemporaryParentAccount()">تأكيد والدخول ←</button>
+      </section>`);
+  },
+
+  confirmTemporaryParentAccount() {
+    const value = (document.getElementById('f-parent-temp-code').value || '').replace(/\D/g, '');
+    const error = document.getElementById('parent-confirm-error');
+    if (value !== this._temporaryParentCode) { if (error) error.textContent = 'الرمز التجريبي غير صحيح'; return; }
+    S.parentAccount = { email: this._temporaryParentEmail, confirmed: true, mode: 'temporary', confirmedAt: new Date().toISOString() };
+    save(); this.closeModal(); this.enterParentPin();
+  },
+
+  enterParentPin() {
     this._pinBuffer = '';
     this._pinMode = S.pin ? 'enter' : 'setup';
     document.getElementById('pin-title').textContent =
@@ -1385,7 +1469,15 @@ const App = {
   },
 
   pinSubmit() {
-    if (this._pinMode === 'setup') {
+    if (this._pinMode === 'child-setup') {
+      const c = S.children.find(x => x.id === this._childPinTarget);
+      if (!c) { this.showScreen('screen-role'); return; }
+      c.accessPin = this._pinBuffer; save(); this.enterKidAs(c.id);
+    } else if (this._pinMode === 'child-enter') {
+      const c = S.children.find(x => x.id === this._childPinTarget);
+      if (c && c.accessPin === this._pinBuffer) this.enterKidAs(c.id);
+      else { document.getElementById('pin-error').textContent = 'رقم غير صحيح، حاول مرة أخرى'; this._pinBuffer = ''; this.renderPinDots(); }
+    } else if (this._pinMode === 'setup') {
       S.pin = this._pinBuffer;
       // الأسرة المنشأة للتو تبدأ بخطة مخصصة بدل المهام الافتراضية العامة.
       S.onboarding = { version: 1, status: 'pending', draft: null, completedAt: null };
@@ -2981,6 +3073,8 @@ const App = {
     const c = childId ? S.children.find(x => x.id === childId) : null;
     const curBase = c ? heroBase(c) : 'c1';
     const curBg = c ? heroBg(c) : AVATAR_BGS[0];
+    const curIdentity = c ? (c.identityStyle || 'jazour_friend') : 'jazour_friend';
+    const curCopy = c ? (c.copyStyle || 'matched') : 'matched';
     const bases = AVATAR_BASES.filter(b => b.lvl <= (c ? levelOf(c.xp) : 1) || b.lvl === 1);
     const baseGrid = bases.map(b =>
       `<button class="av-pick ${b.id === curBase ? 'active' : ''}" data-base="${b.id}" title="${b.name}" onclick="App.pickAvBase(this)">${faceHTML(b.id)}</button>`).join('');
@@ -2993,6 +3087,7 @@ const App = {
       <div class="form-grid">
         <div><label>الاسم</label><input id="f-cname" value="${c ? esc(c.name) : (prefillName ? esc(prefillName) : '')}" placeholder="اسم الطفل" /></div>
         ${c ? `<div><label>اسم المستخدم</label><input id="f-cuser" value="${esc(c.username)}" dir="ltr" /></div>` : ''}
+        ${c ? `<button type="button" class="btn-ghost" onclick="App.showChildDeviceCodeById('${c.id}')">🔑 عرض أو تجديد كود جهاز ${esc(c.name)}</button>` : ''}
         <div class="form-row">
           <div><label>تاريخ الميلاد 🎂</label><input id="f-cbirth" type="date" value="${c && c.birthdate ? c.birthdate : ''}" onchange="App.birthdateChanged()" /></div>
           <div><label>الصف الدراسي 🎓</label><select id="f-cgrade">${gradeOptions}</select></div>
@@ -3000,6 +3095,12 @@ const App = {
         <div><label>وِرد القرآن اليومي (دقائق) 📖</label><input id="f-cquran" type="number" min="1" max="60" value="${c ? (c.quranDaily || 5) : 5}" /></div>
         <p id="grade-hint" class="muted" style="min-height:1.2em">${c && c.birthdate ? `العمر: ${ageOf(c.birthdate)} سنة` : 'العمر يخصص الأسئلة والألعاب المناسبة'}</p>
         <div><label>الشخصية</label><div class="av-grid">${baseGrid}</div></div>
+        <div><label>كيف يظهر في المغامرة؟</label><div class="identity-row">
+          <button class="identity-pick ${curIdentity === 'hero' ? 'active' : ''}" data-identity="hero" onclick="App.pickIdentity(this)">🧭 بطل</button>
+          <button class="identity-pick ${curIdentity === 'heroine' ? 'active' : ''}" data-identity="heroine" onclick="App.pickIdentity(this)">🌷 بطلة</button>
+          <button class="identity-pick ${curIdentity === 'jazour_friend' ? 'active' : ''}" data-identity="jazour_friend" onclick="App.pickIdentity(this)">🌱 صديق جزّور</button>
+        </div></div>
+        <div><label>كيف يخاطبه جزّور؟</label><select id="f-ccopy"><option value="matched" ${curCopy === 'matched' ? 'selected' : ''}>باللقب المختار</option><option value="name_only" ${curCopy === 'name_only' ? 'selected' : ''}>بالاسم فقط</option></select></div>
         <div><label>لون الخلفية</label><div class="bg-row">${bgRow}</div></div>
         <button class="btn-primary green" onclick="App.saveChild('${childId || ''}')">حفظ ✅</button>
       </div>`);
@@ -3024,6 +3125,10 @@ const App = {
     document.querySelectorAll('.bg-pick').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   },
+  pickIdentity(btn) {
+    document.querySelectorAll('.identity-pick').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  },
 
   saveChild(childId) {
     const name = document.getElementById('f-cname').value.trim();
@@ -3032,12 +3137,15 @@ const App = {
     const bg = (document.querySelector('.bg-pick.active') || {}).dataset ? document.querySelector('.bg-pick.active').dataset.bg : AVATAR_BGS[0];
     const birthdate = document.getElementById('f-cbirth').value || null;
     const grade = document.getElementById('f-cgrade').value || 'g1';
+    const identity = (document.querySelector('.identity-pick.active') || {}).dataset ? document.querySelector('.identity-pick.active').dataset.identity : 'jazour_friend';
+    const copyStyle = document.getElementById('f-ccopy').value || 'matched';
     if (childId) {
       const c = S.children.find(x => x.id === childId);
       c.name = name;
       const userEl = document.getElementById('f-cuser');
       if (userEl && userEl.value.trim()) c.username = userEl.value.trim().replace(/\s+/g, '_');
       c.avatar = { base, bg };
+      c.identityStyle = identity; c.copyStyle = copyStyle;
       c.birthdate = birthdate;
       c.grade = grade;
       c.quranDaily = Math.max(1, parseInt(document.getElementById('f-cquran').value) || 5);
@@ -3046,6 +3154,8 @@ const App = {
       c.birthdate = birthdate;
       c.grade = grade;
       c.quranDaily = Math.max(1, parseInt(document.getElementById('f-cquran').value) || 5);
+      c.identityStyle = identity; c.copyStyle = copyStyle;
+      c.deviceCode = String(Math.floor(100000 + Math.random() * 900000));
       S.children.push(c);
       if (!S.activeChildId) S.activeChildId = c.id;
     }
@@ -3054,6 +3164,18 @@ const App = {
     this.renderPSettings();
     this.renderChildSwitcher();
     this.toast('تم الحفظ ✅');
+    if (!childId) this.showChildDeviceCode(S.children[S.children.length - 1]);
+  },
+
+  showChildDeviceCode(c) {
+    if (!c) return;
+    if (!c.deviceCode) { c.deviceCode = String(Math.floor(100000 + Math.random() * 900000)); save(); }
+    this.openModal(`<section class="account-flow" aria-label="كود جهاز الطفل"><p class="onboarding-kicker">جهاز الطفل</p><h2>كود ${esc(c.name)} الخاص</h2><p class="muted">استخدم هذا الكود في «أنا الطفل» بعد مزامنة العائلة على الجهاز الجديد. هذا الكود لا يفتح غرفة الوالدين.</p><div class="temporary-code" dir="ltr">${esc(c.deviceCode || '—')}</div><button class="btn-primary big" onclick="App.closeModal()">تم</button></section>`);
+  },
+
+  showChildDeviceCodeById(childId) {
+    const c = S.children.find(x => x.id === childId);
+    this.showChildDeviceCode(c);
   },
 
   deleteChild(childId) {

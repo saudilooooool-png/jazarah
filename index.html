@@ -31,12 +31,12 @@
       <div class="role-cards">
         <button class="role-card role-kid" onclick="App.enterKid()">
           <span class="role-emoji">🦸</span>
-          <span class="role-name">أنا البطل</span>
+          <span class="role-name">أنا الطفل</span>
           <span class="role-desc">ابدأ مغامرة اليوم</span>
         </button>
         <button class="role-card role-parent" onclick="App.enterParent()">
           <span class="role-emoji">🧭</span>
-          <span class="role-name">أنا الوالد</span>
+          <span class="role-name">أنا الوالد / الوالدة</span>
           <span class="role-desc">غرفة قيادة المهام</span>
         </button>
       </div>
@@ -61,12 +61,13 @@
   <section id="screen-childselect" class="screen">
     <div class="childselect-wrap">
       <button class="btn-back" onclick="App.showScreen('screen-role')">→ رجوع</button>
-      <h2 class="cs-title">من البطل الذي سيلعب؟ 🦸</h2>
+      <h2 class="cs-title">من سيلعب اليوم؟ 🦸</h2>
       <div id="childselect-grid" class="cs-grid"></div>
       <div class="cs-join">
         <p class="muted">ما لك حساب؟ الحسابات ينشئها الوالد فقط 🔐</p>
         <button class="btn-ghost" onclick="App.joinRequestForm()">🙋 اطلب من والدك إضافتك</button>
-        <button class="btn-ghost" onclick="App.familyJoinForm()">☁️ الانضمام برمز العائلة (جهاز جديد)</button>
+        <button class="btn-ghost" onclick="App.childCodeForm()">🔑 الدخول بكود الطفل</button>
+        <button class="btn-ghost" onclick="App.familyJoinForm()">☁️ مزامنة العائلة على جهاز جديد</button>
       </div>
     </div>
   </section>

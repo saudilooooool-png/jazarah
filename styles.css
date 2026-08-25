@@ -83,10 +83,11 @@ b { font-weight: 700; }
 .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 280px; margin: 0 auto; }
 .pin-pad button {
   background: #fff; border-radius: 16px; font-size: 1.5rem; font-weight: 700;
-  padding: 16px 0; box-shadow: 0 4px 0 rgba(45,42,74,0.1);
+  padding: 16px 0; box-shadow: 0 4px 0 rgba(45,42,74,0.1); touch-action: manipulation;
 }
 .pin-pad button:active { transform: translateY(2px); box-shadow: none; }
 .pin-error { color: var(--red); font-weight: 700; margin-top: 16px; min-height: 1.4em; }
+.account-flow { text-align:right; max-width:420px; margin:0 auto; }.account-flow h2 { margin:4px 0 10px; }.account-flow label { display:block; margin:14px 0 6px; font-weight:700; }.account-flow input,.account-flow select { width:100%; min-height:48px; font-size:16px; border:1px solid #cfe0d3; border-radius:12px; padding:10px 12px; background:#fff; }.account-flow .btn-primary { width:100%; margin-top:14px; }.temporary-code { margin:14px 0; padding:14px; border:1px dashed var(--green); border-radius:14px; text-align:center; letter-spacing:.22em; font-size:1.45rem; font-weight:900; color:var(--green-dark); background:#f4fbf6; }.device-code-input { text-align:center; letter-spacing:.2em; font-weight:900; }.identity-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.identity-pick { border:1px solid #d8e7dc; border-radius:12px; background:#fff; color:var(--ink); padding:9px 6px; font-family:inherit; cursor:pointer; }.identity-pick.active { border-color:var(--green); background:#eaf7ee; color:var(--green-dark); font-weight:900; }
 
 /* ═══════════ لوحة الوالدين ═══════════ */
 #screen-parent { background: #f4f2fb; padding-bottom: 60px; }
