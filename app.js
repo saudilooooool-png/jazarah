@@ -2045,6 +2045,24 @@ const App = {
         <button class="btn-primary purple" style="margin-top:10px" onclick="App.autopilotForm()">تفعيل المساعد ⚡</button>
       </div>`;
 
+    const decisions = this.parentDecisions();
+    const totalTasks = C().tasks.length;
+    const doneTasks = (C().completions[today] || []).length;
+    const remainingTasks = Math.max(0, totalTasks - doneTasks);
+    const nextTask = C().tasks.find(t => !doneIds.has(t.id));
+    const progressHtml = `<section class="parent-today-focus" aria-label="تقدم اليوم">
+      <div class="parent-today-focus__top"><span>🗺️</span><div><p>تقدم اليوم</p><h3>${doneTasks} من ${totalTasks || 0} مهام مكتملة</h3></div><b>${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%</b></div>
+      <div class="parent-today-focus__bar"><i style="width:${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%"></i></div>
+      <div class="parent-today-focus__bottom"><span>${nextTask ? `الخطوة التالية للطفل: ${esc(nextTask.title)}` : (totalTasks ? 'أكمل الطفل خطة اليوم 🎉' : 'لا توجد مهام اليوم بعد')}</span><button class="btn-ghost" onclick="App.openParentDayDetails()">${remainingTasks ? `عرض ${remainingTasks} مهام` : 'تفاصيل اليوم'}</button></div>
+    </section>`;
+    const suggestionHtml = S.onboarding?.status !== 'complete'
+      ? `<section class="parent-next-suggestion"><span>🧭</span><div><p>خطوتك المقترحة</p><h3>ابدأ بخطة تناسب أسرتك</h3><small>خمس أسئلة قصيرة تكفي لبداية خفيفة.</small></div><button class="btn-primary purple" onclick="App.familyPlanForm()">أنشئ الخطة</button></section>`
+      : !this.activeRoutine()
+        ? `<section class="parent-next-suggestion"><span>🧩</span><div><p>خطوتك المقترحة</p><h3>جهّز روتينًا بصريًا للطفل</h3><small>ثلاث خطوات صغيرة تسبق مهام اليوم.</small></div><button class="btn-primary purple" onclick="App.openRoutineManager()">جهّز الروتين</button></section>`
+        : !totalTasks
+          ? `<section class="parent-next-suggestion"><span>✏️</span><div><p>خطوتك المقترحة</p><h3>أضف مهمة اليوم الأولى</h3><small>اختر مهمة قصيرة وواضحة للطفل.</small></div><button class="btn-primary purple" onclick="App.taskLibrary()">أضف مهمة</button></section>`
+          : '';
+
     const rows = C().tasks.map(t => {
       const state = doneIds.has(t.id) ? '✅ ' : (pendingIds.has(t.id + '|' + today) ? '⏳ ' : '');
       const source = t.teacher ? ` · 🏫 موثقة من ${esc(t.teacher)}` : (t.auto ? ' · 🤖 آلية' : '');
@@ -2081,58 +2099,42 @@ const App = {
       </div>` : '';
 
     document.getElementById('ptab-tasks').innerHTML = `
-      ${this.familyPlanCardHtml()}
-      ${this.routineManagerCardHtml()}
-      ${this.reminderManagerCardHtml()}
+      <section class="parent-day-intro"><span>اليوم مع ${esc(C().name)}</span><h3>${decisions.length ? 'ابدأ بالقرار الذي ينتظر منك ردًا.' : 'تابع التقدم واترك الباقي للطفل بهدوء.'}</h3></section>
       ${this.parentDecisionInboxHtml()}
-      ${reviewHtml}
-      ${feedHtml}
-      ${apHtml}
-      <div class="card">
-        <h3>مهام اليوم (${C().tasks.length})</h3>
-        ${rows || '<p class="muted">لا توجد مهام بعد — أضف أول مهمة!</p>'}
-      </div>
-      <div class="form-row">
-        <div><button class="btn-primary" onclick="App.taskLibrary()">📚 أضف من المكتبة</button></div>
-        <div><button class="btn-primary green" onclick="App.taskForm()">✏️ مهمة مخصصة</button></div>
-      </div>
-      <button class="btn-primary purple" style="margin-top:10px" onclick="App.importCodeForm()">🏫 إضافة رمز من المعلم</button>
-      <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="App.openSchoolSummary()">🏫 أنشئ ملخصًا تعليميًا محدودًا للمعلم</button>
-      <div class="card tip-card" style="margin-top:14px">
-        <h3>💡 نصيحة اليوم</h3>
-        <p>${PARENT_TIPS[dayOfYear() % PARENT_TIPS.length]}</p>
-      </div>
-      <div class="card">
-        <h3>🎁 إسقاط صندوق مفاجأة</h3>
-        <p class="muted" style="margin-bottom:10px">كافئ أداءً مميزًا غير متوقع بصندوق يظهر في خريطة ${esc(C().name)}</p>
-        ${C().mysteryBox
-          ? `<p class="pill">📦 صندوق بانتظار الفتح: ${esc(C().mysteryBox.prize)} (+${C().mysteryBox.coins} 🥕)</p>`
-          : `<button class="btn-primary purple" onclick="App.mysteryForm()">إسقاط صندوق 📦</button>`}
-      </div>
-      <div class="card">
-        <h3>🎬 مكتبة الفيديو التعليمية</h3>
-        <p class="muted" style="margin-bottom:8px">روابط يوتيوب تعليمية يشاهدها الأطفال داخل التطبيق (فيديو أو قائمة تشغيل)</p>
-        ${S.videos.map(v => `
-          <div class="task-row">
-            <span class="task-cat">▶️</span>
-            <div class="task-info"><div class="t-title">${esc(v.title)}</div></div>
-            <button class="icon-btn" title="حذف" onclick="App.deleteVideo('${v.id}')">🗑️</button>
-          </div>`).join('')}
-        <button class="btn-primary green" style="margin-top:8px" onclick="App.videoForm()">＋ إضافة فيديو</button>
-      </div>
-      ${S.quizzes.length ? `
-      <div class="card">
-        <h3>📝 اختبارات المعلمين</h3>
-        ${S.quizzes.map(q => `
-          <div class="task-row">
-            <span class="task-cat">📝</span>
-            <div class="task-info">
-              <div class="t-title">${esc(q.title)}</div>
-              <div class="t-meta">🏫 ${esc(q.teacher)} · ${q.questions.length} أسئلة · نتيجة ${esc(C().name)}: ${C().quizzesDone[q.id] !== undefined ? C().quizzesDone[q.id] + '/' + q.questions.length : 'لم يحله بعد'}</div>
-            </div>
-            <button class="icon-btn" title="حذف" onclick="App.deleteQuiz('${q.id}')">🗑️</button>
-          </div>`).join('')}
-      </div>` : ''}`;
+      ${progressHtml}
+      ${suggestionHtml}
+      <details class="parent-day-details" id="parent-day-details">
+        <summary><span><b>تفاصيل اليوم والإعدادات</b><small>المهام، الروتين، المحتوى والمكافآت</small></span><em>⌄</em></summary>
+        <div class="parent-day-details__body">
+          ${reviewHtml}
+          ${feedHtml}
+          <div class="card">
+            <h3>مهام اليوم (${totalTasks})</h3>
+            ${rows || '<p class="muted">لا توجد مهام بعد — أضف أول مهمة!</p>'}
+          </div>
+          <div class="form-row">
+            <div><button class="btn-primary" onclick="App.taskLibrary()">📚 أضف من المكتبة</button></div>
+            <div><button class="btn-primary green" onclick="App.taskForm()">✏️ مهمة مخصصة</button></div>
+          </div>
+          <button class="btn-primary purple" style="margin-top:10px" onclick="App.importCodeForm()">🏫 إضافة رمز من المعلم</button>
+          <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="App.openSchoolSummary()">🏫 أنشئ ملخصًا تعليميًا محدودًا للمعلم</button>
+          ${this.familyPlanCardHtml()}
+          ${this.routineManagerCardHtml()}
+          ${this.reminderManagerCardHtml()}
+          ${apHtml}
+          <div class="card tip-card" style="margin-top:14px"><h3>💡 نصيحة اليوم</h3><p>${PARENT_TIPS[dayOfYear() % PARENT_TIPS.length]}</p></div>
+          <div class="card"><h3>🎁 إسقاط صندوق مفاجأة</h3><p class="muted" style="margin-bottom:10px">كافئ أداءً مميزًا غير متوقع بصندوق يظهر في خريطة ${esc(C().name)}</p>${C().mysteryBox ? `<p class="pill">📦 صندوق بانتظار الفتح: ${esc(C().mysteryBox.prize)} (+${C().mysteryBox.coins} 🥕)</p>` : `<button class="btn-primary purple" onclick="App.mysteryForm()">إسقاط صندوق 📦</button>`}</div>
+          <div class="card"><h3>🎬 مكتبة الفيديو التعليمية</h3><p class="muted" style="margin-bottom:8px">روابط يوتيوب تعليمية يشاهدها الأطفال داخل التطبيق (فيديو أو قائمة تشغيل)</p>${S.videos.map(v => `<div class="task-row"><span class="task-cat">▶️</span><div class="task-info"><div class="t-title">${esc(v.title)}</div></div><button class="icon-btn" title="حذف" onclick="App.deleteVideo('${v.id}')">🗑️</button></div>`).join('')}<button class="btn-primary green" style="margin-top:8px" onclick="App.videoForm()">＋ إضافة فيديو</button></div>
+          ${S.quizzes.length ? `<div class="card"><h3>📝 اختبارات المعلمين</h3>${S.quizzes.map(q => `<div class="task-row"><span class="task-cat">📝</span><div class="task-info"><div class="t-title">${esc(q.title)}</div><div class="t-meta">🏫 ${esc(q.teacher)} · ${q.questions.length} أسئلة · نتيجة ${esc(C().name)}: ${C().quizzesDone[q.id] !== undefined ? C().quizzesDone[q.id] + '/' + q.questions.length : 'لم يحله بعد'}</div></div><button class="icon-btn" title="حذف" onclick="App.deleteQuiz('${q.id}')">🗑️</button></div>`).join('')}</div>` : ''}
+        </div>
+      </details>`;
+  },
+
+  openParentDayDetails() {
+    const panel = document.getElementById('parent-day-details');
+    if (!panel) return;
+    panel.open = true;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   },
 
   deleteQuiz(quizId) {
@@ -3610,7 +3612,6 @@ const App = {
     const progressPct = Math.min(100, Math.round((todayDone / Math.max(1, todayTotal)) * 100));
     const mood = this.jazzourMood();
     const heartsWaiting = (C().feed || []).filter(f => f.heart && !f.seen).length;
-    const routineCard = this.routineCardHtml();
     const worldBloomCard = this.worldBloomCardHtml();
 
     const taskState = (task) => {
@@ -3634,9 +3635,6 @@ const App = {
           </div>
         </div>
 
-        ${routineCard}
-        ${worldBloomCard}
-
         <section class="next-mission" aria-label="المهمة التالية">
           <div class="next-mission__topline">
             <span class="next-mission__label">التالي لك الآن</span>
@@ -3655,34 +3653,19 @@ const App = {
             <button class="listen-pill" data-say="${esc(nextStep.say)}"${nextStep.voice ? ` data-voice="${nextStep.voice}"` : ''} onclick="App.sayText(this)">🔊 اسمع المهمة</button>
           </div>
           <i class="next-mission__bar" aria-label="تقدم اليوم ${todayDone} من ${todayTotal || 1}"><em style="width:${progressPct}%"></em></i>
-        </section>`;
-
-    if (C().lastDailyChest !== today) {
-      html += `
-        <button class="entry-treasure" onclick="App.openDailyChest()">
-          <span class="entry-treasure__emoji">🎁</span>
-          <span><b>هدية دخولك جاهزة</b><small>افتحها متى أحببت — لن توقف مغامرتك</small></span>
-          <span class="entry-treasure__action">افتح</span>
-        </button>`;
-    }
-
-    if (C().mysteryBox) {
-      html += `
-        <button class="mystery-node" onclick="App.openMystery()">
-          <span class="m-emoji">📦</span>
-          <span><b>صندوق مفاجأة في عالمك</b><br /><small>هدية إضافية، افتحها عندما تكون مستعدًا</small></span>
-        </button>`;
-    }
+        </section>
+        ${worldBloomCard}`;
 
     html += `
-        <section class="today-quests" aria-labelledby="today-quests-title">
-          <div class="section-heading">
-            <div>
-              <span class="eyebrow">خطوات صغيرة، تقدم كبير</span>
-              <h2 id="today-quests-title">مهام اليوم</h2>
-            </div>
-            ${todayPending ? `<span class="pending-summary">${todayPending} بانتظار المراجعة</span>` : ''}
-          </div>`;
+        <details class="today-quests today-quests--later" aria-labelledby="today-quests-title">
+          <summary class="today-quests__summary">
+            <span><small>حين تنهي خطوتك الحالية</small><b id="today-quests-title">بقية اليوم</b></span>
+            <em>${todayPending ? `${todayPending} بانتظار المراجعة` : `${Math.max(0, todayTotal - todayDone)} مهام متبقية`} <i>⌄</i></em>
+          </summary>
+          <div class="today-quests__body">
+            ${C().lastDailyChest !== today ? `<button class="entry-treasure" onclick="App.openDailyChest()"><span class="entry-treasure__emoji">🎁</span><span><b>هدية دخولك جاهزة</b><small>افتحها متى أحببت — لن توقف مغامرتك</small></span><span class="entry-treasure__action">افتح</span></button>` : ''}
+            ${C().mysteryBox ? `<button class="mystery-node" onclick="App.openMystery()"><span class="m-emoji">📦</span><span><b>صندوق مفاجأة في عالمك</b><br /><small>هدية إضافية، افتحها عندما تكون مستعدًا</small></span></button>` : ''}
+            <div class="section-heading"><div><span class="eyebrow">خطوات صغيرة، تقدم كبير</span><h2>مهام اليوم</h2></div>${todayPending ? `<span class="pending-summary">${todayPending} بانتظار المراجعة</span>` : ''}</div>`;
 
     if (visibleTasks.length === 0) {
       html += `<div class="today-empty"><span>🗺️</span><p>لا توجد مهام اليوم. اطلب من والدك أن يجهز لك مغامرة جديدة.</p></div>`;
@@ -3721,7 +3704,7 @@ const App = {
       }
       html += '</div>';
     }
-    html += '</section>';
+    html += '</div></details>';
 
     journeyUpdate(C());
     const journey = C().journey;
@@ -3743,7 +3726,10 @@ const App = {
     const chapters = Math.min((C().journey && C().journey.stage) || 0, STORY.length);
 
     html += `
-        <section class="world-glance" aria-label="تقدم العالم">
+        <details class="later-explore">
+          <summary><span><small>بعدما تنتهي من اليوم</small><b>استكشف عالمي</b></span><em>🗺️ ⌄</em></summary>
+          <div class="later-explore__body">
+          <section class="world-glance" aria-label="تقدم العالم">
           <button class="journey-banner" style="--wc:${world.color}" onclick="App.openJourneyMap()">
             <span class="jb-emoji">${world.emoji}</span>
             <span class="jb-info">
@@ -3778,6 +3764,8 @@ const App = {
             <button class="btn-primary purple" onclick="App.shareDayReport()">📤 أرسل إنجاز اليوم لوالدي</button>
           </div>
         </details>
+          </div>
+        </details>
       </section>`;
 
     document.getElementById('ktab-map').innerHTML = html;
@@ -3803,17 +3791,18 @@ const App = {
   },
 
   _nextKidStep(doneIds, pendingToday) {
-    const quran = this._quranState();
-    if (!quran.claimed) {
-      return {
-        title: 'ورد القرآن',
-        desc: `اقرأ ${C().quranDaily || 5} دقائق مع جزّور.`,
-        hint: 'خطوة هادئة قبل بقية المغامرة.',
-        cta: 'ابدأ القرآن 📖',
-        icon: '📖',
-        action: 'App.openQuranKids()',
-        say: `ابدأ ورد القرآن. اقرأ ${C().quranDaily || 5} دقائق مع جزّور.`,
-        voice: 'quran_start',
+    const routine = this.activeRoutine();
+    if (routine) {
+      const state = this.routineState(routine);
+      const nextRoutineStep = routine.steps.find(step => !state.done.includes(step.id));
+      if (nextRoutineStep) return {
+        title: routine.title,
+        desc: `خطوتك الآن: ${nextRoutineStep.title}`,
+        hint: 'أكمل خطوات روتينك بهدوء، ثم نكمل مهام اليوم.',
+        cta: 'ابدأ الروتين 🧩',
+        icon: routine.emoji || '🧩',
+        action: `App.openVisualRoutine('${routine.id}')`,
+        say: `${routine.title}. الخطوة التالية: ${nextRoutineStep.title}.`,
       };
     }
     const today = todayKey();
