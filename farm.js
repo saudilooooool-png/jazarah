@@ -70,12 +70,34 @@ const JazarahFarm = {
     this._completedImpact = null;
   },
 
+  daily(f) {
+    if (!f.daily || typeof f.daily !== 'object') f.daily = { lastVisitDate: null, lastVisitAt: null, events: [] };
+    if (!Array.isArray(f.daily.events)) f.daily.events = [];
+    return f.daily;
+  },
+
+  note(f, emoji, text) {
+    const daily = this.daily(f);
+    const last = daily.events[0];
+    if (last && last.text === text && last.date === todayKey()) return;
+    daily.events.unshift({ id: uid(), emoji, text, date: todayKey(), at: Date.now() });
+    if (daily.events.length > 12) daily.events = daily.events.slice(0, 12);
+  },
+
+  hasDailyMoment(child) {
+    const f = this.of(child), daily = this.daily(f);
+    const active = f.crops.some(crop => crop.stage === 'ready' || crop.stage === 'seed' || crop.stage === 'growing') ||
+      ((f.res.seed || 0) > 0 && f.crops.some(crop => crop.stage === 'empty'));
+    return daily.lastVisitDate !== todayKey() && active;
+  },
+
   /* مهمة أُنجزت: مورد يدخل المزرعة، وكل بذرة مسقيّة تكبر خطوة */
   grant(child, cat) {
     const f = this.of(child);
     const key = this.RES_BY_CAT[cat] || 'seed';
     f.res[key] = (f.res[key] || 0) + 1;
     f.crops.forEach(c => { if (c.stage === 'growing') c.stage = 'ready'; });
+    this.note(f, key === 'seed' ? '🌱' : '🌾', `وصل ${this.RES[key].name} من إنجازك إلى المزرعة`);
     return { key, name: this.RES[key].name, img: this.RES[key].img };
   },
 
@@ -85,9 +107,11 @@ const JazarahFarm = {
   },
 
   _grow(f) {
+    let grown = 0;
     f.crops.forEach(c => {
-      if (c.stage === 'growing' && c.wateredAt && Date.now() - c.wateredAt >= this.GROW_MS) c.stage = 'ready';
+      if (c.stage === 'growing' && c.wateredAt && Date.now() - c.wateredAt >= this.GROW_MS) { c.stage = 'ready'; grown++; }
     });
+    return grown;
   },
 
   can(f, cost) { return Object.entries(cost).every(([k, n]) => (f.res[k] || 0) >= n); },
@@ -99,7 +123,11 @@ const JazarahFarm = {
     if (!el) return;
     const child = C();
     const f = this.of(child);
-    this._grow(f);
+    const daily = this.daily(f);
+    const grown = this._grow(f);
+    if (grown) this.note(f, '🥕', grown === 1 ? 'نضجت جزرة منذ آخر زيارة' : `نضجت ${grown} جزرات منذ آخر زيارة`);
+    const firstVisitToday = daily.lastVisitDate !== todayKey();
+    if (firstVisitToday) { daily.lastVisitDate = todayKey(); daily.lastVisitAt = Date.now(); }
     const seedImpact = this._impact && this._impact.resourceKey === 'seed' && this._impact.status === 'viewed' ? this._impact : null;
     const impactTarget = seedImpact ? f.crops.findIndex(crop => crop.stage === 'empty') : -1;
     this._impactTargetCell = impactTarget >= 0 ? impactTarget : null;
@@ -148,6 +176,9 @@ const JazarahFarm = {
     const seeds = f.res.seed || 0;
     const emptyHoles = f.crops.filter(c => c.stage === 'empty').length;
     const dry = f.crops.filter(c => c.stage === 'seed').length;
+    const objective = this.dailyObjective(f);
+    this._dailyObjective = objective;
+    const latest = daily.events[0];
     const hint = seedImpact && impactTarget >= 0 ? 'بذرتك وصلت! اختر الحفرة المضيئة لزرعها'
       : seedImpact ? 'بذرتك محفوظة في المخزن — افتح مساحة في الحقل ثم عد إليها'
       : r ? `اضغط أي جزرة ناضجة — جزّور يحصدها لك (${carrots(r)})`
@@ -159,9 +190,15 @@ const JazarahFarm = {
       : seedImpact
         ? `<section class="farm-impact-banner" aria-live="polite"><span>🌱</span><div><b>بذرة من إنجازك</b><small>${impactTarget >= 0 ? 'اختر الحفرة المضيئة؛ هذا هو خيارك الآن.' : 'المورد محفوظ لك، ولا تحتاج إلى فعل شيء الآن.'}</small></div></section>`
         : '';
+    const dailyPulse = `<section class="farm-daily-pulse${firstVisitToday ? ' farm-daily-pulse--new' : ''}" aria-label="نبضة مزرعتي اليوم">
+      <span class="farm-daily-pulse__icon">${objective.emoji}</span>
+      <div class="farm-daily-pulse__copy"><p>${firstVisitToday ? 'أهلًا في مزرعتك اليوم' : 'مزرعتي الآن'}</p><h3>${objective.title}</h3><small>${objective.copy}</small>${latest ? `<span class="farm-daily-pulse__latest">${latest.emoji} ${esc(latest.text)}</span>` : ''}</div>
+      <button class="farm-daily-pulse__action" type="button" onclick="JazarahFarm.focusDailyObjective()">${objective.actionLabel}</button>
+    </section>`;
 
     el.innerHTML = `
       <div class="farm-bar">${bar}</div>
+      ${dailyPulse}
       ${impactBanner}
       <div class="farm-view" id="farm-view"><div class="fworld" id="fworld">${layer}</div></div>
       <div class="farm-hint-row">
@@ -178,6 +215,27 @@ const JazarahFarm = {
     this._bind();
     this._fit();
     if (impactTarget >= 0) this.focusImpactCell(impactTarget);
+    if (firstVisitToday || grown) save();
+  },
+
+  dailyObjective(f) {
+    const ready = f.crops.findIndex(crop => crop.stage === 'ready');
+    if (ready >= 0) return { emoji: '🥕', title: 'جزرة ناضجة تنتظرك', copy: 'اضغطها ليحصدها جزّور معك ويصبح الحقل جاهزًا للزراعة.', actionLabel: 'أرِنيها', target: { type: 'crop', index: ready } };
+    const seed = f.crops.findIndex(crop => crop.stage === 'seed');
+    if (seed >= 0 && (f.res.water || 0) > 0) return { emoji: '💧', title: 'بذرة تحتاج ماء', copy: 'نسقيها بقطرة ماء، ثم نعود لاحقًا لنرى كيف كبرت.', actionLabel: 'أرِنيها', target: { type: 'crop', index: seed } };
+    if (seed >= 0) return { emoji: '💧', title: 'بذرة تنتظر الماء', copy: 'عندما تنجز مهمة صحة، يصل ماء يساعدها على النمو.', actionLabel: 'ارجع إلى يومي', target: { type: 'map' } };
+    const growing = f.crops.findIndex(crop => crop.stage === 'growing');
+    if (growing >= 0) return { emoji: '🌿', title: 'نبتة تكبر بهدوء', copy: 'ارجع بعد قليل؛ ستجد تغيرًا واضحًا في الحقل من دون أن تفقد شيئًا.', actionLabel: 'أرِنيها', target: { type: 'crop', index: growing } };
+    const empty = f.crops.findIndex(crop => crop.stage === 'empty');
+    if (empty >= 0 && (f.res.seed || 0) > 0) return { emoji: '🌱', title: 'لديك بذرة جاهزة للزرع', copy: 'كل حفرة تمثل جزرة حقيقية مستقلة في حقل مزرعتك.', actionLabel: 'أرِنيها', target: { type: 'crop', index: empty } };
+    return { emoji: '🏡', title: 'المزرعة هادئة الآن', copy: 'أنجز خطوة لطيفة في يومك، وسيصل أثرها الحقيقي إلى هنا.', actionLabel: 'ارجع إلى يومي', target: { type: 'map' } };
+  },
+
+  focusDailyObjective() {
+    const objective = this._dailyObjective;
+    if (!objective || !objective.target) return;
+    if (objective.target.type === 'map') { App.kidTab('map'); return; }
+    if (objective.target.type === 'crop') this.focusCrop(objective.target.index);
   },
 
   /* ─────── الكاميرا ─────── */
@@ -226,6 +284,10 @@ const JazarahFarm = {
   },
 
   focusImpactCell(i) {
+    this.focusCrop(i);
+  },
+
+  focusCrop(i) {
     const view = document.getElementById('farm-view');
     const cell = this.CELLS[i];
     if (!view || !cell) return;
@@ -285,6 +347,7 @@ const JazarahFarm = {
       }
       f.res.water--;
       f.crops.forEach(c => { if (c.stage === 'seed') { c.stage = 'growing'; c.wateredAt = Date.now(); } });
+      this.note(f, '💧', 'سقينا البذور لتبدأ بالنمو');
       save(); this.render();
       App.toast('💧 سقينا البذور — تكبر مع مهمتك القادمة');
       return;
@@ -298,6 +361,7 @@ const JazarahFarm = {
     const completedImpact = this._impact && this._impact.resourceKey === 'seed' && this._impactTargetCell === i ? this._impact : null;
     f.res.seed--;
     f.crops[i] = { stage: 'seed' };
+    this.note(f, '🌱', 'زرعت بذرة في الحقل');
     if (completedImpact) {
       App.resolveFarmImpact(completedImpact.id);
       this._impact = null;
@@ -323,6 +387,7 @@ const JazarahFarm = {
     setTimeout(() => {
       f.crops[i] = { stage: 'empty' };
       f.res.seed = (f.res.seed || 0) + 1;
+      this.note(f, '🥕', 'حصد جزّور جزرة من الحقل');
       C().coins += 1;
       save();
       this.render();
@@ -360,6 +425,7 @@ const JazarahFarm = {
     if (!this.can(f, it.cost)) { App.toast('الموارد ما تكفي بعد — أنجز مهمة وارجع'); return; }
     this.spend(f, it.cost);
     f.built[this._slot] = id;
+    this.note(f, '🏗️', `اكتمل ${it.name} في المزرعة`);
     save(); this.close(); this.render();
     App.toast('🎉 اكتمل ' + it.name);
     VoiceLines.say('cheer');

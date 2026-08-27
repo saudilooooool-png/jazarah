@@ -3461,7 +3461,12 @@ const App = {
     document.getElementById('kid-name-mini').textContent = C().name;
     document.getElementById('stat-coins').textContent = C().coins;
     const fdot = document.getElementById('farm-dot');
-    if (fdot && window.JazarahFarm) fdot.hidden = JazarahFarm.ready(C()) === 0;
+    if (fdot && window.JazarahFarm) {
+      const dailyMoment = JazarahFarm.hasDailyMoment(C());
+      fdot.hidden = !dailyMoment;
+      fdot.classList.toggle('knav-dot--farm', dailyMoment);
+      fdot.setAttribute('aria-label', dailyMoment ? 'لدى مزرعتك خطوة هادئة اليوم' : '');
+    }
     document.getElementById('stat-streak').textContent = C().streak;
   },
 
