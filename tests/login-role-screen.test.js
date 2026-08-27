@@ -59,3 +59,40 @@ test('بطاقات مسار اليوم تحافظ على إتاحة اللمس �
   assert.match(css, /\.today-quest--deck:focus-visible\s*\{\s*outline:3px solid/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+test('نظام أسبوع الأسرة يضيف حزمًا قصيرة ويُبقي المهام القديمة يومية عند غياب الجدولة', () => {
+  assert.match(app, /const WEEKLY_FAMILY_PACKS = \[/);
+  assert.match(app, /id: 'school_morning'/);
+  assert.match(app, /id: 'family_weekend'/);
+  assert.match(app, /function taskDueOnDate\(task, date\)/);
+  assert.match(app, /return !days\.length \|\| days\.includes\(d\.getDay\(\)\);/);
+  assert.match(app, /function scheduledTasksForChild\(child, date = new Date\(\)\)/);
+  assert.match(app, /task\.weekDays\.includes\(d\.getDay\(\)\)/);
+});
+
+test('إعداد الأسبوع يبقى في أدوات الوالد ويمنح اختيار حزمة أو تخفيف اليوم دون حذف المهام', () => {
+  assert.match(app, /weeklyPlanCardHtml\(\)/);
+  assert.match(app, /App\.openWeeklyPlan\(\)/);
+  assert.match(app, /App\.toggleGentleToday\(\)/);
+  assert.match(app, /plan\.gentleDays\[key\] = true/);
+  assert.match(app, /child\.tasks\.filter\(task => task\.weeklyPack && task\.weeklyPack !== pack\.id\)\.forEach\(task => \{ task\.retired = true; \}\)/);
+  assert.doesNotMatch(app, /kidTab\('weekly-plan'\)/);
+});
+
+test('الطفل يرى فقط المهام المستحقة ورسالة إعادة محاولة داعمة يمكنه إقرارها', () => {
+  assert.match(app, /const visibleTasks = gentleToday \? \[\] : scheduledTasksForChild\(C\(\), today\);/);
+  assert.match(app, /خطة اليوم خفيفة\. خذ وقتًا هادئًا/);
+  assert.match(app, /openTryAgainProof\(id\)/);
+  assert.match(app, /retryNotes\.push\(\{ id: uid\(\), taskId: p\.taskId/);
+  assert.match(app, /dismissRetryNote\(noteId\)/);
+  assert.match(app, /class="kid-retry-note" aria-label="رسالة من والدك"/);
+});
+
+test('نموذج المهمة يحافظ على بساطة الجدولة بثلاثة خيارات مفهومة', () => {
+  assert.match(app, /id="f-week-days"/);
+  assert.match(app, /value="daily"/);
+  assert.match(app, /value="schooldays"/);
+  assert.match(app, /value="weekend"/);
+  assert.match(app, /const weekDaysByPreset = \{ daily: \[\], schooldays: \[0, 1, 2, 3, 4\], weekend: \[5, 6\] \};/);
+  assert.match(css, /\.weekly-pack-option:hover, \.weekly-pack-option:focus-visible/);
+});

@@ -107,6 +107,33 @@ const WEEKEND_LIBRARY = [
   { title: 'تجهيز أغراضي ليوم الأحد 🎒',      cat: 'health',   xp: 15, coins: 5,  proof: 'photo'  },
 ];
 
+/* ─────────────── حزم أسبوع الأسرة ───────────────
+   تضيف الحزمة مهامًا قليلة محددة الأيام. لا تحذف أي مهمة أنشأتها الأسرة. */
+const WEEKLY_FAMILY_PACKS = [
+  { id: 'school_morning', emoji: '🎒', title: 'صباح المدرسة', note: 'خطوتان خفيفتان قبل الخروج.', days: [0, 1, 2, 3, 4], tasks: [
+    { title: 'رتّب سريرك بعد الاستيقاظ', cat: 'health', xp: 10, coins: 4, proof: 'self' },
+    { title: 'جهّز حقيبتك لليوم', cat: 'study', xp: 10, coins: 4, proof: 'self' },
+  ]},
+  { id: 'after_school', emoji: '📚', title: 'بعد المدرسة', note: 'بداية صغيرة للواجب والترتيب.', days: [0, 1, 2, 3, 4], tasks: [
+    { title: 'ابدأ واجبك الدراسي 15 دقيقة', cat: 'study', xp: 15, coins: 5, proof: 'parent' },
+    { title: 'رتّب أدواتك بعد الدراسة', cat: 'study', xp: 10, coins: 4, proof: 'self' },
+  ]},
+  { id: 'quiet_evening', emoji: '🌙', title: 'ليلة هادئة', note: 'خطوتان قصيرتان استعدادًا للغد.', days: [0, 1, 2, 3, 4], tasks: [
+    { title: 'جهّز ملابسك لليوم التالي', cat: 'health', xp: 10, coins: 4, proof: 'self' },
+    { title: 'رتّب مكانك قبل النوم', cat: 'kindness', xp: 10, coins: 4, proof: 'self' },
+  ]},
+  { id: 'family_weekend', emoji: '🌿', title: 'نهاية أسبوع عائلية', note: 'تعاون واختيار بلا دراسة.', days: [5, 6], tasks: [
+    { title: 'ساعد في مهمة عائلية صغيرة', cat: 'kindness', xp: 15, coins: 5, proof: 'parent' },
+    { title: 'نشاط عائلي خارج الأجهزة', cat: 'sport', xp: 15, coins: 5, proof: 'self' },
+  ]},
+];
+
+const RETRY_NOTE_CHOICES = [
+  'لا بأس، لنجرّبها بهدوء مرة أخرى.',
+  'خطوة جميلة؛ راجع التفصيلة الصغيرة ثم عد لي.',
+  'أنا معك. خذ وقتك وأكملها بالطريقة التي تناسبك.',
+];
+
 /* ─────────────── لعبة صندوق الغداء الصحي ─────────────── */
 const LUNCH_ITEMS = [
   { n: 'تفاحة', e: '🍎', g: 'fruit' }, { n: 'موزة', e: '🍌', g: 'fruit' }, { n: 'عنب', e: '🍇', g: 'fruit' },
@@ -566,6 +593,8 @@ function defaultChild(name, avatarBase, avatarBg) {
     reminders: { enabled: false, slots: [] }, // حتى تذكيرين اختياريين في اليوم، مرتبطين بروتين الطفل
     worldBloom: { earned: 0, restored: 0, lastMilestone: 0 }, // أثر إنجازات الطفل في عالم جزّور
     weeklyReview: { actions: {}, seenWeeks: {} }, // قرارات مراجعة الأسبوع المحلية
+    weeklyPlan: { packId: null, appliedAt: null, gentleDays: {} }, // خطة الأسبوع لا تظهر للطفل كواجهة مستقلة
+    retryNotes: [], // { id, taskId, title, note, date, seen } — ملاحظات والد قصيرة وليست محادثة
     farm: null,             // مزرعة جزّور — تُهيّأ عند أول فتح (JazarahFarm.blank)
     tourDone: false,        // هل شاهد الطفل جولة «كيف ألعب؟» أول مرة
   };
@@ -627,6 +656,41 @@ function dayKeyOffset(offset) {
   const d = new Date();
   d.setDate(d.getDate() + offset);
   return todayKey(d);
+}
+
+const WEEKDAY_SHORT = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+function dateFromKey(key) {
+  return key ? new Date(String(key) + 'T12:00:00') : new Date();
+}
+
+/* المهام القديمة بلا weekDays تبقى يومية، فلا تفقد الأسرة أي مهمة عند التحديث. */
+function taskDueOnDate(task, date) {
+  const d = date instanceof Date ? date : dateFromKey(date);
+  const days = Array.isArray(task && task.weekDays) ? task.weekDays : [];
+  return !days.length || days.includes(d.getDay());
+}
+
+function scheduledTasksForChild(child, date = new Date()) {
+  const d = date instanceof Date ? date : dateFromKey(date);
+  const key = todayKey(d);
+  return (child && child.tasks || [])
+    .filter(task => !task.retired)
+    .filter(task => taskDueOnDate(task, d))
+    .filter(task => !isWeekend(d) || task.cat !== 'study' || task.weekendOk || (Array.isArray(task.weekDays) && task.weekDays.includes(d.getDay())))
+    .filter(task => !task.mine || task.id === 'mine-' + key);
+}
+
+function gentlePlanForDate(child, key = todayKey()) {
+  return !!(child && child.weeklyPlan && child.weeklyPlan.gentleDays && child.weeklyPlan.gentleDays[key]);
+}
+
+function taskWeekDaysLabel(task) {
+  const days = Array.isArray(task && task.weekDays) ? task.weekDays : [];
+  if (!days.length) return 'كل يوم';
+  if (days.join(',') === '0,1,2,3,4') return 'الأحد–الخميس';
+  if (days.join(',') === '5,6') return 'الجمعة والسبت';
+  return days.map(day => WEEKDAY_SHORT[day]).join('، ');
 }
 function dayOfYear() {
   const now = new Date();
@@ -696,10 +760,11 @@ function runAutopilot(force) {
 }
 /* المهمة الذهبية: مهمة مختلفة كل يوم بمكافأة مضاعفة — اختيار ثابت طوال اليوم */
 function goldenTaskId(dateKey) {
-  if (!C().tasks.length) return null;
+  const tasks = gentlePlanForDate(C(), dateKey) ? [] : scheduledTasksForChild(C(), dateKey);
+  if (!tasks.length) return null;
   let h = 0;
   for (const ch of dateKey) h = (h * 31 + ch.charCodeAt(0)) % 100000;
-  return C().tasks[h % C().tasks.length].id;
+  return tasks[h % tasks.length].id;
 }
 /* قيم المهمة الفعلية لليوم (تُضاعف إن كانت ذهبية) */
 function effectiveTask(t, dateKey) {
@@ -936,7 +1001,13 @@ function load() {
       if (old.v === 2 && Array.isArray(old.children)) {
         const s = Object.assign(defaultState(), old);
         if (!s.children.length) s.children = [defaultChild('البطل')];
-        s.children = s.children.map(c => Object.assign(defaultChild(), c));
+        s.children = s.children.map(c => {
+          const child = Object.assign(defaultChild(), c);
+          child.weeklyPlan = Object.assign({ packId: null, appliedAt: null, gentleDays: {} }, child.weeklyPlan || {});
+          child.weeklyPlan.gentleDays = child.weeklyPlan.gentleDays || {};
+          child.retryNotes = Array.isArray(child.retryNotes) ? child.retryNotes : [];
+          return child;
+        });
         s.joinRequests = s.joinRequests || [];
         s.videos = s.videos || [];
         s.quizzes = s.quizzes || [];
@@ -1218,7 +1289,8 @@ function grantCompletion(t, dateKey) {
   // مكافأة إتمام كل مهام اليوم (لليوم الحالي فقط)
   let bonus = 0, allDone = false;
   if (dateKey === todayKey()) {
-    allDone = C().tasks.length > 0 && C().tasks.every(x => (C().completions[dateKey] || []).includes(x.id));
+    const dueToday = gentlePlanForDate(C(), dateKey) ? [] : scheduledTasksForChild(C(), dateKey);
+    allDone = dueToday.length > 0 && dueToday.every(x => (C().completions[dateKey] || []).includes(x.id));
     if (allDone) { bonus = 10; C().coins += bonus; C().lifetimeCoins += bonus; }
   }
 
@@ -1962,6 +2034,80 @@ const App = {
     </div>`;
   },
 
+  weeklyPlanState() {
+    const child = C();
+    child.weeklyPlan = Object.assign({ packId: null, appliedAt: null, gentleDays: {} }, child.weeklyPlan || {});
+    child.weeklyPlan.gentleDays = child.weeklyPlan.gentleDays || {};
+    return child.weeklyPlan;
+  },
+
+  weeklyPlanCardHtml() {
+    const plan = this.weeklyPlanState();
+    const pack = WEEKLY_FAMILY_PACKS.find(item => item.id === plan.packId);
+    const gentle = gentlePlanForDate(C());
+    const summary = pack
+      ? `${pack.title} · ${pack.tasks.length} مهمتان قصيرتان في أيامها المناسبة.`
+      : 'اختر حزمة صغيرة إن أردت بداية منظمة للأسبوع.';
+    return `<div class="card weekly-plan-card">
+      <div class="weekly-plan-card__head"><span>${pack ? pack.emoji : '🗓️'}</span><div><h3>أسبوع الأسرة</h3><p>${esc(summary)}</p></div></div>
+      <div class="weekly-plan-card__actions">
+        <button class="btn-ghost" onclick="App.openWeeklyPlan()">${pack ? 'غيّر الحزمة' : 'اختر حزمة'}</button>
+        <button class="btn-primary ${gentle ? 'green' : 'purple'}" onclick="App.toggleGentleToday()">${gentle ? 'أعد خطة اليوم' : 'خفف اليوم'}</button>
+      </div>
+      <small>${gentle ? 'اليوم خفيف؛ لم نحذف أي مهمة، وستعود الخطة غدًا.' : 'التخفيف يؤجل ما بقي اليوم فقط، بلا خصم أو فقدان للتقدم.'}</small>
+    </div>`;
+  },
+
+  openWeeklyPlan() {
+    const plan = this.weeklyPlanState();
+    const options = WEEKLY_FAMILY_PACKS.map(pack => `<button class="weekly-pack-option ${pack.id === plan.packId ? 'selected' : ''}" onclick="App.applyWeeklyFamilyPack('${pack.id}')">
+      <span>${pack.emoji}</span><span><b>${esc(pack.title)}</b><small>${esc(pack.note)}</small></span><em>${pack.id === plan.packId ? 'مفعلة' : 'اختر'}</em>
+    </button>`).join('');
+    this.openModal(`<section class="weekly-plan-modal" aria-label="اختيار حزمة الأسبوع">
+      <p class="onboarding-kicker">خطوة واحدة للوالد</p><h2>كيف تحب أن يكون الأسبوع؟</h2>
+      <p class="muted">اختر حزمة واحدة فقط. تضيف مهمتين قصيرتين في أيامهما، ولا تحذف مهام أسرتك الموجودة.</p>
+      <div class="weekly-pack-list">${options}</div>
+      <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="App.closeModal()">لاحقًا</button>
+    </section>`);
+  },
+
+  applyWeeklyFamilyPack(packId) {
+    const pack = WEEKLY_FAMILY_PACKS.find(item => item.id === packId);
+    if (!pack) return;
+    const child = C();
+    const plan = this.weeklyPlanState();
+    // نبقي أثر الحزم السابقة في السجل، لكن لا نعرض أكثر من حزمة أسبوعية واحدة في الوقت نفسه.
+    child.tasks.filter(task => task.weeklyPack && task.weeklyPack !== pack.id).forEach(task => { task.retired = true; });
+    pack.tasks.forEach((task, index) => {
+      let existing = child.tasks.find(item => item.weeklyPack === pack.id && item.weeklyPackSlot === index);
+      if (!existing) {
+        existing = { id: uid(), ...task, weeklyPack: pack.id, weeklyPackSlot: index };
+        child.tasks.push(existing);
+      }
+      Object.assign(existing, task, { weekDays: pack.days.slice(), weeklyPack: pack.id, weeklyPackSlot: index, retired: false });
+    });
+    plan.packId = pack.id;
+    plan.appliedAt = todayKey();
+    save();
+    this.closeModal();
+    this.renderPTasks();
+    this.toast(`أضفنا حزمة «${pack.title}» بهدوء ✅`);
+  },
+
+  toggleGentleToday() {
+    const plan = this.weeklyPlanState();
+    const key = todayKey();
+    if (plan.gentleDays[key]) {
+      delete plan.gentleDays[key];
+      this.toast('عادت خطة اليوم كما كانت');
+    } else {
+      plan.gentleDays[key] = true;
+      this.toast('خففنا ما بقي من مهام اليوم — لا شيء ضاع');
+    }
+    save();
+    this.renderPTasks();
+  },
+
   parentDecisionInboxHtml() {
     const decisions = this.parentDecisions();
     if (!decisions.length) {
@@ -2016,6 +2162,9 @@ const App = {
     const childName = esc(childReference(C()));
     const doneIds = new Set(C().completions[today] || []);
     const pendingIds = new Set(C().pendingProofs.map(p => p.taskId + '|' + p.date));
+    const scheduledToday = scheduledTasksForChild(C(), today);
+    const gentleToday = gentlePlanForDate(C(), today);
+    const focusTasks = gentleToday ? [] : scheduledToday;
 
     // قائمة مراجعة الإثباتات المعلقة
     const reviewHtml = C().pendingProofs.length ? `
@@ -2033,7 +2182,7 @@ const App = {
             ${p.photo ? `<img class="proof-photo" src="${p.photo}" alt="صورة الإثبات" onclick="App.zoomPhoto('${p.id}')" />` : ''}
             <div class="proof-actions">
               <button class="btn-primary green" style="flex:2" onclick="App.approveProof('${p.id}')">✅ اعتماد وصرف الجزر</button>
-              <button class="btn-ghost" style="flex:1;color:#ff5d5d;border-color:#ffd0d0" onclick="App.rejectProof('${p.id}')">رفض</button>
+              <button class="btn-ghost" style="flex:1" onclick="App.openTryAgainProof('${p.id}')">حاول مرة أخرى</button>
             </div>
           </div>`).join('')}
       </div>` : '';
@@ -2057,24 +2206,24 @@ const App = {
       </div>`;
 
     const decisions = this.parentDecisions();
-    const totalTasks = C().tasks.length;
-    const doneTasks = (C().completions[today] || []).length;
+    const totalTasks = focusTasks.length;
+    const doneTasks = focusTasks.filter(task => doneIds.has(task.id)).length;
     const remainingTasks = Math.max(0, totalTasks - doneTasks);
-    const nextTask = C().tasks.find(t => !doneIds.has(t.id));
+    const nextTask = focusTasks.find(t => !doneIds.has(t.id));
     const progressHtml = `<section class="parent-today-focus" aria-label="تقدم اليوم">
       <div class="parent-today-focus__top"><span>🗺️</span><div><p>تقدم اليوم</p><h3>${doneTasks} من ${totalTasks || 0} مهام مكتملة</h3></div><b>${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%</b></div>
       <div class="parent-today-focus__bar"><i style="width:${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%"></i></div>
-      <div class="parent-today-focus__bottom"><span>${nextTask ? `الخطوة التالية: ${esc(nextTask.title)}` : (totalTasks ? 'اكتملت خطة اليوم 🎉' : 'لا توجد مهام اليوم بعد')}</span><button class="btn-ghost" onclick="App.openParentDayDetails()">${remainingTasks ? `عرض ${remainingTasks} مهام` : 'تفاصيل اليوم'}</button></div>
+      <div class="parent-today-focus__bottom"><span>${gentleToday ? 'خطة اليوم خفيفة؛ ستعود المهام غدًا.' : (nextTask ? `الخطوة التالية: ${esc(nextTask.title)}` : (totalTasks ? 'اكتملت خطة اليوم 🎉' : 'لا توجد مهام اليوم بعد'))}</span><button class="btn-ghost" onclick="App.openParentDayDetails()">${remainingTasks ? `عرض ${remainingTasks} مهام` : 'تفاصيل اليوم'}</button></div>
     </section>`;
     const suggestionHtml = S.onboarding?.status !== 'complete'
       ? `<section class="parent-next-suggestion"><span>🧭</span><div><p>خطوتك المقترحة</p><h3>ابدأ بخطة تناسب أسرتك</h3><small>خمس أسئلة قصيرة تكفي لبداية خفيفة.</small></div><button class="btn-primary purple" onclick="App.familyPlanForm()">أنشئ الخطة</button></section>`
       : !this.activeRoutine()
         ? `<section class="parent-next-suggestion"><span>🧩</span><div><p>خطوتك المقترحة</p><h3>جهّز روتينًا بصريًا للطفل</h3><small>ثلاث خطوات صغيرة تسبق مهام اليوم.</small></div><button class="btn-primary purple" onclick="App.openRoutineManager()">جهّز الروتين</button></section>`
-        : !totalTasks
+        : !scheduledToday.length
           ? `<section class="parent-next-suggestion"><span>✏️</span><div><p>خطوتك المقترحة</p><h3>أضف مهمة اليوم الأولى</h3><small>اختر مهمة قصيرة وواضحة للطفل.</small></div><button class="btn-primary purple" onclick="App.taskLibrary()">أضف مهمة</button></section>`
           : '';
 
-    const rows = C().tasks.map(t => {
+    const rows = scheduledToday.map(t => {
       const state = doneIds.has(t.id) ? '✅ ' : (pendingIds.has(t.id + '|' + today) ? '⏳ ' : '');
       const source = t.teacher ? ` · 🏫 موثقة من ${esc(t.teacher)}` : (t.auto ? ' · 🤖 آلية' : '');
       return `
@@ -2082,7 +2231,7 @@ const App = {
         <span class="task-cat">${CATEGORIES[t.cat].emoji}</span>
         <div class="task-info">
           <div class="t-title">${state}${esc(t.title)}</div>
-          <div class="t-meta">${CATEGORIES[t.cat].name} · ${t.xp} XP · ${t.coins} 🥕 · ${PROOF_MODES[t.proof].emoji} ${PROOF_MODES[t.proof].short}${source}</div>
+          <div class="t-meta">${CATEGORIES[t.cat].name} · ${taskWeekDaysLabel(t)} · ${t.xp} XP · ${t.coins} 🥕 · ${PROOF_MODES[t.proof].emoji} ${PROOF_MODES[t.proof].short}${source}</div>
         </div>
         <div class="task-actions">
           <button class="icon-btn" title="تعديل" onclick="App.taskForm('${t.id}')">✏️</button>
@@ -2122,8 +2271,9 @@ const App = {
           ${reviewHtml}
           ${feedHtml}
           <div class="card">
-            <h3>مهام اليوم (${totalTasks})</h3>
-            ${rows || '<p class="muted">لا توجد مهام بعد — أضف أول مهمة!</p>'}
+            <h3>${gentleToday ? 'مهام اليوم المؤجلة بهدوء' : `مهام اليوم (${totalTasks})`}</h3>
+            ${gentleToday ? '<p class="muted">لن تظهر هذه المهام للطفل اليوم. يمكنك تعديلها هنا أو إعادة خطة اليوم من بطاقة الأسبوع.</p>' : ''}
+            ${rows || '<p class="muted">لا توجد مهام مستحقة اليوم — أضف أول مهمة أو اختر حزمة أسبوعية.</p>'}
           </div>
           <div class="form-row">
             <div><button class="btn-primary" onclick="App.taskLibrary()">📚 أضف من المكتبة</button></div>
@@ -2135,6 +2285,7 @@ const App = {
           <section class="parent-manager-group">
             <div class="parent-manager-group__head"><span>🧩</span><div><b>بناء العادات</b><small>الخطة والروتين والتذكيرات في مكان واحد.</small></div></div>
           ${this.familyPlanCardHtml()}
+          ${this.weeklyPlanCardHtml()}
           ${this.routineManagerCardHtml()}
           ${this.reminderManagerCardHtml()}
           ${apHtml}
@@ -2357,6 +2508,42 @@ const App = {
     this.toast('تم الرفض — عادت المهمة إلى الخريطة');
   },
 
+  openTryAgainProof(id) {
+    const p = C().pendingProofs.find(item => item.id === id);
+    if (!p) return;
+    const choices = RETRY_NOTE_CHOICES.map((note, index) => `<label class="retry-note-choice"><input type="radio" name="retry-note" value="${index}" ${index === 0 ? 'checked' : ''} /><span>${esc(note)}</span></label>`).join('');
+    this.openModal(`<section class="retry-proof-modal" aria-label="ملاحظة داعمة للمهمة">
+      <p class="onboarding-kicker">رسالة قصيرة للطفل</p><h2>لنحاول «${esc(p.title)}» مرة أخرى</h2>
+      <p class="muted">اختر جملة داعمة أو اكتب ملاحظة قصيرة. ستظهر للطفل مرة واحدة ثم تعود المهمة بلا خصم.</p>
+      <div class="retry-note-list">${choices}</div>
+      <label style="display:block;margin-top:12px">أو رسالة من عندك<input id="retry-note-custom" maxlength="140" placeholder="مثال: راجع ترتيب كتبك ثم عد لي" /></label>
+      <div class="form-row" style="margin-top:14px"><div><button class="btn-ghost" onclick="App.closeModal()">إلغاء</button></div><div><button class="btn-primary green" onclick="App.sendTryAgainProof('${p.id}')">أرسل بلطف</button></div></div>
+    </section>`);
+  },
+
+  sendTryAgainProof(id) {
+    const p = C().pendingProofs.find(item => item.id === id);
+    if (!p) return;
+    const selected = document.querySelector('input[name="retry-note"]:checked');
+    const fallback = RETRY_NOTE_CHOICES[Number(selected && selected.value) || 0];
+    const custom = (document.getElementById('retry-note-custom')?.value || '').trim();
+    C().retryNotes = Array.isArray(C().retryNotes) ? C().retryNotes : [];
+    C().retryNotes.push({ id: uid(), taskId: p.taskId, title: p.title, note: custom || fallback, date: todayKey(), seen: false });
+    C().pendingProofs = C().pendingProofs.filter(item => item.id !== id);
+    save();
+    this.closeModal();
+    this.renderPTasks();
+    this.toast('وصلت رسالة داعمة؛ عادت المهمة متاحة ✅');
+  },
+
+  dismissRetryNote(noteId) {
+    const note = (C().retryNotes || []).find(item => item.id === noteId);
+    if (!note) return;
+    note.seen = true;
+    save();
+    this.renderKMap();
+  },
+
   zoomPhoto(proofId) {
     const p = C().pendingProofs.find(x => x.id === proofId);
     if (!p || !p.photo) return;
@@ -2365,7 +2552,7 @@ const App = {
       <img src="${p.photo}" style="width:100%;border-radius:14px" alt="صورة الإثبات" />
       <div class="proof-actions" style="margin-top:14px">
         <button class="btn-primary green" style="flex:2" onclick="App.closeModal();App.approveProof('${p.id}')">✅ اعتماد</button>
-        <button class="btn-ghost" style="flex:1;color:#ff5d5d;border-color:#ffd0d0" onclick="App.closeModal();App.rejectProof('${p.id}')">رفض</button>
+        <button class="btn-ghost" style="flex:1" onclick="App.closeModal();App.openTryAgainProof('${p.id}')">حاول مرة أخرى</button>
       </div>`);
   },
 
@@ -2375,6 +2562,8 @@ const App = {
       .map(([k, c]) => `<option value="${k}" ${t && t.cat === k ? 'selected' : ''}>${c.emoji} ${c.name}</option>`).join('');
     const proofOptions = Object.entries(PROOF_MODES)
       .map(([k, m]) => `<option value="${k}" ${(t ? t.proof : 'self') === k ? 'selected' : ''}>${m.emoji} ${m.name}</option>`).join('');
+    const weekDays = Array.isArray(t && t.weekDays) ? t.weekDays : [];
+    const scheduleValue = !weekDays.length ? 'daily' : weekDays.join(',') === '0,1,2,3,4' ? 'schooldays' : weekDays.join(',') === '5,6' ? 'weekend' : 'daily';
     this.openModal(`
       <h3>${t ? 'تعديل المهمة' : 'مهمة جديدة'}</h3>
       <div class="form-grid">
@@ -2385,6 +2574,7 @@ const App = {
           <div><label>الجزر 🥕</label><input id="f-coins" type="number" min="1" max="50" value="${t ? t.coins : 5}" /></div>
         </div>
         <div><label>طريقة تأكيد الإنجاز</label><select id="f-proof">${proofOptions}</select></div>
+        <div><label>متى تظهر؟</label><select id="f-week-days"><option value="daily" ${scheduleValue === 'daily' ? 'selected' : ''}>كل يوم</option><option value="schooldays" ${scheduleValue === 'schooldays' ? 'selected' : ''}>الأحد إلى الخميس</option><option value="weekend" ${scheduleValue === 'weekend' ? 'selected' : ''}>الجمعة والسبت</option></select></div>
         <label class="goal-check"><input type="checkbox" id="f-weekend" ${t && t.weekendOk ? 'checked' : ''} /><span>🏖️ تظهر حتى في الويكند (مهام الدراسة تُخفى الجمعة والسبت افتراضيًا)</span></label>
         <button class="btn-primary green" onclick="App.saveTask('${taskId || ''}')">حفظ</button>
       </div>`);
@@ -2398,11 +2588,13 @@ const App = {
     const coins = Math.max(1, parseInt(document.getElementById('f-coins').value) || 5);
     const proof = document.getElementById('f-proof').value;
     const weekendOk = document.getElementById('f-weekend').checked;
+    const weekDaysByPreset = { daily: [], schooldays: [0, 1, 2, 3, 4], weekend: [5, 6] };
+    const weekDays = weekDaysByPreset[document.getElementById('f-week-days').value] || [];
     if (taskId) {
       const t = C().tasks.find(x => x.id === taskId);
-      Object.assign(t, { title, cat, xp, coins, proof, weekendOk });
+      Object.assign(t, { title, cat, xp, coins, proof, weekendOk, weekDays });
     } else {
-      C().tasks.push({ id: uid(), title, cat, xp, coins, proof, weekendOk });
+      C().tasks.push({ id: uid(), title, cat, xp, coins, proof, weekendOk, weekDays });
     }
     save();
     this.closeModal();
@@ -3628,9 +3820,8 @@ const App = {
     const today = todayKey();
     const doneIds = new Set(C().completions[today] || []);
     const pendingToday = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
-    const visibleTasks = C().tasks
-      .filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
-      .filter(t => !t.mine || t.id === 'mine-' + today);
+    const gentleToday = gentlePlanForDate(C(), today);
+    const visibleTasks = gentleToday ? [] : scheduledTasksForChild(C(), today);
     const todayTotal = visibleTasks.length;
     const todayDone = visibleTasks.filter(t => doneIds.has(t.id)).length;
     const todayPending = visibleTasks.filter(t => pendingToday.has(t.id)).length;
@@ -3681,7 +3872,7 @@ const App = {
     else if (dayComplete) dayFocus = `<section class="day-complete-card" aria-label="اكتمل يومك"><span>🏆</span><div><small>أكملت ${todayDone} من ${todayTotal} مهام اليوم</small><h2>يومك مكتمل</h2><p>أحسنت، صار لعطائك أثر واضح في عالمك.</p></div><div class="day-complete-card__actions"><button class="btn-primary green" onclick="App.kidTab('farm')">شاهد أثري في المزرعة</button><button class="btn-ghost" onclick="App.shareDayReport()">أخبر والدي بإنجازي</button></div></section>`;
     else if (pendingOnly) dayFocus = `<section class="today-waiting-card" aria-label="مهام بانتظار مراجعة الوالد"><span>⏳</span><div><small>${todayPending} مهام بانتظار المراجعة</small><h2>أرسلت مهامك بهدوء</h2><p>يمكنك الآن إكمال وردك أو زيارة عالمك.</p></div></section>`;
     else if (currentTask) dayFocus = taskDeckCard(currentTask, taskIndex);
-    else dayFocus = `<div class="today-empty"><span>🗺️</span><p>لا توجد مهام اليوم. خذ وقتًا هادئًا مع وردك أو رحلتك.</p></div>`;
+    else dayFocus = `<div class="today-empty"><span>${gentleToday ? '🌤️' : '🗺️'}</span><p>${gentleToday ? 'خطة اليوم خفيفة. خذ وقتًا هادئًا مع وردك أو رحلتك؛ ستعود المهام غدًا.' : 'لا توجد مهام اليوم. خذ وقتًا هادئًا مع وردك أو رحلتك.'}</p></div>`;
 
     journeyUpdate(C());
     const journey = C().journey;
@@ -3689,6 +3880,9 @@ const App = {
     const journeyNeed = stageNeedXP(journey.stage);
     const journeyDone = journey.advanced >= 1 || journey.stage >= TOTAL_STAGES;
     const journeyPct = Math.min(100, Math.round(journey.xpToday / journeyNeed * 100));
+
+    const retryNote = (C().retryNotes || []).find(note => !note.seen);
+    const retryNoteHtml = retryNote ? `<section class="kid-retry-note" aria-label="رسالة من والدك"><span>💌</span><div><small>رسالة من والدك</small><p>${esc(retryNote.note)}</p></div><button class="btn-ghost" onclick="App.dismissRetryNote('${retryNote.id}')">فهمت</button></section>` : '';
 
     let html = `
       <section class="guided-day" aria-label="مسار اليوم">
@@ -3703,6 +3897,7 @@ const App = {
           </div>
         </div>
 
+        ${retryNoteHtml}
         ${dayFocus}`;
 
     html += `
@@ -3756,9 +3951,7 @@ const App = {
       };
     }
     const today = todayKey();
-    const nextTask = C().tasks
-      .filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
-      .filter(t => !t.mine || t.id === 'mine-' + today)
+    const nextTask = (gentlePlanForDate(C(), today) ? [] : scheduledTasksForChild(C(), today))
       .find(t => !doneIds.has(t.id) && !pendingToday.has(t.id));
     if (nextTask) {
       const reward = effectiveTask(nextTask, today);
@@ -3789,9 +3982,7 @@ const App = {
 
   moveTodayTask(delta) {
     const today = todayKey();
-    const tasks = C().tasks
-      .filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
-      .filter(t => !t.mine || t.id === 'mine-' + today);
+    const tasks = gentlePlanForDate(C(), today) ? [] : scheduledTasksForChild(C(), today);
     if (tasks.length < 2) return;
     const current = Number.isInteger(this._todayTaskIndex) ? this._todayTaskIndex : 0;
     const next = Math.max(0, Math.min(tasks.length - 1, current + delta));
@@ -3807,7 +3998,7 @@ const App = {
     if (event.key === 'Home') { event.preventDefault(); this._todayTaskIndex = 0; this.renderKMap(); }
     if (event.key === 'End') {
       event.preventDefault();
-      const total = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk).filter(t => !t.mine || t.id === 'mine-' + todayKey()).length;
+      const total = gentlePlanForDate(C()) ? 0 : scheduledTasksForChild(C()).length;
       this._todayTaskIndex = Math.max(0, total - 1);
       this.renderKMap();
     }
@@ -4415,7 +4606,7 @@ const App = {
     const today = todayKey();
     const done = (C().completions[today] || []).length;
     const j = C().journey || {};
-    const total = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk).length;
+    const total = gentlePlanForDate(C(), today) ? 0 : scheduledTasksForChild(C(), today).length;
     if ((total > 0 && done >= total) || j.advanced >= 1) return 'excited';
     if (done > 0) return 'happy';
     return new Date().getHours() < 12 ? 'sleepy' : 'curious';
@@ -4515,8 +4706,7 @@ const App = {
     if (C().mysteryBox) return this.openMystery();
     const doneIds = new Set(C().completions[today] || []);
     const pendingIds = new Set(C().pendingProofs.filter(p => p.date === today).map(p => p.taskId));
-    const next = C().tasks.filter(t => !isWeekend() || t.cat !== 'study' || t.weekendOk)
-      .filter(t => !t.mine || t.id === 'mine-' + today)
+    const next = (gentlePlanForDate(C(), today) ? [] : scheduledTasksForChild(C(), today))
       .find(t => !doneIds.has(t.id) && !pendingIds.has(t.id));
     if (next) {
       const node = document.getElementById('node-' + next.id);
@@ -5375,7 +5565,7 @@ const App = {
     const today = todayKey();
     const doneIds = C().completions[today] || [];
     const lines = [`🥕 تقرير ${C().name} — ${dayNameOffset(0)} ${today}`, ''];
-    for (const t of C().tasks) {
+    for (const t of (gentlePlanForDate(C(), today) ? [] : scheduledTasksForChild(C(), today))) {
       const pending = C().pendingProofs.some(p => p.taskId === t.id && p.date === today);
       lines.push(`${doneIds.includes(t.id) ? '✅' : (pending ? '⏳ (بانتظار تأكيدك)' : '⬜')} ${t.title}`);
     }
@@ -5393,6 +5583,11 @@ const App = {
     const t = C().tasks.find(x => x.id === taskId);
     if (!t) return;
     const today = todayKey();
+    if (gentlePlanForDate(C(), today) || !scheduledTasksForChild(C(), today).some(task => task.id === taskId)) {
+      this.toast('هذه الخطوة ليست ضمن خطة اليوم الآن');
+      this.renderKMap();
+      return;
+    }
     if ((C().completions[today] || []).includes(taskId)) return;
     if (C().pendingProofs.some(p => p.taskId === taskId && p.date === today)) return;
 

@@ -1510,6 +1510,35 @@ b { font-weight: 700; }
 .parent-manager-group__head small { color:#888397; font-size:.71rem; font-weight:700; margin-top:1px; }
 .parent-manager-group .card { border:0; box-shadow:none; background:#fbfaf8; margin:0 0 10px; }
 .parent-manager-group .form-row { margin-top:0; }
+.weekly-plan-card { border-color:#d9d0f6; background:linear-gradient(135deg,#f8f5ff,#fff); }
+.weekly-plan-card__head { display:flex; align-items:center; gap:9px; }
+.weekly-plan-card__head > span { width:40px; height:40px; display:grid; place-items:center; flex:0 0 40px; border-radius:14px; background:#ece6ff; font-size:1.2rem; }
+.weekly-plan-card__head > div { min-width:0; flex:1; }
+.weekly-plan-card__head h3 { color:#54427e; font-size:.94rem; margin:0; }
+.weekly-plan-card__head p { color:#7e7494; font-size:.7rem; font-weight:700; line-height:1.5; margin:2px 0 0; }
+.weekly-plan-card__actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:11px; }
+.weekly-plan-card__actions button { min-height:38px; padding:7px 8px; font-size:.72rem; }
+.weekly-plan-card > small { display:block; color:#827991; font-size:.64rem; font-weight:700; line-height:1.5; margin:8px 1px 0; }
+.weekly-plan-modal, .retry-proof-modal { direction:rtl; padding:2px 1px; }
+.weekly-pack-list { display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+.weekly-pack-option { width:100%; min-height:72px; display:flex; align-items:center; gap:10px; border:2px solid #e9e5ef; border-radius:16px; background:#fff; color:#4a4259; padding:10px; text-align:right; transition:transform .15s ease,border-color .15s ease,background .15s ease; }
+.weekly-pack-option:hover, .weekly-pack-option:focus-visible { border-color:#a98ddd; background:#faf8ff; }
+.weekly-pack-option:active { transform:scale(.98); }
+.weekly-pack-option.selected { border-color:var(--purple); background:#f5f0ff; box-shadow:0 3px 0 rgba(105,72,179,.13); }
+.weekly-pack-option > span:first-child { width:35px; height:35px; display:grid; place-items:center; flex:0 0 35px; border-radius:12px; background:#f0ebff; font-size:1.16rem; }
+.weekly-pack-option > span:nth-child(2) { min-width:0; display:flex; flex:1; flex-direction:column; }
+.weekly-pack-option b { color:#51406e; font-size:.79rem; font-weight:900; }
+.weekly-pack-option small { color:#827993; font-size:.65rem; font-weight:700; line-height:1.45; margin-top:2px; }
+.weekly-pack-option em { flex:0 0 auto; color:#7961b0; font-size:.66rem; font-style:normal; font-weight:900; }
+.retry-note-list { display:flex; flex-direction:column; gap:7px; margin-top:12px; }
+.retry-note-choice { display:flex; align-items:flex-start; gap:8px; border:1px solid #e7e1ee; border-radius:13px; background:#fff; color:#5d5668; font-size:.75rem; font-weight:700; line-height:1.5; padding:9px; }
+.retry-note-choice input { width:18px; height:18px; flex:0 0 18px; accent-color:var(--green); margin-top:1px; }
+.kid-retry-note { display:flex; align-items:center; gap:9px; margin:0 0 12px; border:2px solid #f1d8eb; border-radius:18px; background:linear-gradient(135deg,#fff7fc,#fff); padding:10px 11px; box-shadow:0 3px 0 rgba(184,93,139,.08); }
+.kid-retry-note > span { width:34px; height:34px; display:grid; place-items:center; flex:0 0 34px; border-radius:12px; background:#ffeaf5; font-size:1.05rem; }
+.kid-retry-note > div { min-width:0; flex:1; }
+.kid-retry-note small { color:#a56782; font-size:.64rem; font-weight:900; }
+.kid-retry-note p { color:#665567; font-size:.75rem; font-weight:800; line-height:1.5; margin:1px 0 0; }
+.kid-retry-note .btn-ghost { min-height:34px; flex:0 0 auto; padding:5px 9px; font-size:.7rem; }
 
 @media (max-width: 480px) {
   .parent-header { padding:18px 14px 10px; align-items:flex-start; gap:10px; }
@@ -1524,6 +1553,9 @@ b { font-weight: 700; }
   .parent-next-suggestion { align-items:flex-start; flex-direction:column; }
   .parent-next-suggestion > span { line-height:1; }
   .parent-next-suggestion .btn-primary { width:100%; align-self:stretch; }
+  .weekly-plan-card__actions { grid-template-columns:1fr; }
+  .weekly-plan-card__actions button { width:100%; }
+  .kid-retry-note { align-items:flex-start; }
 }
 
 @media (min-width: 720px) {
