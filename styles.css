@@ -140,6 +140,11 @@ b { font-weight: 700; }
   width: 34px; height: 34px; border-radius: 10px; background: #f4f2fb;
   font-size: 0.95rem; display: grid; place-items: center;
 }
+.child-card-qr {
+  width: auto; min-width: 34px; padding: 0 7px; display: inline-flex;
+  align-items: center; justify-content: center; gap: 3px; white-space: nowrap;
+  font-size: .68rem; font-weight: 900;
+}
 
 .btn-primary {
   background: var(--carrot); color: #fff; font-weight: 900; font-size: 1rem;
@@ -1250,6 +1255,11 @@ b { font-weight: 700; }
 .entry-treasure b { font-size: 0.87rem; }
 .entry-treasure small { color: #77718f; font-size: 0.72rem; font-weight: 700; margin-top: 1px; }
 .entry-treasure__action { color: #3977a3; font-size: 0.78rem; font-weight: 900; background: #fff; border-radius: 99px; padding: 5px 10px; }
+.entry-treasure--quiet { background:#fff; border-style:solid; border-color:#e8e4da; box-shadow:none; }
+.entry-treasure--quiet .entry-treasure__emoji { font-size:1.45rem; filter:saturate(.75); }
+.entry-treasure--quiet .entry-treasure__action { color:#5f5a77; background:#f4f2ed; }
+.mystery-node--quiet { background:#fffaf3; color:#5f566f; border:2px solid #efe0c6; box-shadow:none; }
+.mystery-node--quiet .m-emoji { font-size:1.8rem; animation:none; }
 
 .today-quests { margin: 20px 0 16px; }
 .today-quests--later, .later-explore, .parent-day-details {
@@ -1262,7 +1272,7 @@ b { font-weight: 700; }
 .today-quests__summary > span, .later-explore > summary > span, .parent-day-details > summary > span { display:flex; flex:1; flex-direction:column; min-width:0; }
 .today-quests__summary small, .later-explore small, .parent-day-details small { color:#8a86a8; font-size:.72rem; font-weight:700; }
 .today-quests__summary b, .later-explore b, .parent-day-details b { color:#393350; font-size:1rem; font-weight:900; margin-top:2px; }
-.today-quests__summary em, .later-explore em, .parent-day-details em { color:var(--purple); background:#f6f1ff; border-radius:99px; padding:6px 9px; font-size:.72rem; font-style:normal; font-weight:900; white-space:nowrap; }
+.today-quests__summary em, .later-explore em, .parent-day-details em { color:#6d6780; background:#f2f0ed; border-radius:99px; padding:6px 9px; font-size:.72rem; font-style:normal; font-weight:900; white-space:nowrap; }
 .today-quests__summary i { font-size:1rem; font-style:normal; margin-right:4px; }
 .today-quests--later[open] .today-quests__summary, .later-explore[open] > summary, .parent-day-details[open] > summary { border-bottom:1px solid #eee9dc; }
 .today-quests__body, .later-explore__body, .parent-day-details__body { padding:12px; background:#fcfbff; }
@@ -1341,6 +1351,8 @@ b { font-weight: 700; }
 .self-choice b { color: #6849b3; font-size: 0.86rem; }
 .self-choice small { color: #8a86a8; font-size: 0.72rem; font-weight: 700; }
 .self-choice__arrow { color: var(--purple); font-size: 1.25rem; font-weight: 900; }
+.self-choice { background:#fff; border-color:#e2dfd8; box-shadow:0 2px 0 rgba(45,42,74,.04); }
+.self-choice b, .self-choice__arrow { color:#5f5a77; }
 .today-empty { text-align: center; background: #fff; border: 2px dashed #ded9cd; border-radius: 20px; padding: 20px; color: #77718f; font-size: .87rem; font-weight: 700; }
 .today-empty span { display: block; font-size: 2.2rem; margin-bottom: 5px; }
 
@@ -1362,6 +1374,11 @@ b { font-weight: 700; }
 .discover-world[open] .discover-world__chevron { transform: rotate(180deg); }
 .discover-world__body { background: #fcfbff; border-top: 1px solid #eee9dc; padding: 12px; }
 .discover-world__body .quran-card { margin-bottom: 12px; }
+.discover-world__body--open { display:flex; flex-direction:column; gap:10px; background:#fcfbff; border:1px solid #eee9dc; border-radius:16px; padding:10px; }
+.discover-world__body--open .quran-card { margin-bottom:0; }
+.discover-world__body--open .world-glance { margin-bottom:0; }
+.discover-world__body--open .journey-banner { border-width:2px; box-shadow:none; padding:11px; }
+.child-share-link { width:100%; min-height:42px; color:#605b73; border-color:#dfd9d1; background:#fff; }
 .quran-card--friday { background: linear-gradient(135deg,#365f8c,#4a7ab5); box-shadow: 0 5px 0 #2a4a6e; }
 
 .parent-day-intro { margin:4px 2px 12px; }
@@ -1388,6 +1405,15 @@ b { font-weight: 700; }
 .parent-day-details > summary em { font-size:1.1rem; }
 .parent-day-details__body { display:flex; flex-direction:column; gap:12px; }
 .parent-day-details__body > .card { margin:0; }
+.parent-manager-group { background:#fff; border:1px solid #ece8e0; border-radius:18px; padding:12px; }
+.parent-manager-group + .parent-manager-group { margin-top:2px; }
+.parent-manager-group__head { display:flex; align-items:flex-start; gap:9px; margin-bottom:10px; }
+.parent-manager-group__head > span { width:32px; height:32px; display:grid; place-items:center; border-radius:11px; background:#f2f4f0; font-size:1rem; }
+.parent-manager-group__head > div { display:flex; flex:1; flex-direction:column; min-width:0; }
+.parent-manager-group__head b { color:#49435d; font-size:.92rem; }
+.parent-manager-group__head small { color:#888397; font-size:.71rem; font-weight:700; margin-top:1px; }
+.parent-manager-group .card { border:0; box-shadow:none; background:#fbfaf8; margin:0 0 10px; }
+.parent-manager-group .form-row { margin-top:0; }
 
 @media (max-width: 480px) {
   .parent-header { padding:18px 14px 10px; align-items:flex-start; gap:10px; }
