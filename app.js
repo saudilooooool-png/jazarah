@@ -534,6 +534,7 @@ function defaultChild(name, avatarBase, avatarBg) {
     completions: {},       // { 'YYYY-MM-DD': [taskId, ...] }
     pendingProofs: [],     // { id, taskId, title, cat, xp, coins, proof, date, time, photo|null }
     unseenApprovals: [],
+    pendingFarmImpacts: [], // آثار مزرعة مؤجلة أو معروضة بعد الإنجاز/الاعتماد
     redemptions: [],       // { id, rewardId, title, cost, date, status }
     mysteryBox: null,
     lastHpDay: todayKey(),
@@ -1195,7 +1196,7 @@ function grantCompletion(t, dateKey) {
   if (t.cat === 'health') C().hp = Math.min(100, C().hp + 10);
 
   // نوع المهمة يحدد المورد: معرفة←خشب · طاقة←حجر · صحة←ماء · نور القلب←نور · قلوب طيبة←بذور
-  if (window.JazarahFarm) App._farmGain = JazarahFarm.grant(C(), t.cat);
+  const farmGain = window.JazarahFarm ? JazarahFarm.grant(C(), t.cat) : null;
 
   // محفظة وقت الشاشة: كل مهمة منجزة = دقائق لعب (يضبطها الوالد)
   if (S.screenPerTask > 0) {
@@ -1229,7 +1230,7 @@ function grantCompletion(t, dateKey) {
   if (newLevel > prevLevel) feedPush(C(), '🆙', `ترقّى للمستوى ${newLevel}!`);
 
   save();
-  return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel, worldBloom };
+  return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel, worldBloom, farmGain };
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1341,9 +1342,14 @@ const App = {
       const totalCoins = items.reduce((a, x) => a + x.coins, 0);
       const totalXp = items.reduce((a, x) => a + x.xp, 0);
       const list = items.map(x => `⭐ ${esc(x.title)}`).join('<br />');
+      const seedImpact = items.map(x => this.getFarmImpact(x.impactId)).find(Boolean);
       C().unseenApprovals = [];
       save();
-      this.celebrate('والدك اعتمد إنجازك! 🎊', list, [`+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '👏');
+      if (seedImpact) {
+        this.celebrate('أثر إنجازك 🌱', `اعتمدت الأسرة هذه الخطوة:<br>${list}<br><span class="celebrate-impact-copy">وصلت بذرة إلى مزرعتك لأن هذه مهمة من القلوب الطيبة.</span>`, ['🌱 +١ بذرة لمزرعتك', `+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '🌱', this.farmImpactAction(seedImpact));
+      } else {
+        this.celebrate('والدك اعتمد إنجازك! 🎊', list, [`+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '👏');
+      }
       this.refreshKidHeader();
       this.renderKMap();
     } else if (C().lastDailyChest !== todayKey()) {
@@ -2328,13 +2334,14 @@ const App = {
     C().pendingProofs = C().pendingProofs.filter(x => x.id !== id);
     // نمنح المكافآت بهوية المهمة الأصلية وتاريخ الإنجاز الأصلي
     const taskLike = { id: p.taskId, cat: p.cat, xp: p.xp, coins: p.coins, title: p.title };
-    grantCompletion(taskLike, p.date);
+    const res = grantCompletion(taskLike, p.date);
     // صورة الإثبات تظهر في شريط اليوم — كأنها قصة عائلية
     if (p.photo && C().feed && C().feed.length) {
       const fe = C().feed.find(f => f.title.includes(p.title));
       if (fe) fe.img = p.photo;
     }
-    C().unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins });
+    const impact = this.queueFarmImpact(taskLike, res.farmGain, 'parent_approved', p.date);
+    C().unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins, impactId: impact && impact.id });
     save();
     this.renderPTasks();
     this.toast(`تم الاعتماد — وصل ${p.coins} 🥕 إلى ${C().name} ✅`);
@@ -5454,7 +5461,8 @@ const App = {
   },
 
   _celebrateGrant(t, res) {
-    let title = t.golden ? 'مهمة ذهبية! مكافأة مضاعفة ×2 ✨' : 'أحسنت يا بطل!', emoji = t.golden ? '✨' : '🎉', msg = esc(t.title);
+    const impact = this.queueFarmImpact(t, res.farmGain, 'instant', todayKey());
+    let title = t.golden ? 'مهمة ذهبية! مكافأة مضاعفة ×2 ✨' : 'أحسنت!', emoji = t.golden ? '✨' : '🎉', msg = esc(t.title);
     if (res.leveledUp) {
       title = `ترقّيت للمستوى ${res.newLevel}! 🆙`;
       emoji = heroFace(C());
@@ -5466,9 +5474,66 @@ const App = {
     }
     const gains = [`+${t.xp} ✨ XP`, `+${t.coins + res.bonus} 🥕`];
     if (res.worldBloom) gains.push(`${res.worldBloom.stage.emoji} رممت: ${res.worldBloom.stage.title}`);
-    // المورد الذي دخل المزرعة — يربط المهمة بالبناء أمام عين الطفل
-    if (this._farmGain) { gains.push(`🌾 +١ ${this._farmGain.name} لمزرعتك`); this._farmGain = null; }
+    if (impact) {
+      title = 'أثر إنجازك 🌱';
+      emoji = '🌱';
+      msg = `اكتملت «${esc(t.title)}».<br><span class="celebrate-impact-copy">وصلت بذرة إلى مزرعتك لأن هذه مهمة من القلوب الطيبة.</span>`;
+      gains.unshift('🌱 +١ بذرة لمزرعتك');
+      this.celebrate(title, msg, gains, emoji, this.farmImpactAction(impact));
+      return;
+    }
+    if (res.farmGain) gains.push(`🌾 +١ ${res.farmGain.name} لمزرعتك`);
     this.celebrate(title, msg, gains, emoji);
+  },
+
+  queueFarmImpact(t, farmGain, source, dateKey) {
+    if (!farmGain || farmGain.key !== 'seed') return null;
+    const child = C();
+    child.pendingFarmImpacts = Array.isArray(child.pendingFarmImpacts) ? child.pendingFarmImpacts : [];
+    const id = `seed:${t.id}:${dateKey}:${source}`;
+    const existing = child.pendingFarmImpacts.find(impact => impact.id === id);
+    if (existing) return existing;
+    const impact = { id, taskId: t.id, taskTitle: t.title, resourceKey: 'seed', source, status: 'queued', target: 'seed_cell', createdAt: Date.now() };
+    child.pendingFarmImpacts.push(impact);
+    save();
+    return impact;
+  },
+
+  getFarmImpact(impactId) {
+    if (!impactId) return null;
+    return (C().pendingFarmImpacts || []).find(impact => impact.id === impactId && impact.status === 'queued') || null;
+  },
+
+  farmImpactAction(impact) {
+    return {
+      kind: 'farm-impact',
+      primaryLabel: 'شاهد مزرعتي',
+      secondaryLabel: 'تابع يومي',
+      onPrimary: () => this.openFarmImpact(impact.id),
+      onSecondary: () => this.dismissFarmImpact(impact.id),
+    };
+  },
+
+  openFarmImpact(impactId) {
+    const impact = this.getFarmImpact(impactId);
+    this.closeCelebrate();
+    if (!impact) { this.kidTab('farm'); return; }
+    impact.status = 'viewed';
+    save();
+    JazarahFarm.setImpact(impact);
+    this.kidTab('farm');
+  },
+
+  dismissFarmImpact(impactId) {
+    const impact = this.getFarmImpact(impactId);
+    if (impact) { impact.status = 'dismissed'; save(); }
+    this.closeCelebrate();
+    this.kidTab('map');
+  },
+
+  resolveFarmImpact(impactId) {
+    const impact = (C().pendingFarmImpacts || []).find(item => item.id === impactId);
+    if (impact) { impact.status = 'acted'; impact.actedAt = Date.now(); save(); }
   },
 
   /* ── إثبات بالصورة ── */
@@ -6057,24 +6122,38 @@ const App = {
 
   _cQueue: [],
 
-  celebrate(title, msg, gains, emoji = '🎉') {
+  celebrate(title, msg, gains, emoji = '🎉', action = null) {
     // إن كان احتفال معروضًا الآن، ينتظر هذا دوره
     if (document.getElementById('celebrate').classList.contains('active')) {
-      this._cQueue.push([title, msg, gains, emoji]);
+      this._cQueue.push([title, msg, gains, emoji, action]);
       return;
     }
     document.getElementById('celebrate-title').textContent = title;
     document.getElementById('celebrate-msg').innerHTML = msg;
     document.getElementById('celebrate-emoji').innerHTML = emoji;
     document.getElementById('celebrate-gains').innerHTML =
-      gains.map((g, i) => `<span class="gain-chip ${i === 0 ? 'xp' : ''}">${g}</span>`).join('');
+      gains.map((g, i) => `<span class="gain-chip ${String(g).includes('لمزرعتك') ? 'farm' : (i === 0 ? 'xp' : '')}">${g}</span>`).join('');
+    const card = document.querySelector('#celebrate .celebrate-card');
+    const primary = document.getElementById('celebrate-primary');
+    const secondary = document.getElementById('celebrate-secondary');
+    card.classList.toggle('celebrate-card--impact', Boolean(action && action.kind === 'farm-impact'));
+    primary.textContent = action ? action.primaryLabel : 'واصل المغامرة! 🚀';
+    primary.onclick = () => action ? action.onPrimary() : this.closeCelebrate();
+    secondary.hidden = !action;
+    if (action) {
+      secondary.textContent = action.secondaryLabel;
+      secondary.onclick = () => action.onSecondary();
+    } else {
+      secondary.onclick = null;
+    }
     document.getElementById('celebrate').classList.add('active');
-    this.spawnConfetti();
+    if (!action || action.kind !== 'farm-impact') this.spawnConfetti();
   },
 
   closeCelebrate() {
     document.getElementById('celebrate').classList.remove('active');
     document.getElementById('confetti-layer').innerHTML = '';
+    document.querySelector('#celebrate .celebrate-card').classList.remove('celebrate-card--impact');
     // اعرض الاحتفال التالي في الطابور إن وُجد (تقدم الرحلة مثلًا)
     if (this._cQueue.length) {
       const next = this._cQueue.shift();
