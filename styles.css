@@ -1782,3 +1782,23 @@ b { font-weight: 700; }
   background: rgba(120, 100, 70, .16); overflow: hidden; }
 .next-mission__bar em { display: block; height: 100%; border-radius: 99px;
   background: linear-gradient(90deg, #7ec45a, #4f9138); transition: width .45s cubic-bezier(.23,1,.32,1); }
+.farm-companion-card { display:flex; align-items:center; gap:10px; margin:0 0 10px; padding:10px 12px; border:1px solid #e7c999; border-radius:16px; background:linear-gradient(135deg,#fffaf0,#fff4dc); box-shadow:0 5px 14px rgba(95,57,23,.08); }
+.farm-companion-card__icon { display:grid; flex:0 0 34px; width:34px; height:34px; place-items:center; border-radius:50%; background:#f5e0b5; font-size:20px; }
+.farm-companion-card div { min-width:0; flex:1; }
+.farm-companion-card p { margin:0 0 2px; color:#714a27; font:800 13px/1.4 Cairo,sans-serif; }
+.farm-companion-card small { display:block; color:#80654b; font:600 11px/1.65 Cairo,sans-serif; }
+.farm-companion-card__action { flex:0 0 auto; min-height:38px; padding:0 11px; border:0; border-radius:11px; background:#9a693d; color:#fffdf7; font:800 12px/1 Cairo,sans-serif; cursor:pointer; transition:transform .16s ease-out,filter .16s ease-out; }
+.farm-companion-card__action:active { transform:scale(.97); }
+.farm-companion-card__action:focus-visible { outline:3px solid #ffcb62; outline-offset:3px; }
+.farm-companion-card--greeted { border-color:#d6e7bd; background:linear-gradient(135deg,#f8fff1,#fffaf0); }
+.farm-companion { position:absolute; width:84px; height:84px; padding:0; border:0; background:transparent; cursor:pointer; transform-origin:50% 90%; }
+.farm-companion__signal { position:absolute; top:1px; inset-inline-end:0; display:grid; width:23px; height:23px; place-items:center; border-radius:50%; background:#fffdf5; color:#8e6138; box-shadow:0 2px 6px rgba(70,43,20,.18); font:800 16px/1 Cairo,sans-serif; }
+.farm-companion--greeted .farm-companion__signal { color:#be7e70; }
+.farm-companion:focus-visible { outline:3px solid #ffcb62; outline-offset:2px; border-radius:18px; }
+@media (prefers-reduced-motion:no-preference) {
+  .farm-companion--curious .farm-companion__signal { animation:farmCompanionNotice 1.25s ease-in-out infinite; }
+  .farm-companion--greeted .farm-companion__signal { animation:farmCompanionHello .52s cubic-bezier(.23,1,.32,1) 1; }
+}
+@keyframes farmCompanionNotice { 0%,100% { transform:rotate(-3deg) translateY(0); } 50% { transform:rotate(4deg) translateY(-3px); } }
+@keyframes farmCompanionHello { 0% { transform:scale(1) rotate(0); } 45% { transform:scale(1.08) rotate(-5deg) translateY(-4px); } 100% { transform:scale(1) rotate(0); } }
+@media (max-width:480px) { .farm-companion-card { align-items:flex-start; } .farm-companion-card__action { min-height:40px; padding:0 10px; } }

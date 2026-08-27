@@ -75,6 +75,49 @@ const JazarahFarm = {
     return f.daily;
   },
 
+  /* رفيق الحظيرة يبدأ كبيضة موجودة أصلًا. حالته مستقلة لكل طفل ولا تعتمد على الغياب أو مؤقت رعاية. */
+  companionHome(f) {
+    return Object.values(f.built || {}).some(id => id === 'barn' || id === 'egg');
+  },
+
+  companion(f) {
+    if (!f.companion || typeof f.companion !== 'object') {
+      f.companion = { stage: 'egg', harvestInviteDate: null, greetingDate: null, lastGreetedAt: null };
+    }
+    return f.companion;
+  },
+
+  companionMoment(f) {
+    if (!this.companionHome(f)) return null;
+    const companion = this.companion(f);
+    const invited = companion.harvestInviteDate === todayKey() && companion.greetingDate !== todayKey();
+    const greeted = companion.greetingDate === todayKey();
+    if (invited) return { state: 'curious', title: 'بيضة الرفيق سمعت الحصاد', copy: 'لوّح لها مرة واحدة؛ فرحتها جزء لطيف من زيارة مزرعتك.', action: 'حيِّ الرفيق' };
+    if (greeted) return { state: 'greeted', title: 'رفيق الحظيرة فرح بتحيتك', copy: 'تركنا له وقتًا هادئًا في عشه. تستطيع العودة إلى يومك متى أحببت.', action: null };
+    return { state: 'resting', title: 'رفيق الحظيرة في عشه', copy: 'سيلاحظ حصادك القادم عندما يكون هناك محصول حقيقي في الحقل.', action: null };
+  },
+
+  inviteCompanionAfterHarvest(f) {
+    if (!this.companionHome(f)) return;
+    const companion = this.companion(f);
+    if (companion.harvestInviteDate === todayKey() || companion.greetingDate === todayKey()) return;
+    companion.harvestInviteDate = todayKey();
+    this.note(f, '🐣', 'بيضة الرفيق اهتزت بعدما حصد جزّور جزرة');
+  },
+
+  greetCompanion() {
+    const f = this.of(C());
+    if (!this.companionHome(f)) return;
+    const companion = this.companion(f);
+    if (companion.harvestInviteDate !== todayKey()) { App.toast('🐣 الرفيق هادئ في عشه الآن'); return; }
+    if (companion.greetingDate === todayKey()) { App.toast('🐣 حيّيت الرفيق اليوم بالفعل'); return; }
+    companion.greetingDate = todayKey();
+    companion.lastGreetedAt = Date.now();
+    this.note(f, '🐣', 'لوّحت لرفيق الحظيرة بعد الحصاد');
+    save(); this.render();
+    App.toast('🐣 فرح رفيق الحظيرة بتحيتك');
+  },
+
   note(f, emoji, text) {
     const daily = this.daily(f);
     const last = daily.events[0];
@@ -123,6 +166,7 @@ const JazarahFarm = {
     const child = C();
     const f = this.of(child);
     const daily = this.daily(f);
+    const companionMoment = this.companionMoment(f);
     const grown = this._grow(f);
     if (grown) this.note(f, '🥕', grown === 1 ? 'نضجت جزرة منذ آخر زيارة' : `نضجت ${grown} جزرات منذ آخر زيارة`);
     const firstVisitToday = daily.lastVisitDate !== todayKey();
@@ -175,6 +219,15 @@ const JazarahFarm = {
         <img class="fbuild fplaced" src="${it.img}" style="left:${sl.x - it.w / 2}px;top:${sl.y - it.w * 0.9}px;width:${it.w}px;z-index:${z}" alt="${it.name}">`;
     });
 
+    if (companionMoment) {
+      const state = companionMoment.state;
+      const nestEntry = Object.entries(f.built).find(([, id]) => id === 'egg');
+      const nest = nestEntry ? this.SLOTS[Number(nestEntry[0])] : { x: 258, y: 291 };
+      layer += `<button class="farm-companion farm-companion--${state}" data-companion type="button" style="left:${nest.x - 42}px;top:${nest.y - 82}px;z-index:${Math.round(nest.y) + 2}" aria-label="${state === 'curious' ? 'بيضة الرفيق تريد تحية بعد الحصاد' : 'رفيق الحظيرة في عشه'}">
+        <span class="farm-companion__signal" aria-hidden="true">${state === 'curious' ? '…' : state === 'greeted' ? '♡' : ''}</span>
+      </button>`;
+    }
+
     layer += `<img class="fjz" id="farm-jz" src="${App.jzSrc('hero')}" style="left:566px;top:282px" alt="جزّور">`;
 
     const r = this.ready(child);
@@ -200,10 +253,14 @@ const JazarahFarm = {
       <div class="farm-daily-pulse__copy"><p>${firstVisitToday ? 'أهلًا في مزرعتك اليوم' : 'مزرعتي الآن'}</p><h3>${objective.title}</h3><small>${objective.copy}</small>${latest ? `<span class="farm-daily-pulse__latest">${latest.emoji} ${esc(latest.text)}</span>` : ''}</div>
       <button class="farm-daily-pulse__action" type="button" onclick="JazarahFarm.focusDailyObjective()">${objective.actionLabel}</button>
     </section>`;
+    const companionCard = companionMoment && companionMoment.state !== 'resting'
+      ? `<section class="farm-companion-card farm-companion-card--${companionMoment.state}" aria-live="polite"><span class="farm-companion-card__icon">🐣</span><div><p>${companionMoment.title}</p><small>${companionMoment.copy}</small></div>${companionMoment.action ? `<button type="button" class="farm-companion-card__action" onclick="JazarahFarm.greetCompanion()">${companionMoment.action}</button>` : ''}</section>`
+      : '';
 
     el.innerHTML = `
       <div class="farm-bar">${bar}</div>
       ${dailyPulse}
+      ${companionCard}
       ${impactBanner}
       <div class="farm-view" id="farm-view"><div class="fworld" id="fworld">${layer}</div></div>
       <div class="farm-hint-row">
@@ -331,6 +388,8 @@ const JazarahFarm = {
       el.addEventListener('click', () => { if (this._moved <= 12) this.openBuild(+el.dataset.slot); }));
     const jz = document.getElementById('farm-jz');
     if (jz) jz.addEventListener('click', () => { if (this._moved <= 12) VoiceLines.say('poke1'); });
+    const companion = view.querySelector('[data-companion]');
+    if (companion) companion.addEventListener('click', () => { if (this._moved <= 12) this.greetCompanion(); });
   },
 
   /* ─────── الأفعال ─────── */
@@ -393,6 +452,7 @@ const JazarahFarm = {
       f.crops[i] = { stage: 'empty' };
       f.res.seed = (f.res.seed || 0) + 1;
       this.note(f, '🥕', 'حصد جزّور جزرة من الحقل');
+      this.inviteCompanionAfterHarvest(f);
       C().coins += 1;
       save();
       this.render();
