@@ -21,25 +21,34 @@
   <!-- ═══════════ شاشة اختيار الدور ═══════════ -->
   <section id="screen-role" class="screen active">
     <div class="role-wrap">
-      <div class="logo-bounce">🥕</div>
-      <h1 class="app-title">جَزَرة</h1>
-      <p class="app-tagline">حوّلوا يومكم إلى مغامرة عائلية!</p>
-      <div class="release-banner">
-        <b>✨ تحديث مرئي جديد</b>
-        <span>بطاقة «التالي لك الآن» + تحسين صوت جزّور</span>
-      </div>
-      <div class="role-cards">
-        <button class="role-card role-kid" onclick="App.enterKid()">
-          <span class="role-emoji">🦸</span>
-          <span class="role-name">أنا الطفل</span>
-          <span class="role-desc">ابدأ مغامرة اليوم</span>
-        </button>
-        <button class="role-card role-parent" onclick="App.enterParent()">
-          <span class="role-emoji">🧭</span>
-          <span class="role-name">أنا الوالد / الوالدة</span>
-          <span class="role-desc">غرفة قيادة المهام</span>
-        </button>
-      </div>
+      <header class="role-brand">
+        <img class="role-logo" src="icons/icon-192.png" alt="" aria-hidden="true">
+        <p class="role-kicker">مساحة هادئة للعائلة</p>
+        <h1 class="app-title">جَزَرة</h1>
+        <p class="app-tagline">خطوة لطيفة في اليوم، ومغامرة تنمو معًا.</p>
+      </header>
+      <section class="role-choice" aria-labelledby="role-choice-title">
+        <div class="role-choice__head">
+          <h2 id="role-choice-title">من سيبدأ الآن؟</h2>
+          <p>اختر مسارك، ويمكنك الرجوع هنا في أي وقت.</p>
+        </div>
+        <div class="role-cards">
+          <button class="role-card role-kid" onclick="App.enterKid()">
+            <span class="role-card__icon role-card__icon--kid" aria-hidden="true"><img src="farm/characters/jazour/wave.webp" alt=""></span>
+            <span class="role-card__body"><span class="role-card__eyebrow">مسار الطفل</span><span class="role-name">أنا الطفل</span><span class="role-desc">أكمل مغامرتي وخطوتي التالية</span></span>
+            <span class="role-card__action">افتح مغامرتي <b aria-hidden="true">‹</b></span>
+          </button>
+          <button class="role-card role-parent" onclick="App.enterParent()">
+            <span class="role-card__icon role-card__icon--parent" aria-hidden="true">🧭</span>
+            <span class="role-card__body"><span class="role-card__eyebrow">مسار الأسرة</span><span class="role-name">أنا الوالد أو الوالدة</span><span class="role-desc">رتّبوا اليوم وراجعوا ما يحتاج قرارًا</span></span>
+            <span class="role-card__action">ادخل غرفة الأسرة <b aria-hidden="true">‹</b></span>
+          </button>
+        </div>
+      </section>
+      <details class="role-release-note">
+        <summary>ما الجديد في جَزَرة؟</summary>
+        <p>بطاقة «التالي لك الآن» وتحسينات لصوت جزّور داخل المغامرة.</p>
+      </details>
       <button class="teacher-link" onclick="App.enterTeacher()">🏫 وضع المعلم / المعلمة</button>
     </div>
   </section>

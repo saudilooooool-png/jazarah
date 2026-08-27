@@ -6223,10 +6223,3 @@ dailyUpkeep();
 if (window.VoiceLines) VoiceLines.init();
 
 /* عرض رقم البناء أسفل شاشة البداية — للتحقق أي نسخة تعمل */
-(function () {
-  const el = document.createElement('div');
-  el.style.cssText = 'text-align:center;color:#b08968;font-size:0.7rem;font-weight:700;margin-top:14px';
-  el.textContent = 'جَزَرة · بناء ' + APP_BUILD;
-  const wrap = document.querySelector('.role-wrap');
-  if (wrap) wrap.appendChild(el);
-})();
