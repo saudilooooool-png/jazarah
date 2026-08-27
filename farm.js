@@ -26,13 +26,12 @@ const JazarahFarm = {
     ready:   'farm/crops/carrot_ready.webp',
   },
 
-  /* حفر الجزر — إحداثيات داخل عالم 1180×664 */
-  CELLS: [
-    { x: 375, y: 400, s: 45 }, { x: 427, y: 408, s: 47 }, { x: 479, y: 416, s: 49 }, { x: 531, y: 424, s: 51 },
-    { x: 339, y: 431, s: 47 }, { x: 391, y: 439, s: 49 }, { x: 443, y: 447, s: 51 }, { x: 495, y: 455, s: 53 },
-    { x: 303, y: 462, s: 49 }, { x: 355, y: 470, s: 51 }, { x: 407, y: 478, s: 53 }, { x: 459, y: 486, s: 55 },
-    { x: 328, y: 495, s: 51 }, { x: 380, y: 503, s: 53 }, { x: 432, y: 511, s: 55 }, { x: 484, y: 519, s: 57 },
-  ],
+  /* حقل واحد من ٤×٤ خلايا: x = ٤٢٠ + (العمود−الصف)×٤٢، y = ٤٠٧ + (العمود+الصف)×١٨.
+     يبقى ترتيب المصفوفة نفسه حتى تحافظ ملفات الأطفال الحالية على حالة كل جزرة. */
+  CELLS: Array.from({ length: 16 }, (_, i) => {
+    const row = Math.floor(i / 4), col = i % 4, depth = row + col;
+    return { row, col, x: 420 + (col - row) * 42, y: 407 + depth * 18, s: 40 + depth * 2 };
+  }),
 
   /* مواقع البناء — على المرج المفتوح فقط، لا فوق ممر ولا فوق بناء مرسوم */
   SLOTS: [
@@ -141,18 +140,24 @@ const JazarahFarm = {
       .map(([k, r]) => `<span class="fres" data-res="${k}"><img src="${r.img}" alt="${r.name}"><b>${ar(f.res[k] || 0)}</b></span>`)
       .join('');
 
-    /* الطبقات مرتّبة بالعمق: z = موضع القدم على الأرض */
+    /* صفوف تربة مرئية تربط الحفر بجزء واحد من الحقل؛ المحاصيل فوقها تفاعلية بالكامل. */
     let layer = `<img class="fworld-base" src="farm/land/world_farm_single_plot.webp" alt="مزرعة جزّور">
       <span class="fshadow" style="width:124px;height:24px;left:531px;top:283px"></span>
       <img class="fbuild" src="farm/buildings/home_exact.webp" style="left:498px;top:110px;width:192px;z-index:283" alt="بيت جزّور">
       <span class="fshadow" style="width:112px;height:22px;left:233px;top:321px"></span>
       <img class="fbuild" src="farm/buildings/barn_exact.webp" style="left:197px;top:193px;width:184px;z-index:321" alt="حظيرة">`;
 
+    for (let row = 0; row < 4; row++) {
+      const start = this.CELLS[row * 4], end = this.CELLS[row * 4 + 3];
+      const x = (start.x + end.x) / 2, y = (start.y + end.y) / 2;
+      layer += `<span class="ffield-row" aria-hidden="true" style="left:${x - 87}px;top:${y}px;z-index:${Math.round(y) + 348}"></span>`;
+    }
+
     this.CELLS.forEach((c, i) => {
       const crop = f.crops[i], z = Math.round(c.y) + 360;
       const pos = `left:${c.x - c.s / 2}px;top:${c.y - c.s * 0.85}px;width:${c.s}px;z-index:${z}`;
       layer += crop.stage === 'empty'
-        ? `<button class="fcrop fempty${i === impactTarget ? ' farm-impact-target' : ''}" data-crop="${i}" style="${pos}" aria-label="${i === impactTarget ? 'حفرة البذرة المكتسبة — ازرع هنا' : 'حفرة فارغة — ازرع جزرة'}">＋</button>`
+        ? `<button class="fcrop fempty${i === impactTarget ? ' farm-impact-target' : ''}" data-crop="${i}" style="${pos}" aria-label="${i === impactTarget ? 'حفرة البذرة المكتسبة — ازرع هنا' : 'حفرة فارغة — ازرع جزرة'}"><span class="fcrop-add" aria-hidden="true">＋</span></button>`
         : `<button class="fcrop f-${crop.stage}" data-crop="${i}" style="${pos}" aria-label="جزرة"><img src="${this.CROP[crop.stage]}" alt=""></button>`;
     });
 

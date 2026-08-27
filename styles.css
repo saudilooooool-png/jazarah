@@ -1682,14 +1682,18 @@ b { font-weight: 700; }
 .fcrop { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer;
   transform-origin: 50% 90%; filter: drop-shadow(0 5px 4px rgba(38, 55, 20, .26)); }
 .fcrop img { width: 100%; display: block; pointer-events: none; }
+.ffield-row { position:absolute; width:174px; height:3px; border-radius:99px; pointer-events:none; transform:rotate(23.4deg); transform-origin:center;
+  background:rgba(92,52,25,.25); box-shadow:0 3px 0 rgba(255,218,151,.16); }
 .fcrop.f-ready { animation: fReady 1.75s ease-in-out infinite; }
 @keyframes fReady { 0%, 100% { transform: translateY(0) rotate(-1deg) } 50% { transform: translateY(-3px) rotate(1deg) } }
 .fcrop.f-growing { animation: fSway 4.2s ease-in-out infinite; }
 @keyframes fSway { 0%, 100% { transform: rotate(-1deg) } 50% { transform: rotate(1deg) } }
-.fcrop.fempty { display: grid; place-items: center; height: 26px; border-radius: 50%;
-  color: #fff6e2; background: rgba(74, 44, 20, .3); box-shadow: inset 0 1px 0 rgba(255, 240, 210, .25);
-  font: 900 15px/1 Cairo, sans-serif; filter: none; }
-.fcrop.fempty.farm-impact-target { background:#4f8f36; color:#fff; box-shadow:0 0 0 5px rgba(255, 224, 102, .7), 0 0 18px rgba(79, 143, 54, .72); animation:fImpactPulse 1.2s ease-in-out infinite; }
+.fcrop.fempty { display:grid; place-items:center; height:24px; border-radius:50%; color:#fff; background:radial-gradient(ellipse at 50% 48%,rgba(68,36,16,.62) 0 34%,rgba(92,52,25,.24) 36% 56%,transparent 59%); box-shadow:none; font:900 12px/1 Cairo,sans-serif; filter:none; }
+.fcrop-add { display:grid; place-items:center; width:16px; height:16px; border-radius:50%; background:rgba(255,250,237,.92); opacity:0; transition:opacity .16s ease-out,transform .16s ease-out; }
+.fcrop.fempty:hover .fcrop-add,.fcrop.fempty:focus-visible .fcrop-add { opacity:1; transform:scale(1.1); }
+.fcrop.fempty:focus-visible { outline:3px solid #ffcb62; outline-offset:3px; }
+.fcrop.fempty.farm-impact-target { color:#fff; background:radial-gradient(ellipse at 50% 46%,#4f8f36 0 47%,rgba(79,143,54,.54) 48% 65%,transparent 67%); box-shadow:0 0 0 5px rgba(255,224,102,.7),0 0 18px rgba(79,143,54,.72); animation:fImpactPulse 1.2s ease-in-out infinite; }
+.fcrop.fempty.farm-impact-target .fcrop-add { opacity:1; background:rgba(255,255,255,.9); color:#4f8f36; }
 @keyframes fImpactPulse { 50% { transform:scale(1.14); box-shadow:0 0 0 8px rgba(255, 224, 102, .35), 0 0 21px rgba(79, 143, 54, .95); } }
 .fcrop.fpull { pointer-events: none; animation: fPull .48s cubic-bezier(.23,1,.32,1) forwards; }
 @keyframes fPull { 0% { transform: translateY(0) scale(1); opacity: 1 }
