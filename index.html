@@ -89,20 +89,21 @@
   <section id="screen-parent" class="screen">
     <header class="parent-header">
       <div>
-        <h2>🧭 غرفة القيادة</h2>
+        <span class="screen-eyebrow">إدارة اليوم العائلي</span>
+        <h2>غرفة الأسرة</h2>
         <p id="parent-subtitle" class="muted"></p>
       </div>
-      <button class="btn-ghost" onclick="App.showScreen('screen-role')">خروج</button>
+      <button class="btn-ghost parent-exit" onclick="App.showScreen('screen-role')">خروج</button>
     </header>
 
     <div id="child-switcher" class="child-switcher"></div>
 
     <nav class="parent-tabs">
-      <button class="ptab active" data-ptab="tasks" onclick="App.parentTab('tasks')">📋 المهام</button>
-      <button class="ptab" data-ptab="rewards" onclick="App.parentTab('rewards')">🎁 المكافآت</button>
-      <button class="ptab" data-ptab="boss" onclick="App.parentTab('boss')">👾 الزعيم</button>
-      <button class="ptab" data-ptab="report" onclick="App.parentTab('report')">📊 التقارير</button>
-      <button class="ptab" data-ptab="settings" onclick="App.parentTab('settings')">⚙️</button>
+      <button class="ptab active" data-ptab="tasks" onclick="App.parentTab('tasks')"><span>📋</span>اليوم</button>
+      <button class="ptab" data-ptab="rewards" onclick="App.parentTab('rewards')"><span>🎁</span>المكافآت</button>
+      <button class="ptab" data-ptab="boss" onclick="App.parentTab('boss')"><span>👾</span>التحدّي</button>
+      <button class="ptab" data-ptab="report" onclick="App.parentTab('report')"><span>📊</span>التقدّم</button>
+      <button class="ptab" data-ptab="settings" onclick="App.parentTab('settings')"><span>⚙️</span>الأسرة</button>
     </nav>
 
     <div id="ptab-tasks" class="ptab-panel active"></div>
@@ -117,13 +118,13 @@
     <header class="kid-header">
       <button class="kid-avatar-chip" onclick="App.kidTab('hero')">
         <span id="kid-avatar-mini">🦸</span>
-        <span id="kid-name-mini">البطل</span>
+        <span id="kid-name-mini">صديق جزّور</span>
       </button>
       <div class="kid-stats">
         <span class="stat-chip stat-coins">🥕 <b id="stat-coins">0</b></span>
         <span class="stat-chip stat-streak">🔥 <b id="stat-streak">0</b></span>
         <button class="btn-ghost small" title="كيف ألعب؟" aria-label="كيف ألعب؟" onclick="App.startTour(true)">؟</button>
-        <button class="btn-ghost small" onclick="App.showScreen('screen-role')">✕</button>
+        <button class="btn-ghost small" aria-label="الخروج إلى اختيار المسار" onclick="App.showScreen('screen-role')">✕</button>
       </div>
     </header>
 
@@ -134,11 +135,11 @@
     <div id="ktab-badges" class="ktab-panel"></div>
 
     <nav class="kid-nav">
-      <button class="knav active" data-ktab="map" onclick="App.kidTab('map')"><span>🗺️</span>المغامرة</button>
-      <button class="knav" data-ktab="farm" onclick="App.kidTab('farm')"><span>🌾</span>مزرعتي<i class="knav-dot" id="farm-dot" hidden></i></button>
-      <button class="knav" data-ktab="hero" onclick="App.kidTab('hero')"><span>🦸</span>بطلي</button>
-      <button class="knav" data-ktab="shop" onclick="App.kidTab('shop')"><span>🏪</span>المتجر</button>
-      <button class="knav" data-ktab="badges" onclick="App.kidTab('badges')"><span>🏅</span>أوسمتي</button>
+      <button class="knav active" data-ktab="map" onclick="App.kidTab('map')"><span>🗺️</span>اليوم</button>
+      <button class="knav" data-ktab="farm" onclick="App.kidTab('farm')"><span>🌾</span>المزرعة<i class="knav-dot" id="farm-dot" hidden></i></button>
+      <button class="knav" data-ktab="hero" onclick="App.kidTab('hero')"><span>✨</span>ملفي</button>
+      <button class="knav" data-ktab="shop" onclick="App.kidTab('shop')"><span>🏪</span>المكافآت</button>
+      <button class="knav" data-ktab="badges" onclick="App.kidTab('badges')"><span>🏅</span>إنجازاتي</button>
     </nav>
   </section>
 
