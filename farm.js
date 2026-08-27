@@ -107,7 +107,7 @@ const JazarahFarm = {
   inviteCompanionAfterHarvest(f) {
     if (!this.companionHome(f)) return;
     const companion = this.companion(f);
-    if (companion.stage !== 'egg' || companion.harvestInviteDate === todayKey() || companion.greetingDate === todayKey()) return;
+    if (companion.stage !== 'egg' || companion.harvestCount >= this.COMPANION.HATCH_HARVEST_GOAL || companion.hatchReadyAt || companion.harvestInviteDate === todayKey() || companion.greetingDate === todayKey()) return;
     companion.harvestCount = Math.min(this.COMPANION.HATCH_HARVEST_GOAL, companion.harvestCount + 1);
     if (companion.harvestCount >= this.COMPANION.HATCH_HARVEST_GOAL) {
       companion.hatchReadyAt = Date.now();
