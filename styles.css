@@ -1793,12 +1793,20 @@ b { font-weight: 700; }
 .farm-companion-card--greeted { border-color:#d6e7bd; background:linear-gradient(135deg,#f8fff1,#fffaf0); }
 .farm-companion { position:absolute; width:84px; height:84px; padding:0; border:0; background:transparent; cursor:pointer; transform-origin:50% 90%; }
 .farm-companion__signal { position:absolute; top:1px; inset-inline-end:0; display:grid; width:23px; height:23px; place-items:center; border-radius:50%; background:#fffdf5; color:#8e6138; box-shadow:0 2px 6px rgba(70,43,20,.18); font:800 16px/1 Cairo,sans-serif; }
+.farm-companion__progress { position:absolute; inset-inline-start:2px; bottom:0; min-width:26px; padding:2px 4px; border-radius:99px; background:rgba(76,48,27,.9); color:#fffaf1; box-shadow:0 2px 4px rgba(50,28,12,.22); font:800 10px/1 Cairo,sans-serif; direction:ltr; }
 .farm-companion--greeted .farm-companion__signal { color:#be7e70; }
+.farm-companion--ready .farm-companion__signal { color:#be851d; background:#fff4b8; }
+.farm-companion--baby .farm-companion__signal { color:#5e8e47; background:#f4fff0; }
 .farm-companion:focus-visible { outline:3px solid #ffcb62; outline-offset:2px; border-radius:18px; }
 @media (prefers-reduced-motion:no-preference) {
   .farm-companion--curious .farm-companion__signal { animation:farmCompanionNotice 1.25s ease-in-out infinite; }
   .farm-companion--greeted .farm-companion__signal { animation:farmCompanionHello .52s cubic-bezier(.23,1,.32,1) 1; }
+  .farm-companion--ready .farm-companion__signal { animation:farmCompanionNotice 1.05s ease-in-out infinite; }
+  .farm-companion-hatching-egg { animation:farmCompanionHatch .52s cubic-bezier(.23,1,.32,1) both; }
+  .farm-companion-baby { animation:farmCompanionBaby .34s cubic-bezier(.23,1,.32,1) both; }
 }
 @keyframes farmCompanionNotice { 0%,100% { transform:rotate(-3deg) translateY(0); } 50% { transform:rotate(4deg) translateY(-3px); } }
 @keyframes farmCompanionHello { 0% { transform:scale(1) rotate(0); } 45% { transform:scale(1.08) rotate(-5deg) translateY(-4px); } 100% { transform:scale(1) rotate(0); } }
+@keyframes farmCompanionHatch { 0%,35% { transform:rotate(0) scale(1); filter:brightness(1); } 52% { transform:rotate(-7deg) scale(1.04); filter:brightness(1.35); } 70% { transform:rotate(7deg) scale(.9); opacity:.6; } 100% { transform:rotate(0) scale(.72); opacity:0; } }
+@keyframes farmCompanionBaby { 0% { transform:scale(.76); opacity:0; filter:brightness(1.45); } 72% { transform:scale(1.07) translateY(-4px); opacity:1; } 100% { transform:scale(1); opacity:1; filter:brightness(1); } }
 @media (max-width:480px) { .farm-companion-card { align-items:flex-start; } .farm-companion-card__action { min-height:40px; padding:0 10px; } }

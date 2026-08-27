@@ -26,6 +26,8 @@ const JazarahFarm = {
     ready:   'farm/crops/carrot_ready.webp',
   },
 
+  COMPANION: { HATCH_HARVEST_GOAL: 3, baby: 'farm/companions/baby_brown.png' },
+
   /* حقل واحد من ٤×٤ خلايا: x = ٤٢٠ + (العمود−الصف)×٤٢، y = ٤٠٧ + (العمود+الصف)×١٨.
      يبقى ترتيب المصفوفة نفسه حتى تحافظ ملفات الأطفال الحالية على حالة كل جزرة. */
   CELLS: Array.from({ length: 16 }, (_, i) => {
@@ -82,33 +84,62 @@ const JazarahFarm = {
 
   companion(f) {
     if (!f.companion || typeof f.companion !== 'object') {
-      f.companion = { stage: 'egg', harvestInviteDate: null, greetingDate: null, lastGreetedAt: null };
+      f.companion = { stage: 'egg', harvestCount: 0, harvestInviteDate: null, greetingDate: null, hatchReadyAt: null, hatchedAt: null, lastGreetedAt: null };
     }
+    if (!Number.isFinite(f.companion.harvestCount)) f.companion.harvestCount = 0;
+    if (!f.companion.stage) f.companion.stage = 'egg';
     return f.companion;
   },
 
   companionMoment(f) {
     if (!this.companionHome(f)) return null;
     const companion = this.companion(f);
+    const goal = this.COMPANION.HATCH_HARVEST_GOAL;
+    if (companion.stage === 'baby') return { state: 'baby', title: 'رفيق الحظيرة الصغير يستكشف', copy: 'فقست البيضة بعد حصادات العائلة الحقيقية. يمكنك العودة إلى يومك متى أحببت.', action: null };
+    if (companion.harvestCount >= goal || companion.hatchReadyAt) return { state: 'ready', title: 'البيضة جاهزة للفقس', copy: `حصدتم ${goal} جزر حقيقية معًا. هذه لحظة عائلية لطيفة، وليست سباقًا.`, action: 'افقسها' };
     const invited = companion.harvestInviteDate === todayKey() && companion.greetingDate !== todayKey();
     const greeted = companion.greetingDate === todayKey();
     if (invited) return { state: 'curious', title: 'بيضة الرفيق سمعت الحصاد', copy: 'لوّح لها مرة واحدة؛ فرحتها جزء لطيف من زيارة مزرعتك.', action: 'حيِّ الرفيق' };
     if (greeted) return { state: 'greeted', title: 'رفيق الحظيرة فرح بتحيتك', copy: 'تركنا له وقتًا هادئًا في عشه. تستطيع العودة إلى يومك متى أحببت.', action: null };
-    return { state: 'resting', title: 'رفيق الحظيرة في عشه', copy: 'سيلاحظ حصادك القادم عندما يكون هناك محصول حقيقي في الحقل.', action: null };
+    return { state: 'resting', title: 'رفيق الحظيرة في عشه', copy: `بقي ${goal - companion.harvestCount} من حصادات العائلة ليصبح جاهزًا للفقس.`, action: null };
   },
 
   inviteCompanionAfterHarvest(f) {
     if (!this.companionHome(f)) return;
     const companion = this.companion(f);
-    if (companion.harvestInviteDate === todayKey() || companion.greetingDate === todayKey()) return;
+    if (companion.stage !== 'egg' || companion.harvestInviteDate === todayKey() || companion.greetingDate === todayKey()) return;
+    companion.harvestCount = Math.min(this.COMPANION.HATCH_HARVEST_GOAL, companion.harvestCount + 1);
+    if (companion.harvestCount >= this.COMPANION.HATCH_HARVEST_GOAL) {
+      companion.hatchReadyAt = Date.now();
+      this.note(f, '✨', 'اكتملت حصادات العائلة؛ بيضة الرفيق جاهزة للفقس');
+      return;
+    }
     companion.harvestInviteDate = todayKey();
     this.note(f, '🐣', 'بيضة الرفيق اهتزت بعدما حصد جزّور جزرة');
+  },
+
+  hatchCompanion() {
+    const f = this.of(C());
+    if (!this.companionHome(f)) return;
+    const companion = this.companion(f);
+    if (companion.stage === 'baby') { App.toast('🐉 رفيق الحظيرة الصغير يستكشف مزرعتك'); return; }
+    if (companion.harvestCount < this.COMPANION.HATCH_HARVEST_GOAL) { App.toast('🐣 نحتاج حصادات عائلية حقيقية أكثر أولًا'); return; }
+    companion.stage = 'baby';
+    companion.hatchReadyAt = companion.hatchReadyAt || Date.now();
+    companion.hatchedAt = Date.now();
+    companion.greetingDate = todayKey();
+    this._hatchFxUntil = Date.now() + 560;
+    this.note(f, '🐉', 'فقست بيضة الرفيق وظهر تنين صغير في العش');
+    save(); this.render();
+    App.toast('🐉 يا سلام! فقست بيضة الرفيق');
+    setTimeout(() => this.render(), 580);
   },
 
   greetCompanion() {
     const f = this.of(C());
     if (!this.companionHome(f)) return;
     const companion = this.companion(f);
+    if (companion.stage === 'baby') { App.toast('🐉 رفيق الحظيرة الصغير يستكشف مزرعتك'); return; }
     if (companion.harvestInviteDate !== todayKey()) { App.toast('🐣 الرفيق هادئ في عشه الآن'); return; }
     if (companion.greetingDate === todayKey()) { App.toast('🐣 حيّيت الرفيق اليوم بالفعل'); return; }
     companion.greetingDate = todayKey();
@@ -166,6 +197,8 @@ const JazarahFarm = {
     const child = C();
     const f = this.of(child);
     const daily = this.daily(f);
+    const companion = this.companionHome(f) ? this.companion(f) : null;
+    const hatching = companion?.stage === 'baby' && Date.now() < (this._hatchFxUntil || 0);
     const companionMoment = this.companionMoment(f);
     const grown = this._grow(f);
     if (grown) this.note(f, '🥕', grown === 1 ? 'نضجت جزرة منذ آخر زيارة' : `نضجت ${grown} جزرات منذ آخر زيارة`);
@@ -215,16 +248,20 @@ const JazarahFarm = {
       const it = this.CATALOG.find(x => x.id === id);
       if (!it) return;
       if (it.pad) layer += `<span class="fpad" style="width:${it.w * 0.66}px;height:${it.w * 0.24}px;left:${sl.x - it.w * 0.33}px;top:${sl.y - it.w * 0.12}px;z-index:${z - 2}"></span>`;
+      const isNest = id === 'egg' && companion;
+      const companionBaby = isNest && companion.stage === 'baby' && !hatching;
       layer += `<span class="fshadow" style="width:${it.w * 0.6}px;height:${it.w * 0.14}px;left:${sl.x - it.w * 0.3}px;top:${sl.y - it.w * 0.06}px;z-index:${z - 1}"></span>
-        <img class="fbuild fplaced" src="${it.img}" style="left:${sl.x - it.w / 2}px;top:${sl.y - it.w * 0.9}px;width:${it.w}px;z-index:${z}" alt="${it.name}">`;
+        <img class="fbuild fplaced${isNest && hatching ? ' farm-companion-hatching-egg' : ''}${companionBaby ? ' farm-companion-baby' : ''}" src="${companionBaby ? this.COMPANION.baby : it.img}" style="left:${sl.x - it.w / 2}px;top:${sl.y - it.w * 0.9}px;width:${it.w}px;z-index:${z}" alt="${companionBaby ? 'رفيق الحظيرة الصغير' : it.name}">`;
     });
 
     if (companionMoment) {
       const state = companionMoment.state;
       const nestEntry = Object.entries(f.built).find(([, id]) => id === 'egg');
       const nest = nestEntry ? this.SLOTS[Number(nestEntry[0])] : { x: 258, y: 291 };
-      layer += `<button class="farm-companion farm-companion--${state}" data-companion type="button" style="left:${nest.x - 42}px;top:${nest.y - 82}px;z-index:${Math.round(nest.y) + 2}" aria-label="${state === 'curious' ? 'بيضة الرفيق تريد تحية بعد الحصاد' : 'رفيق الحظيرة في عشه'}">
+      const progress = companion?.stage === 'egg' ? `${companion.harvestCount}/${this.COMPANION.HATCH_HARVEST_GOAL}` : '';
+      layer += `<button class="farm-companion farm-companion--${state}" data-companion type="button" style="left:${nest.x - 42}px;top:${nest.y - 82}px;z-index:${Math.round(nest.y) + 2}" aria-label="${state === 'curious' ? 'بيضة الرفيق تريد تحية بعد الحصاد' : state === 'ready' ? 'بيضة الرفيق جاهزة للفقس' : companion?.stage === 'baby' ? 'رفيق الحظيرة الصغير' : 'رفيق الحظيرة في عشه'}">
         <span class="farm-companion__signal" aria-hidden="true">${state === 'curious' ? '…' : state === 'greeted' ? '♡' : ''}</span>
+        ${progress ? `<span class="farm-companion__progress" aria-hidden="true">${progress}</span>` : ''}
       </button>`;
     }
 
@@ -254,7 +291,7 @@ const JazarahFarm = {
       <button class="farm-daily-pulse__action" type="button" onclick="JazarahFarm.focusDailyObjective()">${objective.actionLabel}</button>
     </section>`;
     const companionCard = companionMoment && companionMoment.state !== 'resting'
-      ? `<section class="farm-companion-card farm-companion-card--${companionMoment.state}" aria-live="polite"><span class="farm-companion-card__icon">🐣</span><div><p>${companionMoment.title}</p><small>${companionMoment.copy}</small></div>${companionMoment.action ? `<button type="button" class="farm-companion-card__action" onclick="JazarahFarm.greetCompanion()">${companionMoment.action}</button>` : ''}</section>`
+      ? `<section class="farm-companion-card farm-companion-card--${companionMoment.state}" aria-live="polite"><span class="farm-companion-card__icon">${companionMoment.state === 'ready' ? '✨' : companionMoment.state === 'baby' ? '🐉' : '🐣'}</span><div><p>${companionMoment.title}</p><small>${companionMoment.copy}</small></div>${companionMoment.action ? `<button type="button" class="farm-companion-card__action" onclick="JazarahFarm.${companionMoment.state === 'ready' ? 'hatchCompanion' : 'greetCompanion'}()">${companionMoment.action}</button>` : ''}</section>`
       : '';
 
     el.innerHTML = `
