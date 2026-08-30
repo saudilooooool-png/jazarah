@@ -26,7 +26,7 @@ const JazarahFarm = {
     ready:   'farm/crops/carrot_ready.webp',
   },
 
-  COMPANION: { HATCH_HARVEST_GOAL: 3, baby: 'farm/companions/baby_brown.png' },
+  COMPANION: { HATCH_HARVEST_GOAL: 3, baby: 'farm/companions/baby_brown.webp' },
 
   /* حقل واحد من ٤×٤ خلايا: x = ٤٢٠ + (العمود−الصف)×٤٢، y = ٤٠٧ + (العمود+الصف)×١٨.
      يبقى ترتيب المصفوفة نفسه حتى تحافظ ملفات الأطفال الحالية على حالة كل جزرة. */

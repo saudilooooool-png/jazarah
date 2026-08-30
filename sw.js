@@ -1,7 +1,7 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v18';
+const CACHE = 'jazarah-v19';
 const ASSETS = [
   './',
   './index.html',
@@ -23,6 +23,7 @@ const ASSETS = [
   ...['carrot_seedling', 'carrot_growing', 'carrot_ready'].map(c => `./farm/crops/${c}.webp`),
   ...['home_exact', 'barn_exact', 'well', 'barn', 'field'].map(b => `./farm/buildings/${b}.webp`),
   './farm/companions/egg_brown.webp',
+  './farm/companions/baby_brown.webp',
   // شخصيات الجزر + حالات جزّور
   ...Array.from({ length: 12 }, (_, i) => `./avatars/c${i + 1}.svg`),
   ...['hero', 'happy', 'thinking', 'wave', 'encourage', 'surprised',
