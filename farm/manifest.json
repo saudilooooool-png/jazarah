@@ -1,0 +1,370 @@
+{
+  "total": 44,
+  "ready": 12,
+  "assets": [
+    {
+      "id": "wood",
+      "dir": "resources",
+      "path": "farm/resources/wood.png",
+      "batch": 1,
+      "want": "512×512",
+      "have": true,
+      "got": "512×512"
+    },
+    {
+      "id": "stone",
+      "dir": "resources",
+      "path": "farm/resources/stone.png",
+      "batch": 1,
+      "want": "512×512",
+      "have": true,
+      "got": "512×512"
+    },
+    {
+      "id": "water",
+      "dir": "resources",
+      "path": "farm/resources/water.png",
+      "batch": 1,
+      "want": "512×512",
+      "have": true,
+      "got": "512×512"
+    },
+    {
+      "id": "light",
+      "dir": "resources",
+      "path": "farm/resources/light.png",
+      "batch": 1,
+      "want": "512×512",
+      "have": true,
+      "got": "512×512"
+    },
+    {
+      "id": "seed",
+      "dir": "resources",
+      "path": "farm/resources/seed.png",
+      "batch": 1,
+      "want": "512×512",
+      "have": true,
+      "got": "512×512"
+    },
+    {
+      "id": "home",
+      "dir": "buildings",
+      "path": "farm/buildings/home.png",
+      "batch": 1,
+      "want": "1024×1024",
+      "have": true,
+      "got": "1024×1024"
+    },
+    {
+      "id": "field",
+      "dir": "buildings",
+      "path": "farm/buildings/field.png",
+      "batch": 1,
+      "want": "1024×1024",
+      "have": true,
+      "got": "1024×1024"
+    },
+    {
+      "id": "well",
+      "dir": "buildings",
+      "path": "farm/buildings/well.png",
+      "batch": 1,
+      "want": "1024×1024",
+      "have": true,
+      "got": "1024×1024"
+    },
+    {
+      "id": "barn",
+      "dir": "buildings",
+      "path": "farm/buildings/barn.png",
+      "batch": 1,
+      "want": "1024×1024",
+      "have": true,
+      "got": "1024×1024"
+    },
+    {
+      "id": "scaffold",
+      "dir": "buildings",
+      "path": "farm/buildings/scaffold.png",
+      "batch": 1,
+      "want": "1024×1024",
+      "have": true,
+      "got": "1024×1024"
+    },
+    {
+      "id": "egg_brown",
+      "dir": "companions",
+      "path": "farm/companions/egg_brown.png",
+      "batch": 1,
+      "want": "1024×1024",
+      "have": true,
+      "got": "1024×1024"
+    },
+    {
+      "id": "land_farm",
+      "dir": "land",
+      "path": "farm/land/land_farm.png",
+      "batch": 1,
+      "want": "1600×2400",
+      "have": true,
+      "got": "1600×2400"
+    },
+    {
+      "id": "masjid",
+      "dir": "buildings",
+      "path": "farm/buildings/masjid.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "kitchen",
+      "dir": "buildings",
+      "path": "farm/buildings/kitchen.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "library",
+      "dir": "buildings",
+      "path": "farm/buildings/library.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "fountain",
+      "dir": "buildings",
+      "path": "farm/buildings/fountain.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "mill",
+      "dir": "buildings",
+      "path": "farm/buildings/mill.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "greenhouse",
+      "dir": "buildings",
+      "path": "farm/buildings/greenhouse.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "playground",
+      "dir": "buildings",
+      "path": "farm/buildings/playground.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "gate",
+      "dir": "buildings",
+      "path": "farm/buildings/gate.png",
+      "batch": 2,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "fx_smoke",
+      "dir": "buildings",
+      "path": "farm/buildings/fx_smoke.png",
+      "batch": 2,
+      "want": "512×512",
+      "have": false
+    },
+    {
+      "id": "fx_blades",
+      "dir": "buildings",
+      "path": "farm/buildings/fx_blades.png",
+      "batch": 2,
+      "want": "512×512",
+      "have": false
+    },
+    {
+      "id": "fx_splash",
+      "dir": "buildings",
+      "path": "farm/buildings/fx_splash.png",
+      "batch": 2,
+      "want": "512×512",
+      "have": false
+    },
+    {
+      "id": "baby_brown",
+      "dir": "companions",
+      "path": "farm/companions/baby_brown.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "grown_brown",
+      "dir": "companions",
+      "path": "farm/companions/grown_brown.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "egg_grey",
+      "dir": "companions",
+      "path": "farm/companions/egg_grey.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "baby_grey",
+      "dir": "companions",
+      "path": "farm/companions/baby_grey.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "grown_grey",
+      "dir": "companions",
+      "path": "farm/companions/grown_grey.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "egg_blue",
+      "dir": "companions",
+      "path": "farm/companions/egg_blue.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "baby_blue",
+      "dir": "companions",
+      "path": "farm/companions/baby_blue.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "grown_blue",
+      "dir": "companions",
+      "path": "farm/companions/grown_blue.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "egg_gold",
+      "dir": "companions",
+      "path": "farm/companions/egg_gold.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "baby_gold",
+      "dir": "companions",
+      "path": "farm/companions/baby_gold.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "grown_gold",
+      "dir": "companions",
+      "path": "farm/companions/grown_gold.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "egg_green",
+      "dir": "companions",
+      "path": "farm/companions/egg_green.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "baby_green",
+      "dir": "companions",
+      "path": "farm/companions/baby_green.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "grown_green",
+      "dir": "companions",
+      "path": "farm/companions/grown_green.png",
+      "batch": 3,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "school",
+      "dir": "buildings",
+      "path": "farm/buildings/school.png",
+      "batch": 4,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "mosque",
+      "dir": "buildings",
+      "path": "farm/buildings/mosque.png",
+      "batch": 4,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "market",
+      "dir": "buildings",
+      "path": "farm/buildings/market.png",
+      "batch": 4,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "stadium",
+      "dir": "buildings",
+      "path": "farm/buildings/stadium.png",
+      "batch": 4,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "hospital",
+      "dir": "buildings",
+      "path": "farm/buildings/hospital.png",
+      "batch": 4,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "tower",
+      "dir": "buildings",
+      "path": "farm/buildings/tower.png",
+      "batch": 4,
+      "want": "1024×1024",
+      "have": false
+    },
+    {
+      "id": "land_city",
+      "dir": "land",
+      "path": "farm/land/land_city.png",
+      "batch": 4,
+      "want": "1600×2400",
+      "have": false
+    }
+  ]
+}

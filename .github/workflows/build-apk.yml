@@ -1,0 +1,126 @@
+# بناء تطبيق أندرويد (APK) من تطبيق الويب عبر Capacitor
+# يعمل تلقائيًا عند الدفع لهذا الفرع، أو يدويًا من تبويب Actions ← Run workflow
+# الناتج: ملف jazarah.apk في إصدار GitHub باسم android-apk وفي مرفقات التشغيل
+
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, claude/family-adventure-game-app-17qvyc]
+    paths-ignore: ['README.md']
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Prepare web assets
+        run: |
+          mkdir -p www
+          cp index.html styles.css app.js audio.js voice.js farm.js sync.js qrcode.js quran.js manifest.webmanifest sw.js www/
+          cp -r icons avatars audio www/
+          # رسومات المزرعة المضغوطة فقط — لا الأصول الثقيلة
+          mkdir -p www/farm
+          rsync -a --include='*/' --include='*.webp' --exclude='*' farm/ www/farm/
+          # حقن رقم البناء ليظهر داخل التطبيق
+          sed -i "s/BUILD_PLACEHOLDER/${{ github.run_number }}/" www/app.js
+
+      - name: Create Capacitor Android project
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor-community/text-to-speech @capacitor/local-notifications
+          npx cap init Jazarah com.jazarah.family --web-dir=www
+          npx cap add android
+          npx cap sync android
+
+      - name: Align Kotlin stdlib versions (fix duplicate classes)
+        run: |
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          dependencies {
+              implementation platform("org.jetbrains.kotlin:kotlin-bom:1.8.22")
+          }
+          GRADLE
+
+      - name: App name, RTL and camera permission
+        run: |
+          # اسم التطبيق بالعربية
+          sed -i 's|<string name="app_name">.*</string>|<string name="app_name">جَزَرة</string>|' android/app/src/main/res/values/strings.xml
+          sed -i 's|<string name="title_activity_main">.*</string>|<string name="title_activity_main">جَزَرة</string>|' android/app/src/main/res/values/strings.xml
+          # إذن الكاميرا لصور الإثبات
+          sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.CAMERA" />|' android/app/src/main/AndroidManifest.xml
+
+      - name: Persistent signing + auto version
+        run: |
+          # رقم نسخة تصاعدي مع كل بناء — يتيح التثبيت فوق النسخة السابقة
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          # توقيع ثابت من مفتاح المستودع — نفس التوقيع في كل بناء فلا يلزم حذف التطبيق عند التحديث
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("../../signing/jazarah.p12")
+                      storePassword "jazarah2026"
+                      keyAlias "jazarah"
+                      keyPassword "jazarah2026"
+                      storeType "PKCS12"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+
+      - name: App icons from PWA icon
+        run: |
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            dir="android/app/src/main/res/mipmap-${d%%:*}"
+            size="${d##*:}"
+            mkdir -p "$dir"
+            for name in ic_launcher ic_launcher_round ic_launcher_foreground; do
+              cp icons/icon-512.png "$dir/$name.png"
+            done
+          done
+
+      - name: Build signed release APK
+        run: cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Collect APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk jazarah.apk
+
+      - name: Publish to release android-apk
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-apk
+          name: 'تطبيق أندرويد — جَزَرة APK'
+          body: |
+            📱 حمّل jazarah.apk على جهاز أندرويد وافتحه للتثبيت
+            (فعّل "التثبيت من مصادر غير معروفة" إن طُلب منك)
+            يُحدَّث هذا الإصدار تلقائيًا مع كل تعديل على التطبيق.
+          files: jazarah.apk
+
+      # مرفق التشغيل اختياري — حصة تخزين المرفقات قد تمتلئ، والإصدار أعلاه هو قناة التحميل الأساسية
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: jazarah-apk
+          path: jazarah.apk
