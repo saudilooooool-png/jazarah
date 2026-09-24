@@ -1262,7 +1262,7 @@ function decodeShareCode(code) {
 }
 
 /* منح مكافآت إنجاز مهمة وتسجيلها — يُستدعى فورًا (مهام الثقة) أو عند موافقة الوالد */
-function grantCompletion(t, dateKey) {
+function grantCompletion(t, dateKey, opts = {}) {
   C().completions[dateKey] = C().completions[dateKey] || [];
   if (C().completions[dateKey].includes(t.id)) return { bonus: 0, allDone: false, leveledUp: false, newLevel: levelOf(C().xp) };
   C().completions[dateKey].push(t.id);
@@ -1273,8 +1273,8 @@ function grantCompletion(t, dateKey) {
   C().lifetimeCoins += t.coins;
   if (t.cat === 'health') C().hp = Math.min(100, C().hp + 10);
 
-  // نوع المهمة يحدد المورد: معرفة←خشب · طاقة←حجر · صحة←ماء · نور القلب←نور · قلوب طيبة←بذور
-  const farmGain = window.JazarahFarm ? JazarahFarm.grant(C(), t.cat) : null;
+  // كل مهمة تعطي صندوقًا بلون نوعها (مورده مضمون + مفاجأة). المقفل بانتظار الوالد يُفتح هنا.
+  const farmBox = window.JazarahFarm ? JazarahFarm.taskDone(C(), t, dateKey, !!opts.verified) : null;
 
   // محفظة وقت الشاشة: كل مهمة منجزة = دقائق لعب (يضبطها الوالد)
   if (S.screenPerTask > 0) {
@@ -1298,7 +1298,10 @@ function grantCompletion(t, dateKey) {
   if (dateKey === todayKey()) {
     const dueToday = gentlePlanForDate(C(), dateKey) ? [] : scheduledTasksForChild(C(), dateKey);
     allDone = dueToday.length > 0 && dueToday.every(x => (C().completions[dateKey] || []).includes(x.id));
-    if (allDone) { bonus = 10; C().coins += bonus; C().lifetimeCoins += bonus; }
+    if (allDone) {
+      bonus = 10; C().coins += bonus; C().lifetimeCoins += bonus;
+      if (window.JazarahFarm) JazarahFarm.queueRain(C(), dateKey);   // يوم مكتمل = مطر في مزرعته
+    }
   }
 
   // عالم جزّور يتغير بصريًا مع الإنجاز، بلا عملات أو XP إضافية.
@@ -1309,7 +1312,7 @@ function grantCompletion(t, dateKey) {
   if (newLevel > prevLevel) feedPush(C(), '🆙', `ترقّى للمستوى ${newLevel}!`);
 
   save();
-  return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel, worldBloom, farmGain };
+  return { bonus, allDone, leveledUp: newLevel > prevLevel, newLevel, worldBloom, farmBox };
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1321,6 +1324,7 @@ const App = {
   /* ─────── التنقل العام ─────── */
   showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('box-reveal')?.classList.remove('on');   // لحظة الكشف لا تتبع الطفل لشاشة أخرى
     document.getElementById(id).classList.add('active');
     window.scrollTo(0, 0);
   },
@@ -1436,11 +1440,12 @@ const App = {
       const totalCoins = items.reduce((a, x) => a + x.coins, 0);
       const totalXp = items.reduce((a, x) => a + x.xp, 0);
       const list = items.map(x => `⭐ ${esc(x.title)}`).join('<br />');
-      const seedImpact = items.map(x => this.getFarmImpact(x.impactId)).find(Boolean);
+      const boxes = items.filter(x => x.box).length;
       C().unseenApprovals = [];
       save();
-      if (seedImpact) {
-        this.celebrate('أثر إنجازك 🌱', `اعتمدت الأسرة هذه الخطوة:<br>${list}<br><span class="celebrate-impact-copy">وصلت بذرة إلى مزرعتك لأن هذه مهمة من القلوب الطيبة.</span>`, ['🌱 +١ بذرة لمزرعتك', `+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '🌱', this.farmImpactAction(seedImpact));
+      if (boxes) {
+        this.celebrate('والدك اعتمد إنجازك! 🎊', `${list}<br><span class="celebrate-impact-copy">${boxes === 1 ? 'صندوقك انفتح قفله' : 'صناديقك انفتحت أقفالها'} في المزرعة 🎁</span>`,
+          [`🎁 ${arCount(boxes, 'صندوق', 'صندوقان', 'صناديق', 'صندوقًا')}`, `+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '👏', this.boxAction());
       } else {
         this.celebrate('والدك اعتمد إنجازك! 🎊', list, [`+${totalXp} ✨ XP`, `+${totalCoins} 🥕`], '👏');
       }
@@ -2579,14 +2584,13 @@ const App = {
     C().pendingProofs = C().pendingProofs.filter(x => x.id !== id);
     // نمنح المكافآت بهوية المهمة الأصلية وتاريخ الإنجاز الأصلي
     const taskLike = { id: p.taskId, cat: p.cat, xp: p.xp, coins: p.coins, title: p.title };
-    const res = grantCompletion(taskLike, p.date);
+    const res = grantCompletion(taskLike, p.date, { verified: true });
     // صورة الإثبات تظهر في شريط اليوم — كأنها قصة عائلية
     if (p.photo && C().feed && C().feed.length) {
       const fe = C().feed.find(f => f.title.includes(p.title));
       if (fe) fe.img = p.photo;
     }
-    const impact = this.queueFarmImpact(taskLike, res.farmGain, 'parent_approved', p.date);
-    C().unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins, impactId: impact && impact.id });
+    C().unseenApprovals.push({ title: p.title, xp: p.xp, coins: p.coins, box: !!res.farmBox });
     save();
     this.renderPTasks();
     this.toast(`تم الاعتماد — وصل ${p.coins} 🥕 إلى ${C().name} ✅`);
@@ -2597,6 +2601,7 @@ const App = {
     if (!p) return;
     if (!confirm(`رفض إثبات "${p.title}"؟ ستعود المهمة متاحة في خريطة ${C().name}`)) return;
     C().pendingProofs = C().pendingProofs.filter(x => x.id !== id);
+    if (window.JazarahFarm) JazarahFarm.dropLockedBox(C(), p.taskId, p.date);
     save();
     this.renderPTasks();
     this.toast('تم الرفض — عادت المهمة إلى الخريطة');
@@ -3670,7 +3675,7 @@ const App = {
   TOUR: [
     { pose: 'wave', title: 'أهلًا! أنا جزّور', body: 'رفيقك في المغامرة. اضغط عليّ في أي وقت وسأشجّعك.', cta: 'وبعدين؟' },
     { pose: 'thinking', title: 'خطوة واحدة كل مرة', body: 'أول بطاقة في شاشتك تقول لك ماذا تفعل الآن — روتينك أو مهمتك. اضغط زرها فقط، ولا تفكر في الباقي.', cta: 'ثم؟' },
-    { pose: 'excited', title: 'مزرعتك تكبر معك', body: 'كل مهمة تنجزها تعطيك موردًا في مزرعتك 🌾 — تزرع به جزرًا وتبني بيوتًا. افتحها من الشريط السفلي.', cta: 'يلا نبدأ!' },
+    { pose: 'excited', title: 'مزرعتك تكبر معك', body: 'كل مهمة تنجزها تعطيك صندوق مفاجأة 🎁 تفتحه في مزرعتك — وكل صندوق يكبّر بيضتك وجزرك خطوة.', cta: 'يلا نبدأ!' },
   ],
 
   startTour(force) {
@@ -4735,12 +4740,34 @@ const App = {
     const hearts = (C().feed || []).filter(f => f.heart && !f.seen);
     if (hearts.length) return '❤️ والدك شاف إنجازك وأعجبه! اضغط عليّ';
     const done = (C().completions[todayKey()] || []).length;
+    // جزّور يتذكر: جملته من حال المزرعة، لا من قائمة ثابتة
+    const memory = this._jazzourMemory(mood);
+    if (memory) return memory;
     return {
       sleepy: 'جزّور نائم… أنجز أول مهمة ليصحو! 💤',
       curious: 'جزّور فضولي: ما أول إنجاز اليوم؟ 🤔',
       happy: `رائع! ${done} ${done === 1 ? 'إنجاز' : 'إنجازات'} اليوم — جزّور سعيد!`,
       excited: 'يوم بطولي! جزّور يرقص فرحًا ⭐',
     }[mood];
+  },
+
+  _jazzourMemory(mood) {
+    if (!window.JazarahFarm) return null;
+    const c = C(), f = JazarahFarm.of(c);
+    const boxes = JazarahFarm.openable(c).length;
+    if (boxes) return boxes === 1 ? 'عندك صندوق ما فتحته! 🎁 نروح المزرعة؟' : `عندك ${arCount(boxes, 'صندوق', 'صندوقان', 'صناديق', 'صندوقًا')} تنتظر في المزرعة! 🎁`;
+    if (mood !== 'sleepy' && mood !== 'curious') return null;
+    const last = f.daily && f.daily.lastVisitAt;
+    if (last && Date.now() - last > 2 * 86400000) return 'اشتقت لك! المزرعة انتظرتك، وما ضاع منها شيء 🌿';
+    const grownToday = (f.residents || []).some(r => r.at && todayKey(new Date(r.at)) === dayKeyOffset(-1));
+    if (grownToday) return 'رفيقنا صار كبير أمس! شفته يتمشى في المزرعة؟ 🐉';
+    const prog = JazarahFarm.incubatorLeft(c);
+    if (prog) {
+      const n = prog.tasks === 1 ? 'مهمة وحدة' : prog.tasks === 2 ? 'مهمتين' : `${arNum(prog.tasks)} مهام`;
+      return prog.stage === 'egg' ? `بيضتنا دافية… ${n} وتفقس! 🥚` : `رفيقنا الصغير يكبر… ${n} ويطلع للمزرعة 🐣`;
+    }
+    if (c.streak >= 2) return `صار لنا ${c.streak} أيام مع بعض 🔥 نكمل؟`;
+    return null;
   },
 
   /* ── جزّور يُحمل بالإصبع ويتحرك معه في كل الاتجاهات ── */
@@ -5199,12 +5226,13 @@ const App = {
     c.lifetimeCoins += 8;
     c.hp = Math.min(100, c.hp + 10);
     feedPush(c, '🌟', `أتم وِرد القرآن اليومي${qr.streak > 1 ? ` (سلسلة ${qr.streak} يوم)` : ''}`);
+    const box = window.JazarahFarm ? JazarahFarm.quranBox(c, todayKey()) : null;
     save();
     this.closeModal();
     this.refreshKidHeader();
     this.celebrate('نور على نور! 📖',
-      `أتممت وِرد اليوم${qr.streak > 1 ? `<br />🔥 سلسلة القرآن: <b>${qr.streak} يوم</b>` : ''}`,
-      ['+25 ✨ XP', '+8 🥕', '+10 ❤️'], '🕌');
+      `أتممت وِرد اليوم${qr.streak > 1 ? `<br />🔥 سلسلة القرآن: <b>${qr.streak} يوم</b>` : ''}${box ? '<br><span class="celebrate-impact-copy">ووصلك صندوق ذهبي فيه نور لمزرعتك ✨</span>' : ''}`,
+      [...(box ? ['🎁 صندوق ذهبي'] : []), '+25 ✨ XP', '+8 🥕', '+10 ❤️'], '🕌', box ? this.boxAction() : null);
     this.renderKMap();
   },
 
@@ -5717,7 +5745,8 @@ const App = {
     }
     if (t.proof === 'parent') {
       this._queueProof(et, null);
-      this.celebrate('أرسلنا إنجازك! 📨', `${esc(t.title)}<br /><small>سيصلك الجزر بعد تأكيد والدك 👀</small>`, ['⏳ بانتظار التأكيد'], '📨');
+      this.celebrate('أرسلنا إنجازك! 📨', `${esc(t.title)}<br /><small>صندوقك وصل مزرعتك مقفلًا 🔒 — ينفتح حين يعتمده والدك</small>`, ['⏳ بانتظار التأكيد', '🎁 صندوق مقفل'], '📨');
+      this._refreshFarmIfOpen();
       this.renderKMap();
       return;
     }
@@ -5736,11 +5765,11 @@ const App = {
       time: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
       photo: photo || null,
     });
+    if (window.JazarahFarm) JazarahFarm.addLockedBox(C(), t, todayKey(), t.proof);
     save();
   },
 
   _celebrateGrant(t, res) {
-    const impact = this.queueFarmImpact(t, res.farmGain, 'instant', todayKey());
     let title = t.golden ? 'مهمة ذهبية! مكافأة مضاعفة ×2 ✨' : 'أحسنت!', emoji = t.golden ? '✨' : '🎉', msg = esc(t.title);
     if (res.leveledUp) {
       title = `ترقّيت للمستوى ${res.newLevel}! 🆙`;
@@ -5749,70 +5778,42 @@ const App = {
     } else if (res.allDone) {
       title = 'أنهيت كل مهام اليوم! 🏆';
       emoji = '🏆';
-      msg = `مكافأة اليوم الكامل: +${res.bonus} 🥕`;
+      msg = `مكافأة اليوم الكامل: +${res.bonus} 🥕<br><span class="celebrate-impact-copy">وأمطرت السماء فوق مزرعتك 🌧️</span>`;
     }
     const gains = [`+${t.xp} ✨ XP`, `+${t.coins + res.bonus} 🥕`];
     if (res.worldBloom) gains.push(`${res.worldBloom.stage.emoji} رممت: ${res.worldBloom.stage.title}`);
-    if (impact) {
-      title = 'أثر إنجازك 🌱';
-      emoji = '🌱';
-      msg = `اكتملت «${esc(t.title)}».<br><span class="celebrate-impact-copy">وصلت بذرة إلى مزرعتك لأن هذه مهمة من القلوب الطيبة.</span>`;
-      gains.unshift('🌱 +١ بذرة لمزرعتك');
-      this.celebrate(title, msg, gains, emoji, this.farmImpactAction(impact));
+    if (res.farmBox) {
+      gains.unshift('🎁 صندوق مفاجأة');
+      this.celebrate(title, msg, gains, emoji, this.boxAction());
+      this._refreshFarmIfOpen();
       return;
     }
-    if (res.farmGain) gains.push(`🌾 +١ ${res.farmGain.name} لمزرعتك`);
     this.celebrate(title, msg, gains, emoji);
   },
 
-  queueFarmImpact(t, farmGain, source, dateKey) {
-    if (!farmGain || farmGain.key !== 'seed') return null;
-    const child = C();
-    child.pendingFarmImpacts = Array.isArray(child.pendingFarmImpacts) ? child.pendingFarmImpacts : [];
-    const id = `seed:${t.id}:${dateKey}:${source}`;
-    const existing = child.pendingFarmImpacts.find(impact => impact.id === id);
-    if (existing) return existing;
-    const impact = { id, taskId: t.id, taskTitle: t.title, resourceKey: 'seed', source, status: 'queued', target: 'seed_cell', createdAt: Date.now() };
-    child.pendingFarmImpacts.push(impact);
-    save();
-    return impact;
-  },
-
-  getFarmImpact(impactId) {
-    if (!impactId) return null;
-    return (C().pendingFarmImpacts || []).find(impact => impact.id === impactId && impact.status === 'queued') || null;
-  },
-
-  farmImpactAction(impact) {
+  /* زر الاحتفال: افتح صندوقك الآن في المزرعة، أو تابع يومك */
+  boxAction() {
     return {
       kind: 'farm-impact',
-      primaryLabel: 'شاهد مزرعتي',
+      primaryLabel: 'افتح صندوقك 🎁',
       secondaryLabel: 'تابع يومي',
-      onPrimary: () => this.openFarmImpact(impact.id),
-      onSecondary: () => this.dismissFarmImpact(impact.id),
+      onPrimary: () => this.openBoxInFarm(),
+      onSecondary: () => { this.closeCelebrate(); this.renderKMap(); },
     };
   },
 
-  openFarmImpact(impactId) {
-    const impact = this.getFarmImpact(impactId);
+  openBoxInFarm() {
     this.closeCelebrate();
-    if (!impact) { this.kidTab('farm'); return; }
-    impact.status = 'viewed';
-    save();
-    JazarahFarm.setImpact(impact);
     this.kidTab('farm');
+    const b = window.JazarahFarm && JazarahFarm.openable(C())[0];
+    if (b) setTimeout(() => JazarahFarm.openBox(b.id), 260);
   },
 
-  dismissFarmImpact(impactId) {
-    const impact = this.getFarmImpact(impactId);
-    if (impact) { impact.status = 'dismissed'; save(); }
-    this.closeCelebrate();
-    this.kidTab('map');
-  },
-
-  resolveFarmImpact(impactId) {
-    const impact = (C().pendingFarmImpacts || []).find(item => item.id === impactId);
-    if (impact) { impact.status = 'acted'; impact.actedAt = Date.now(); save(); }
+  _refreshFarmIfOpen() {
+    const tab = document.getElementById('ktab-farm');
+    if (tab && tab.classList.contains('active') && window.JazarahFarm) JazarahFarm.render();
+    const fdot = document.getElementById('farm-dot');
+    if (fdot && window.JazarahFarm) fdot.hidden = !JazarahFarm.hasDailyMoment(C());
   },
 
   /* ── إثبات بالصورة ── */
