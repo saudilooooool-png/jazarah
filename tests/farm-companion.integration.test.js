@@ -129,7 +129,7 @@ test('لا صندوق فارغ، وكل خامس صندوق مميز مضمون 
   for (let i = 0; i < 10; i++) {
     const r = doTask(farm, child, i);
     assert.ok(r.gains.some(g => g.kind === 'res'));
-    assert.ok(r.gains.some(g => g.kind === 'seed' || g.kind === 'gold'));
+    assert.ok(r.gains.some(g => g.kind === 'seed' || g.kind === 'gold' || g.kind === 'special'));
     tiers.push(r.box.contents.tier);
   }
   assert.deepEqual(tiers.map(t => t !== 'common'), [false, false, false, false, true, false, false, false, false, true]);
@@ -155,11 +155,66 @@ test('صندوق الورد الذهبي مرة واحدة في اليوم، و�
   assert.equal(a.contents.res, 'light');
 });
 
-test('رسومات المرحلة الأولى موجودة بصيغة التطبيق', () => {
-  const root = path.join(__dirname, '..', 'farm');
-  for (const f of ['objects/incubator.webp', 'objects/task_board.webp', 'companions/grown_brown.webp',
-    'companions/egg_brown.webp', 'companions/baby_brown.webp',
-    ...['brown', 'grey', 'blue', 'gold', 'green'].map(c => `objects/box_${c}.webp`)]) {
-    assert.ok(fs.existsSync(path.join(root, f)), f);
-  }
+test('كل رسمة يطلبها التطبيق موجودة بصيغته — الرفاق الخمسة والمحاصيل والصناديق', () => {
+  const { farm } = loadFarm();
+  const root = path.join(__dirname, '..');
+  const files = ['farm/objects/incubator.webp', 'farm/objects/task_board.webp', farm.GOLD_READY,
+    ...['brown', 'grey', 'blue', 'gold', 'green'].map(c => `farm/objects/box_${c}.webp`)];
+  Object.values(farm.KIN).forEach(k => files.push(k.egg, k.baby, k.grown));
+  Object.values(farm.CROPS).forEach(c => files.push(c.growing, c.ready));
+  for (const f of files) assert.ok(fs.existsSync(path.join(root, f)), f);
+  assert.equal(Object.keys(farm.KIN).length, 5);
+});
+
+test('البيضة بلون الصندوق الذي جاء فيها: مهمة حركة ← رفيق الحجر', () => {
+  const { farm } = loadFarm();
+  const child = kid(farm, 3);
+  const box = farm.taskDone(child, { id: 'run', cat: 'sport', title: 'جري' }, '2030-04-01', false);
+  const r = farm.claim(child, box.id);
+  assert.equal(r.gains.find(g => g.kind === 'egg').kin, 'grey');
+  assert.equal(child.farm.incubator.kind, 'grey');
+  assert.ok(child.farm.album.kin.grey.egg);
+});
+
+test('صندوق «مميز» يحمل بذرة محصول جديد، وحصادها يعيد بذرة من نوعها ويسجل في الدفتر', () => {
+  const { farm } = loadFarm();
+  const seq = [0.1, 0.0];               // ٠٫١ يقع في مدى «مميز»، ثم أول محصول في القائمة (فراولة)
+  farm._rand = () => (seq.length ? seq.shift() : 0.99);
+  const child = kid(farm, 3);
+  const r = doTask(farm, child, 0);
+  assert.equal(r.box.contents.tier, 'uncommon');
+  assert.equal(r.gains.find(g => g.kind === 'special').crop, 'strawberry');
+  assert.equal(child.farm.special.strawberry, 1);
+
+});
+
+test('الزرع بنوع مختار، والحصاد بقيمة نوعه', () => {
+  const runtime = loadFarm();
+  const { farm } = runtime;
+  const child = kid(farm, 3);
+  child.coins = 0;
+  runtime.setChild(child);
+  child.farm.special.pumpkin = 1;
+  farm.plantKind(3, 'pumpkin');
+  assert.deepEqual(serial(child.farm.crops[3]), { stage: 'seed', kind: 'pumpkin' });
+  assert.equal(child.farm.special.pumpkin, 0);
+  child.farm.crops[3].stage = 'ready';
+  farm.harvest(3, { classList: { add() {} } });
+  assert.equal(child.coins, farm.CROPS.pumpkin.coins);
+  assert.equal(child.farm.special.pumpkin, 1);                 // البذرة تعود من نوعها
+  assert.equal(child.farm.album.crops.pumpkin.n, 1);
+});
+
+test('الدفتر يعدّ الاكتشافات، ومن سبق يرى ما عنده مكتشفًا أصلًا', () => {
+  const { farm } = loadFarm();
+  const child = kid(farm);
+  child.farm = serial({ ...farm.blank(), album: undefined, residents: [{ kind: 'brown', at: 1 }], incubator: { kind: 'blue', stage: 'baby', days: 0 } });
+  delete child.farm.album;
+  farm.of(child);
+  const a = child.farm.album;
+  assert.ok(a.kin.brown.egg && a.kin.brown.baby && a.kin.brown.grown);
+  assert.ok(a.kin.blue.egg && a.kin.blue.baby && !a.kin.blue.grown);
+  const { got, total } = farm.albumCount(child);
+  assert.equal(got, 5);
+  assert.equal(total, 5 * 3 + 4 * 2 + 1);
 });

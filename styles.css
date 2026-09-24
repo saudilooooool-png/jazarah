@@ -2001,7 +2001,8 @@ b { font-weight: 700; }
 @keyframes fBoxBounce { 0%, 60%, 100% { transform: translateY(0) } 70% { transform: translateY(-9px) rotate(-4deg) } 80% { transform: translateY(0) rotate(3deg) } 88% { transform: translateY(-3px) } }
 
 /* المحاصيل الذهبية واللامعة */
-.fcrop.f-gold img { filter: sepia(1) saturate(3.6) hue-rotate(-8deg) brightness(1.18) drop-shadow(0 0 5px rgba(255, 210, 60, .9)); }
+.fcrop.f-gold:not(.f-ready) img { filter: sepia(1) saturate(3.6) hue-rotate(-8deg) brightness(1.18) drop-shadow(0 0 5px rgba(255, 210, 60, .9)); }
+.fcrop.f-gold.f-ready img { filter: drop-shadow(0 0 6px rgba(255, 210, 60, .95)); }
 .fcrop.f-gold::after, .fcrop.f-shiny::after { content: '✨'; position: absolute; top: -20%; right: -8%; font-size: 14px; animation: fTwinkle 1.4s ease-in-out infinite; pointer-events: none; }
 .fcrop.f-shiny img { animation: fShine 2.2s ease-in-out infinite; }
 .is-gold { filter: sepia(1) saturate(3.6) hue-rotate(-8deg) brightness(1.18); }
@@ -2063,6 +2064,36 @@ b { font-weight: 700; }
   font: 900 12.5px Cairo, sans-serif; box-shadow: 0 3px 0 #d9c29a, 0 4px 12px rgba(40, 60, 20, .2); cursor: pointer; }
 .farm-tasks-btn b { min-width: 22px; height: 22px; padding: 0 5px; display: grid; place-items: center; border-radius: 99px; background: #e8453c; color: #fff; font-size: 13px; }
 .farm-tasks-btn--done b { background: #4cad72; }
+
+/* ═══════ المزرعة ٢ — المرحلة الثانية ═══════ */
+.farm-album-btn { position: absolute; top: 10px; inset-inline-end: 10px; z-index: 6; display: flex; align-items: center; gap: 6px;
+  min-height: 38px; padding: 0 12px; border: 0; border-radius: 13px; background: #fffaf0; color: #5a3d1c;
+  font: 900 12.5px Cairo, sans-serif; box-shadow: 0 3px 0 #d9c29a, 0 4px 12px rgba(40, 60, 20, .2); cursor: pointer; }
+.farm-album-btn b { min-width: 22px; height: 22px; padding: 0 5px; display: grid; place-items: center; border-radius: 99px; background: #7a5aa8; color: #fff; font-size: 12px; }
+.fres--special { background: linear-gradient(135deg, #fff5f2, #ffe6dc); }
+.fres--special i { font-style: normal; font-size: 13px; }
+.fpick--gold { border-color: #ffd76a; background: linear-gradient(135deg, #fffbea, #fff1c2); }
+.breveal__item--special { border-color: #b8dca0; background: #f5fff0; }
+
+.farm-sheet--album { max-height: 86%; overflow-y: auto; }
+.farm-sheet--album .fpicks { display: block; }
+.alb { text-align: right; }
+.alb h4 { margin: 14px 0 8px; color: #5a3d1c; font: 900 14px Cairo, sans-serif; }
+.alb-progress { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; background: #f7f1ff; color: #5b4585; font: 800 13px Cairo, sans-serif; }
+.alb-progress b { font-size: 16px; }
+.alb-progress i { height: 8px; border-radius: 99px; background: linear-gradient(90deg, #8a6bc0 calc(var(--p) * 1%), #e6ddf4 0); }
+.alb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.alb-card { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px 9px; border: 2px solid #efe3cc; border-radius: 16px; background: #fffdf8; text-align: center; }
+.alb-card img { width: 100%; max-width: 86px; aspect-ratio: 1; object-fit: contain; }
+.alb-card b { color: #3a2919; font: 900 11.5px/1.4 Cairo, sans-serif; }
+.alb-card small { color: #8a7358; font: 700 9.5px/1.5 Cairo, sans-serif; }
+.alb-card--hidden img { filter: brightness(0) opacity(.16); }
+.alb-card--hidden b { color: #b3a58e; letter-spacing: 2px; }
+.alb-card--gold:not(.alb-card--hidden) { border-color: #ffd76a; background: linear-gradient(135deg, #fffbea, #fff1c2); }
+.alb-stages { display: flex; gap: 3px; }
+.alb-stages i { font-style: normal; font-size: 12px; filter: grayscale(1) opacity(.3); }
+.alb-stages i.on { filter: none; }
+.alb-shiny { color: #b88a00; font-weight: 900; }
 
 /* مواقع البناء تهدأ حين لا يكفي شيء للبناء */
 .fslot--quiet { opacity: .5; }

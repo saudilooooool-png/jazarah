@@ -1,7 +1,17 @@
-"""الرفيق البني بالغًا — نفس كائن baby_brown كبر: أطول، جناحان أكبر، عينان أهدأ"""
+"""الرفاق الخمسة بالغين — نفس الكائن كبر، بلون وسمة لكل رفيق (farm/BRIEF-v2.md):
+brown: خشبي كالأصل · grey: قرنان قصيران مستديران · blue: زعانف بدل الجناحين وذيل زعنفي
+gold: متوهج بهالة لطيفة · green: أوراق صغيرة على الذيل"""
 import numpy as np
 from clay import *
 
+KIN = {
+    #          الجسم       الجناح      الغشاء
+    'brown': ('#d8661c', '#cf5f10', '#e2772c'),
+    'grey':  ('#8d9db2', '#7a8ba1', '#a9b7c8'),
+    'blue':  ('#3d8fd9', '#2f78c0', '#6db3ee'),
+    'gold':  ('#f0b12a', '#dd9a18', '#f6cb58'),
+    'green': ('#3daa52', '#2c9243', '#6cc46c'),
+}
 BODY = hexrgb('#d8661c'); BODY_D = hexrgb('#a8440c')
 BELLY = hexrgb('#f8b35a'); BELLY_D = hexrgb('#e89a3e')
 LEAF = hexrgb('#a9c04a'); LEAF_D = hexrgb('#86a032')
@@ -21,21 +31,41 @@ def spots(region, seed, n, rmin, rmax, bb):
     return 1 + 0.11 * m
 
 
-def render(path):
+def render(path, kin='brown'):
+    global BODY, WING, MEMB
+    BODY, WING, MEMB = (hexrgb(h) for h in KIN[kin])
     c = Canvas()
+
+    # ── الذهبي: هالة دافئة خلف الجسد كله (تُرسم أولًا لتبقى خلفه)
+    if kin == 'gold':
+        aura = union(mask(ellipse(1024, 1300, 520, 560)), mask(ellipse(1024, 620, 440, 380)))
+        c.glow(aura, np.array([1.0, 0.86, 0.45]), r=120, strength=0.42)
 
     # ── الذيل: ينحني يمينًا وينتهي بورقة
     tail = bezier((1230, 1640), (1520, 1720), (1700, 1560), (1640, 1390), n=120)
     tm = mask(tapered(tail, 190, 54))
     c.paint(tm, BODY * 0.96, radius=60, depth=1.1, spec=0.3,
             albedo=spots(tm, 5, 26, 14, 30, (1300, 1760, 1300, 1760)))
-    tl = mask(poly(leaf_pts((1640, 1400), (1700, 1180), 150)))
-    c.occlude(tl, dx=6, dy=14, r=16, strength=0.35)
-    c.paint(tl, LEAF, radius=26, depth=1.1, spec=0.35)
-    c.flat(blur(mask(stroke(bezier((1642, 1396), (1668, 1300), (1698, 1196), n=20), 7)) * tl, 2), LEAF * 1.3, 0.5)
+    if kin == 'blue':
+        # ذيل زعنفي: مروحة بثلاثة فصوص بدل الورقة
+        for tip, w in (((1560, 1190), 120), ((1680, 1170), 130), ((1780, 1260), 120)):
+            fm = mask(poly(leaf_pts((1640, 1400), tip, w)))
+            c.occlude(fm, dx=6, dy=14, r=16, strength=0.3)
+            c.paint(fm, MEMB, radius=24, depth=0.9, spec=0.4)
+    else:
+        tl = mask(poly(leaf_pts((1640, 1400), (1700, 1180), 150)))
+        c.occlude(tl, dx=6, dy=14, r=16, strength=0.35)
+        c.paint(tl, LEAF, radius=26, depth=1.1, spec=0.35)
+        c.flat(blur(mask(stroke(bezier((1642, 1396), (1668, 1300), (1698, 1196), n=20), 7)) * tl, 2), LEAF * 1.3, 0.5)
+    if kin == 'green':
+        # أوراق صغيرة تنبت على طول الذيل
+        for base, tip in (((1400, 1690), (1420, 1560)), ((1530, 1660), (1580, 1540)), ((1640, 1560), (1730, 1480))):
+            lm = mask(poly(leaf_pts(base, tip, 64)))
+            c.occlude(lm, dx=4, dy=10, r=10, strength=0.3)
+            c.paint(lm, LEAF * 1.04, radius=16, depth=1.1, spec=0.35)
 
     # ── الجناحان: أكبر من الصغير، نصف مفرودين خلف الجسم
-    for sgn in (-1, 1):
+    for sgn in ((-1, 1) if kin != 'blue' else ()):
         sx = 1024 + sgn * 200
         top = (1024 + sgn * 590, 560); mid = (1024 + sgn * 650, 840)
         low1 = (1024 + sgn * 520, 1040); low2 = (1024 + sgn * 390, 1120)
@@ -54,6 +84,13 @@ def render(path):
             bm = mask(bf) * np.maximum(wm, mask(bones[0]))
             c.paint(bm, WING, radius=12, depth=1.1, spec=0.35)
         c.paint(mask(ellipse(*top, 22, 22)), WING * 1.05, radius=12, depth=1.2, spec=0.4)
+
+    if kin == 'blue':
+        # زعانف ظهرية مستديرة رشيقة بدل الجناحين
+        for sgn in (-1, 1):
+            for k, (tip, w) in enumerate((((1024 + sgn * 470, 720), 170), ((1024 + sgn * 520, 900), 150), ((1024 + sgn * 470, 1060), 120))):
+                fm = mask(poly(leaf_pts((1024 + sgn * 210, 960 + k * 40), tip, w)))
+                c.paint(fm, MEMB * (1 - k * 0.04), radius=30, depth=0.9, spec=0.35)
 
     # ── الساقان والقدمان
     for x in (870, 1178):
@@ -144,6 +181,14 @@ def render(path):
     for sgn in (-1, 1):
         c.flat(blur(mask(stroke(bezier((1024 + sgn * 104, 878), (1024 + sgn * 120, 870), (1024 + sgn * 126, 856), n=10), 10)), 2), INK, 0.6)
 
+    if kin == 'grey':
+        # قرنان قصيران مستديران بلون عاجي
+        for sgn in (-1, 1):
+            horn = mask(tapered(bezier((1024 + sgn * 250, 440), (1024 + sgn * 300, 360), (1024 + sgn * 350, 330), n=40), 92, 44))
+            c.occlude(horn, dx=6, dy=12, r=14, strength=0.35)
+            c.paint(horn, hexrgb('#efe2c4'), radius=26, depth=1.2, spec=0.5,
+                    warm_shadow=hexrgb('#b9a47c'))
+
     # ── تاج الأوراق: ثلاث باقات كالصغير، أكبر قليلًا
     crest = [((850, 380), [(716, 240), (768, 186), (846, 170)], 104),
              ((1024, 336), [(992, 196), (1058, 186)], 84),
@@ -158,10 +203,17 @@ def render(path):
             vein = mask(stroke(bezier(base, ((base[0] + tip[0]) / 2, (base[1] + tip[1]) / 2 - 6), tip, n=20), 6)) * lm
             c.flat(blur(vein, 2), LEAF * 1.3, 0.45)
 
+    if kin == 'gold':
+        for x, y, r in ((620, 520, 20), (1440, 700, 16), (560, 1180, 14), (1500, 1300, 18)):
+            st = mask(poly([(x, y - r * 2.2), (x + r * 0.5, y - r * 0.5), (x + r * 2.2, y), (x + r * 0.5, y + r * 0.5),
+                            (x, y + r * 2.2), (x - r * 0.5, y + r * 0.5), (x - r * 2.2, y), (x - r * 0.5, y - r * 0.5)]))
+            c.paint(st, hexrgb('#fff3b0'), radius=6, depth=0.6, ambient=1.0, spec=0.2, warm_shadow=hexrgb('#ffd35a'))
     return c.save(path)
 
 
 if __name__ == '__main__':
-    import sys
-    render(sys.argv[1] if len(sys.argv) > 1 else 'grown_brown.png')
-    print('✓ grown_brown')
+    import sys, os
+    out = sys.argv[1] if len(sys.argv) > 1 else '.'
+    for kin in (sys.argv[2:] or KIN):
+        render(os.path.join(out, f'grown_{kin}.png'), kin)
+        print('✓ grown_' + kin)
