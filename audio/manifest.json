@@ -1,0 +1,607 @@
+{
+  "identity": "jazour-v1",
+  "generated_from": "voice.js",
+  "total": 92,
+  "recorded": 92,
+  "missing": 0,
+  "lines": [
+    {
+      "id": "cheer",
+      "text": "يا سلام! إنجاز جميل يا بطل.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "done",
+      "text": "أحسنت! أتممت مهمتك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "allday",
+      "text": "أنهيت كل مهام اليوم! أنت بطل حقيقي.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "levelup",
+      "text": "ترقّيت لمستوى جديد! جزّور فخور بك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "stage",
+      "text": "قطعت مرحلة جديدة في الرحلة! نكمل غدًا.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "world",
+      "text": "عالم جديد فُتح لك! هيا نستكشفه.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "boss",
+      "text": "هزمت وحش الكسل! أنت الأقوى.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "hello",
+      "text": "أهلًا بك يا بطل! جزّور ينتظرك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "chest",
+      "text": "كنز اليوم وصل! افتحه بسرعة.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "wakeup",
+      "text": "أنا نعسان… أيقظني بإنجاز!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "bye",
+      "text": "وداعًا يا بطل، نم جيدًا وعُد غدًا.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "next",
+      "text": "مهمتك التالية بانتظارك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "keepgoing",
+      "text": "أنت رائع! واصل، بقي القليل.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "almost",
+      "text": "اقتربت من الهدف! لا تتوقف الآن.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "tryagain",
+      "text": "لا بأس، جرّب مرة أخرى. أنا معك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "wrong",
+      "text": "ليست هذه… فكّر مرة ثانية.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "right",
+      "text": "إجابة صحيحة! ممتاز.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "heart",
+      "text": "والدك شاف إنجازك وأعجبه!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "sent",
+      "text": "أرسلنا إنجازك لوالدك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "approved",
+      "text": "والدك اعتمد إنجازك! مبروك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "quran_start",
+      "text": "بسم الله… نبدأ وردنا من القرآن.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "quran_done",
+      "text": "أتممت وردك اليوم. نور على نور.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "surah_done",
+      "text": "ما شاء الله! ختمت السورة.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "game_start",
+      "text": "هيا نلعب! ركّز معي.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "shop",
+      "text": "سوق الجزرات! وش بتختار اليوم؟",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "buy",
+      "text": "مبروك! استبدلت جزراتك بجائزة.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "notenough",
+      "text": "جزراتك ما تكفي بعد… أنجز أكثر وارجع.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "screen_start",
+      "text": "بدأ وقت لعبك. استمتع!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "screen_end",
+      "text": "انتهى وقت اللعب! سلّم الجهاز يا بطل.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "poke1",
+      "text": "أنت رائع! كمّل.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "poke2",
+      "text": "أحبك يا بطل!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "poke3",
+      "text": "هيا نكمل المغامرة!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "poke4",
+      "text": "وش خططنا اليوم؟",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "poke5",
+      "text": "أنا فخور فيك!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "drag1",
+      "text": "هيييه! رحلة ممتعة!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "drag2",
+      "text": "مرة ثانية! مرة ثانية!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "drag3",
+      "text": "أنا أطير يا بطل!",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "story_new",
+      "text": "فصل جديد من حكايتي! تعال اسمع.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "story_wait",
+      "text": "بقية الحكاية غدًا… لا تنسَ ترجع.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "birthday",
+      "text": "عيد ميلاد سعيد! كل عام وأنت بخير.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "mypick",
+      "text": "اختيار موفق! أنت القائد اليوم.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "focus_end",
+      "text": "انتهى وقت التركيز. أحسنت، انتقل للخطوة التالية بهدوء.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "world_enter",
+      "text": "مبروك! وصلت إلى عالم جديد.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "proud",
+      "text": "أحسنت يا بطل! جزّور فخور بك.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "task_next",
+      "text": "مهمتك التالية:",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "reward_line",
+      "text": "تكسب نقاط خبرة وجزرات.",
+      "kind": "static",
+      "have": true
+    },
+    {
+      "id": "w_0",
+      "text": "وادي الجزر",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "w_1",
+      "text": "الغابة المسحورة",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "w_2",
+      "text": "الصحراء الذهبية",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "w_3",
+      "text": "أعماق البحر",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "w_4",
+      "text": "القمم الثلجية",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "w_5",
+      "text": "مدينة البراكين",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "w_6",
+      "text": "الفضاء",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "w_7",
+      "text": "مملكة التنانين",
+      "kind": "set",
+      "set": "world",
+      "have": true
+    },
+    {
+      "id": "sura_1",
+      "text": "سورة الفاتحة",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_114",
+      "text": "سورة الناس",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_113",
+      "text": "سورة الفلق",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_112",
+      "text": "سورة الإخلاص",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_111",
+      "text": "سورة المسد",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_110",
+      "text": "سورة النصر",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_109",
+      "text": "سورة الكافرون",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_108",
+      "text": "سورة الكوثر",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_107",
+      "text": "سورة الماعون",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_106",
+      "text": "سورة قريش",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_105",
+      "text": "سورة الفيل",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_104",
+      "text": "سورة الهمزة",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_103",
+      "text": "سورة العصر",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_102",
+      "text": "سورة التكاثر",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_101",
+      "text": "سورة القارعة",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_100",
+      "text": "سورة العاديات",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_99",
+      "text": "سورة الزلزلة",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_98",
+      "text": "سورة البينة",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_97",
+      "text": "سورة القدر",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_96",
+      "text": "سورة العلق",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_95",
+      "text": "سورة التين",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_94",
+      "text": "سورة الشرح",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_93",
+      "text": "سورة الضحى",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_92",
+      "text": "سورة الليل",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_91",
+      "text": "سورة الشمس",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_90",
+      "text": "سورة البلد",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_89",
+      "text": "سورة الفجر",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_88",
+      "text": "سورة الغاشية",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_87",
+      "text": "سورة الأعلى",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_86",
+      "text": "سورة الطارق",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_85",
+      "text": "سورة البروج",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_84",
+      "text": "سورة الإنشقاق",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_83",
+      "text": "سورة المطففين",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_82",
+      "text": "سورة الإنفطار",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_81",
+      "text": "سورة التكوير",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_80",
+      "text": "سورة عبس",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_79",
+      "text": "سورة النازعات",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    },
+    {
+      "id": "sura_78",
+      "text": "سورة النبإ",
+      "kind": "set",
+      "set": "surah",
+      "have": true
+    }
+  ]
+}
