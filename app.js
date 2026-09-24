@@ -989,6 +989,13 @@ function esc(str) {
   return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/* أرقام عربية وصيغة العدد: ١ مفرد · ٢ مثنى · ٣–١٠ جمع · ١١+ مفرد */
+function arNum(n) { return String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]); }
+function arCount(n, one, two, few, many) {
+  return n === 1 ? one : n === 2 ? two : (n >= 3 && n <= 10) ? `${arNum(n)} ${few}` : `${arNum(n)} ${many}`;
+}
+function arTasks(n) { return arCount(n, 'مهمة واحدة', 'مهمتان', 'مهام', 'مهمة'); }
+
 /* ─────────────── التخزين ─────────────── */
 
 let S = load();
@@ -1386,6 +1393,7 @@ const App = {
   enterKidAs(childId) {
     S.activeChildId = childId;
     save();
+    this._taskFocusOverride = false;
     this.showScreen('screen-kid');
     this._applyWorldTheme();
     this.kidTab('map');
@@ -3575,7 +3583,7 @@ const App = {
      تظهر تلقائيًا عند أول دخول، وتُعاد من زر «؟» في الترويسة متى شاء. */
   TOUR: [
     { pose: 'wave', title: 'أهلًا! أنا جزّور', body: 'رفيقك في المغامرة. اضغط عليّ في أي وقت وسأشجّعك.', cta: 'وبعدين؟' },
-    { pose: 'thinking', title: 'خطوة واحدة كل مرة', body: 'بطاقة «التالي لك الآن» تقول لك ماذا تفعل الآن. اضغط زرها الأخضر فقط — لا تفكر في الباقي.', cta: 'ثم؟' },
+    { pose: 'thinking', title: 'خطوة واحدة كل مرة', body: 'أول بطاقة في شاشتك تقول لك ماذا تفعل الآن — روتينك أو مهمتك. اضغط زرها فقط، ولا تفكر في الباقي.', cta: 'ثم؟' },
     { pose: 'excited', title: 'مزرعتك تكبر معك', body: 'كل مهمة تنجزها تعطيك موردًا في مزرعتك 🌾 — تزرع به جزرًا وتبني بيوتًا. افتحها من الشريط السفلي.', cta: 'يلا نبدأ!' },
   ],
 
@@ -3720,8 +3728,13 @@ const App = {
     const state = this.routineState(routine);
     if (!state.startedAt) { state.startedAt = new Date().toISOString(); save(); }
     if (routine.audio) this.sayRoutine(routineId, true);
+    this._reopenNeedsKMap = true;
     this.renderVisualRoutineModal(routineId);
   },
+
+  /* الطفل يختار أيهما أولًا: الروتين أم مهمة والده. لا شيء منهما يختفي. */
+  focusTasksFirst() { this._taskFocusOverride = true; this.renderKMap(); },
+  focusRoutineFirst() { this._taskFocusOverride = false; this.renderKMap(); },
 
   renderVisualRoutineModal(routineId) {
     const routine = (C().routines || []).find(r => r.id === routineId);
@@ -3867,11 +3880,31 @@ const App = {
     };
     const dayComplete = todayTotal > 0 && todayDone >= todayTotal;
     const pendingOnly = todayTotal > 0 && !dayComplete && todayPending > 0 && readyTaskIndex < 0;
+    /* الروتين والمهام يتشاركان الموضع، والروتين هو التركيز الطبيعي أولًا.
+       لكن المهمة التي وافق عليها الوالد يجب ألّا تختفي أبدًا: تبقى معروضة
+       كشريط «وبعد الروتين» يفتحها الطفل متى شاء. */
+    const readyCount = visibleTasks.filter(t => !doneIds.has(t.id) && !pendingToday.has(t.id)).length;
+    const routineFirst = hasOpenRoutine && !this._taskFocusOverride;
+    const afterRoutinePeek = (routineFirst && currentTask)
+      ? `<button class="after-routine-peek" onclick="App.focusTasksFirst()" aria-label="اعرض مهام اليوم الآن">
+          <span class="after-routine-peek__icon">📋</span>
+          <span class="after-routine-peek__copy"><small>وبعد الروتين · ${arTasks(readyCount)}</small><b>${esc(currentTask.title)}</b></span>
+          <span class="after-routine-peek__cta">افتحها الآن</span>
+        </button>`
+      : '';
+    const backToRoutine = (hasOpenRoutine && this._taskFocusOverride)
+      ? `<button class="after-routine-peek after-routine-peek--back" onclick="App.focusRoutineFirst()" aria-label="ارجع إلى روتينك">
+          <span class="after-routine-peek__icon">🌤️</span>
+          <span class="after-routine-peek__copy"><small>روتينك ما زال مفتوحًا</small><b>${esc(this.activeRoutine().title)}</b></span>
+          <span class="after-routine-peek__cta">ارجع إليه</span>
+        </button>`
+      : '';
+
     let dayFocus = '';
-    if (hasOpenRoutine) dayFocus = this.routineCardHtml();
+    if (routineFirst) dayFocus = this.routineCardHtml() + afterRoutinePeek;
     else if (dayComplete) dayFocus = `<section class="day-complete-card" aria-label="اكتمل يومك"><span>🏆</span><div><small>أكملت ${todayDone} من ${todayTotal} مهام اليوم</small><h2>يومك مكتمل</h2><p>أحسنت، صار لعطائك أثر واضح في عالمك.</p></div><div class="day-complete-card__actions"><button class="btn-primary green" onclick="App.kidTab('farm')">شاهد أثري في المزرعة</button><button class="btn-ghost" onclick="App.shareDayReport()">أخبر والدي بإنجازي</button></div></section>`;
     else if (pendingOnly) dayFocus = `<section class="today-waiting-card" aria-label="مهام بانتظار مراجعة الوالد"><span>⏳</span><div><small>${todayPending} مهام بانتظار المراجعة</small><h2>أرسلت مهامك بهدوء</h2><p>يمكنك الآن إكمال وردك أو زيارة عالمك.</p></div></section>`;
-    else if (currentTask) dayFocus = taskDeckCard(currentTask, taskIndex);
+    else if (currentTask) dayFocus = taskDeckCard(currentTask, taskIndex) + backToRoutine;
     else dayFocus = `<div class="today-empty"><span>${gentleToday ? '🌤️' : '🗺️'}</span><p>${gentleToday ? 'خطة اليوم خفيفة. خذ وقتًا هادئًا مع وردك أو رحلتك؛ ستعود المهام غدًا.' : 'لا توجد مهام اليوم. خذ وقتًا هادئًا مع وردك أو رحلتك.'}</p></div>`;
 
     journeyUpdate(C());
@@ -6363,6 +6396,15 @@ const App = {
     this._checkVideoReward();     // مكافأة مشاهدة الفيديو إن استحقت
     this._quranTickStop();        // إيقاف عداد القرآن إن كان يعمل
     this.stopAyah();              // إيقاف التلاوة الصوتية
+    /* نافذة الروتين تغيّر تقدّم الطفل؛ بدون إعادة الرسم تقول له البطاقة
+       إنه لم ينجز شيئًا بعد أن أنجز خطوة فعلًا. */
+    if (this._reopenNeedsKMap) {
+      this._reopenNeedsKMap = false;
+      if (document.getElementById('screen-kid').classList.contains('active')) {
+        this.refreshKidHeader();
+        this.renderKMap();
+      }
+    }
   },
 
   _toastTimer: null,

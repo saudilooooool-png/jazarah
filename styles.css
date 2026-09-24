@@ -1628,6 +1628,19 @@ b { font-weight: 700; }
 .visual-routine__cta { position: relative; z-index: 1; border: 0; border-radius: 13px; background: #4d9fc8; color: #fff; font-size: .73rem; font-weight: 900; padding: 10px 9px; white-space: nowrap; box-shadow: 0 3px 0 #377f9f; }
 .visual-routine--done .visual-routine__cta { background: #4cad72; box-shadow: 0 3px 0 #348253; }
 
+/* شريط هادئ يبقي مهمة الوالد ظاهرة تحت بطاقة الروتين — ولا ينافسها */
+.after-routine-peek { display: flex; width: 100%; align-items: center; gap: 10px; margin: -6px 0 13px; padding: 10px 12px; border: 2px dashed #e3d7c4; border-radius: 17px; background: #fffdf7; text-align: right; }
+.after-routine-peek__icon { flex: 0 0 34px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 12px; background: #f6efe1; font-size: 1.05rem; }
+.after-routine-peek__copy { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.after-routine-peek__copy small { color: #9b8b73; font-size: .68rem; font-weight: 800; }
+.after-routine-peek__copy b { color: #5c4d38; font-size: .84rem; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.after-routine-peek__cta { flex: 0 0 auto; border-radius: 11px; background: #f0e6d4; color: #7a6647; font-size: .7rem; font-weight: 900; padding: 7px 10px; white-space: nowrap; }
+.after-routine-peek--back { border-color: #cde8ff; background: #f7fcff; }
+.after-routine-peek--back .after-routine-peek__icon { background: #e8f6ff; }
+.after-routine-peek--back .after-routine-peek__copy small { color: #7c9cb1; }
+.after-routine-peek--back .after-routine-peek__copy b { color: #3f6a86; }
+.after-routine-peek--back .after-routine-peek__cta { background: #e2f2fb; color: #3f7ea3; }
+
 .routine-player { direction: rtl; padding: 2px 1px; }
 .routine-player__top { display: flex; align-items: center; gap: 9px; }
 .routine-player__top > span { width: 47px; height: 47px; display: grid; flex: 0 0 47px; place-items: center; border-radius: 16px; background: #eaf8ff; font-size: 1.45rem; }
