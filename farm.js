@@ -50,10 +50,13 @@ const JazarahFarm = {
   GROW_MS: 10 * 60 * 1000,
 
   /* ─────── الحالة ─────── */
+  /* المزرعة تبدأ فارغة تمامًا. كانت تُهدي ٣ بذور و٣ جزرات ناضجة قبل
+     أي إنجاز، فتنقض الوعد الذي قامت عليه: «كل مهمة تعطيك موردًا».
+     أول مورد يصل الآن من أول مهمة، لا من كرم الشاشة. */
   blank() {
     return {
-      res: { wood: 0, stone: 0, water: 0, light: 0, seed: 3 },
-      crops: this.CELLS.map((_, i) => (i < 3 ? { stage: 'ready' } : { stage: 'empty' })),
+      res: { wood: 0, stone: 0, water: 0, light: 0, seed: 0 },
+      crops: this.CELLS.map(() => ({ stage: 'empty' })),
       built: {},
       seenIntro: false,
     };
@@ -168,8 +171,15 @@ const JazarahFarm = {
   grant(child, cat) {
     const f = this.of(child);
     const key = this.RES_BY_CAT[cat] || 'seed';
+    /* الأرض تبدأ فارغة، فقد يصل أول مورد من نوع لا يُزرَع (ماء مثلًا)
+       ويبقى الحقل بلا شيء يفعله الطفل. أول إنجاز وحده يحمل معه بذرة:
+       مكتسبة بالعمل لا ممنوحة قبله، وبها تكتمل الحلقة من يومه الأول. */
+    const firstEver = !Object.values(f.res).some(n => n > 0)
+      && f.crops.every(c => c.stage === 'empty');
     f.res[key] = (f.res[key] || 0) + 1;
+    if (firstEver && key !== 'seed') f.res.seed = (f.res.seed || 0) + 1;
     f.crops.forEach(c => { if (c.stage === 'growing') c.stage = 'ready'; });
+    if (firstEver && key !== 'seed') this.note(f, '🌱', 'ومعه بذرة أولى تبدأ بها حقلك');
     this.note(f, key === 'seed' ? '🌱' : '🌾', `وصل ${this.RES[key].name} من إنجازك إلى المزرعة`);
     return { key, name: this.RES[key].name, img: this.RES[key].img };
   },
@@ -267,19 +277,11 @@ const JazarahFarm = {
 
     layer += `<img class="fjz" id="farm-jz" src="${App.jzSrc('hero')}" style="left:566px;top:282px" alt="جزّور">`;
 
-    const r = this.ready(child);
-    const seeds = f.res.seed || 0;
-    const emptyHoles = f.crops.filter(c => c.stage === 'empty').length;
-    const dry = f.crops.filter(c => c.stage === 'seed').length;
-    const objective = this.dailyObjective(f);
+    /* هدف واحد يُحسب مرة واحدة ويظهر في نداء واحد؛ كان سطر التلميح
+       يكرره بكلمات أخرى تحت الحقل. */
+    const objective = this.dailyObjective(f, { carrots, count });
     this._dailyObjective = objective;
     const latest = daily.events[0];
-    const hint = seedImpact && impactTarget >= 0 ? 'بذرتك وصلت! اختر الحفرة المضيئة لزرعها'
-      : seedImpact ? 'بذرتك محفوظة في المخزن — افتح مساحة في الحقل ثم عد إليها'
-      : r ? `اضغط أي جزرة ناضجة — جزّور يحصدها لك (${carrots(r)})`
-      : dry ? `عندك ${count(dry, 'بذرة واحدة', 'بذرتين', 'بذور', 'بذرة')} تحتاج ماء — أنجز مهمة صحة 🛡️`
-      : (emptyHoles && seeds) ? 'اضغط ＋ في التراب لتزرع جزرة'
-      : 'أنجز مهامك، وكل مهمة تعطيك موردًا لمزرعتك';
     const impactBanner = this._completedImpact
       ? `<section class="farm-impact-banner farm-impact-banner--done" aria-live="polite"><span>🌱</span><div><b>زرعنا بذرتك!</b><small>أثر إنجازك صار جزءًا من مزرعتك.</small></div><button class="btn-ghost" onclick="JazarahFarm.returnToToday()">ارجع إلى يومي</button></section>`
       : seedImpact
@@ -294,14 +296,15 @@ const JazarahFarm = {
       ? `<section class="farm-companion-card farm-companion-card--${companionMoment.state}" aria-live="polite"><span class="farm-companion-card__icon">${companionMoment.state === 'ready' ? '✨' : companionMoment.state === 'baby' ? '🐉' : '🐣'}</span><div><p>${companionMoment.title}</p><small>${companionMoment.copy}</small></div>${companionMoment.action ? `<button type="button" class="farm-companion-card__action" onclick="JazarahFarm.${companionMoment.state === 'ready' ? 'hatchCompanion' : 'greetCompanion'}()">${companionMoment.action}</button>` : ''}</section>`
       : '';
 
+    /* نداء واحد فوق الحقل لا ثلاثة. الأحدث يسبق: خبر وصل من إنجاز،
+       ثم لحظة الرفيق، ثم هدف اليوم القائم. */
+    const headline = impactBanner || companionCard || dailyPulse;
+
     el.innerHTML = `
       <div class="farm-bar">${bar}</div>
-      ${dailyPulse}
-      ${companionCard}
-      ${impactBanner}
-      <div class="farm-view" id="farm-view"><div class="fworld" id="fworld">${layer}</div></div>
-      <div class="farm-hint-row">
-        <p class="farm-hint">${hint}</p>
+      ${headline}
+      <div class="farm-view" id="farm-view">
+        <div class="fworld" id="fworld">${layer}</div>
         <button class="farm-show" onclick="JazarahFarm.show()">وين؟ 👀</button>
       </div>
       <div class="farm-sheet" id="farm-sheet" aria-hidden="true">
@@ -317,16 +320,24 @@ const JazarahFarm = {
     if (firstVisitToday || grown) save();
   },
 
-  dailyObjective(f) {
+  dailyObjective(f, fmt = {}) {
+    const many = fmt.carrots || (n => `${n} جزرات`);
+    const dryCount = fmt.count || ((n) => String(n));
+    const readyTotal = f.crops.filter(crop => crop.stage === 'ready').length;
     const ready = f.crops.findIndex(crop => crop.stage === 'ready');
-    if (ready >= 0) return { emoji: '🥕', title: 'جزرة ناضجة تنتظرك', copy: 'اضغطها ليحصدها جزّور معك ويصبح الحقل جاهزًا للزراعة.', actionLabel: 'أرِنيها', target: { type: 'crop', index: ready } };
+    if (ready >= 0) return { emoji: '🥕', title: `${many(readyTotal)} تنتظرك`, copy: 'اضغط أي جزرة ناضجة — جزّور يحصدها لك ويصبح الحقل جاهزًا للزراعة.', actionLabel: 'أرِنيها', target: { type: 'crop', index: ready } };
+    const dryTotal = f.crops.filter(crop => crop.stage === 'seed').length;
     const seed = f.crops.findIndex(crop => crop.stage === 'seed');
     if (seed >= 0 && (f.res.water || 0) > 0) return { emoji: '💧', title: 'بذرة تحتاج ماء', copy: 'نسقيها بقطرة ماء، ثم نعود لاحقًا لنرى كيف كبرت.', actionLabel: 'أرِنيها', target: { type: 'crop', index: seed } };
-    if (seed >= 0) return { emoji: '💧', title: 'بذرة تنتظر الماء', copy: 'عندما تنجز مهمة صحة، يصل ماء يساعدها على النمو.', actionLabel: 'ارجع إلى يومي', target: { type: 'map' } };
+    if (seed >= 0) return { emoji: '💧', title: `${dryCount(dryTotal, 'بذرة واحدة', 'بذرتان', 'بذور', 'بذرة')} تنتظر الماء`, copy: 'عندما تنجز مهمة صحة 🛡️ يصل ماء يساعدها على النمو.', actionLabel: 'ارجع إلى يومي', target: { type: 'map' } };
     const growing = f.crops.findIndex(crop => crop.stage === 'growing');
     if (growing >= 0) return { emoji: '🌿', title: 'نبتة تكبر بهدوء', copy: 'ارجع بعد قليل؛ ستجد تغيرًا واضحًا في الحقل من دون أن تفقد شيئًا.', actionLabel: 'أرِنيها', target: { type: 'crop', index: growing } };
     const empty = f.crops.findIndex(crop => crop.stage === 'empty');
-    if (empty >= 0 && (f.res.seed || 0) > 0) return { emoji: '🌱', title: 'لديك بذرة جاهزة للزرع', copy: 'كل حفرة تمثل جزرة حقيقية مستقلة في حقل مزرعتك.', actionLabel: 'أرِنيها', target: { type: 'crop', index: empty } };
+    if (empty >= 0 && (f.res.seed || 0) > 0) return { emoji: '🌱', title: 'لديك بذرة جاهزة للزرع', copy: 'اضغط ＋ في أي حفرة تراب لتزرعها — كل حفرة جزرة مستقلة.', actionLabel: 'أرِنيها', target: { type: 'crop', index: empty } };
+    /* أرض فارغة ولا موارد: نشرح من أين تأتي بدل أن نهديه إياها. */
+    if (!Object.values(f.res).some(n => n > 0)) return { emoji: '🌱', title: 'أرضك تنتظر أول إنجاز', copy: 'كل نوع مهمة يرسل موردًا: الدراسة 📚 خشبًا · الرياضة 🏃 حجرًا · الصحة 🛡️ ماءً · القرآن 📖 نورًا · قلوب طيبة 🤝 بذورًا.', actionLabel: 'ارجع إلى يومي', target: { type: 'map' } };
+    /* عنده موارد لكن لا بذرة تُزرَع: نسمّي المهمة التي تجلبها. */
+    if (empty >= 0) return { emoji: '🌱', title: 'حقلك جاهز، وتنقصك بذرة', copy: 'البذور تأتي من مهام قلوب طيبة 🤝 — أنجز واحدة وسنزرعها معًا.', actionLabel: 'ارجع إلى يومي', target: { type: 'map' } };
     return { emoji: '🏡', title: 'المزرعة هادئة الآن', copy: 'أنجز خطوة لطيفة في يومك، وسيصل أثرها الحقيقي إلى هنا.', actionLabel: 'ارجع إلى يومي', target: { type: 'map' } };
   },
 
