@@ -1376,6 +1376,7 @@ const App = {
     this.closeModal();
     this._childPinTarget = c.id;
     this._pinBuffer = '';
+    this._pinDraft = '';
     this._pinMode = c.accessPin ? 'child-enter' : 'child-setup';
     document.getElementById('pin-title').textContent = c.accessPin ? `مرحبًا ${esc(c.name)}، أدخل رقمك` : `اختر رقمك الشخصي يا ${esc(c.name)}`;
     document.getElementById('pin-hint').textContent = c.accessPin ? 'أربعة أرقام لفتح ملفك فقط' : 'رقم شخصي من أربعة أرقام لا يفتح غرفة الوالدين';
@@ -1486,53 +1487,19 @@ const App = {
 
   /* ─────── الرقم السري ─────── */
   _pinBuffer: '',
-  _pinMode: 'enter', // 'setup' | 'enter'
+  _pinMode: 'enter', // 'setup' | 'setup-confirm' | 'enter' | 'child-setup' | 'child-setup-confirm' | 'child-enter'
+  _pinDraft: '',     // أول إدخال عند الإنشاء، ينتظر إدخالًا ثانيًا مطابقًا
 
+  /* البريد والرمز كانا خطوتين تعترفان بأنهما غير حقيقيتين: لا رسالة
+     تُرسل، والرمز يُعرض على الشاشة نفسها ليُنسخ إلى خانة تحتها. حُذفتا
+     حتى تتوفر خدمة بريد فعلية، فيعود مكانهما تأكيدٌ حقيقي. */
   enterParent() {
-    if (!S.parentAccount || !S.parentAccount.confirmed) { this.parentAccountForm(); return; }
     this.enterParentPin();
-  },
-
-  parentAccountForm() {
-    const email = (S.parentAccount && S.parentAccount.email) || '';
-    this.openModal(`
-      <section class="account-flow" aria-label="حساب الوالد">
-        <p class="onboarding-kicker">حساب الوالد أو الوالدة</p><h2>ابدأ بحساب الأسرة</h2>
-        <p class="muted">هذه معاينة مؤقتة: لن تصل رسالة بريد حقيقية الآن. عند ربط خدمة البريد لاحقًا يستبدل هذا التأكيد التجريبي برسالة آمنة.</p>
-        <label>البريد الإلكتروني</label><input id="f-parent-email" type="email" value="${esc(email)}" inputmode="email" autocomplete="email" placeholder="name@example.com" />
-        <p id="parent-account-error" class="pin-error"></p>
-        <button class="btn-primary big" onclick="App.prepareTemporaryParentConfirmation()">متابعة التجربة ←</button>
-      </section>`);
-  },
-
-  prepareTemporaryParentConfirmation() {
-    const field = document.getElementById('f-parent-email');
-    const email = (field && field.value || '').trim().toLowerCase();
-    const error = document.getElementById('parent-account-error');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { if (error) error.textContent = 'اكتب بريدًا إلكترونيًا صحيحًا'; return; }
-    this._temporaryParentEmail = email;
-    this._temporaryParentCode = String(Math.floor(100000 + Math.random() * 900000));
-    this.openModal(`
-      <section class="account-flow" aria-label="تأكيد تجريبي للبريد">
-        <p class="onboarding-kicker">تأكيد تجريبي</p><h2>تحقق من حساب الأسرة</h2>
-        <p class="muted">لم نرسل بريدًا في هذه المعاينة. استخدم الرمز الظاهر لتجربة المسار فقط.</p>
-        <div class="temporary-code" dir="ltr">${this._temporaryParentCode}</div>
-        <label>رمز التأكيد</label><input id="f-parent-temp-code" class="device-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="٦ أرقام" dir="ltr" />
-        <p id="parent-confirm-error" class="pin-error"></p>
-        <button class="btn-primary big" onclick="App.confirmTemporaryParentAccount()">تأكيد والدخول ←</button>
-      </section>`);
-  },
-
-  confirmTemporaryParentAccount() {
-    const value = (document.getElementById('f-parent-temp-code').value || '').replace(/\D/g, '');
-    const error = document.getElementById('parent-confirm-error');
-    if (value !== this._temporaryParentCode) { if (error) error.textContent = 'الرمز التجريبي غير صحيح'; return; }
-    S.parentAccount = { email: this._temporaryParentEmail, confirmed: true, mode: 'temporary', confirmedAt: new Date().toISOString() };
-    save(); this.closeModal(); this.enterParentPin();
   },
 
   enterParentPin() {
     this._pinBuffer = '';
+    this._pinDraft = '';
     this._pinMode = S.pin ? 'enter' : 'setup';
     document.getElementById('pin-title').textContent =
       this._pinMode === 'setup' ? 'أنشئ رقمًا سريًا للوالدين' : 'أدخل الرقم السري';
@@ -1571,17 +1538,56 @@ const App = {
     });
   },
 
+  /* رقم يُنشأ من محاولة واحدة يقفل صاحبه خارج لوحته بخطأ مطبعي واحد،
+     ولا سبيل لاستعادته. كل إنشاء يمر الآن بإدخال ثانٍ مطابق. */
+  _pinAskConfirm(nextMode, title) {
+    this._pinDraft = this._pinBuffer;
+    this._pinMode = nextMode;
+    this._pinBuffer = '';
+    document.getElementById('pin-title').textContent = title;
+    document.getElementById('pin-hint').textContent = 'أدخله مرة ثانية للتأكيد';
+    document.getElementById('pin-error').textContent = '';
+    this.renderPinDots();
+  },
+
+  _pinConfirmFailed(backMode, title, hint) {
+    this._pinDraft = '';
+    this._pinMode = backMode;
+    this._pinBuffer = '';
+    document.getElementById('pin-title').textContent = title;
+    document.getElementById('pin-hint').textContent = hint;
+    document.getElementById('pin-error').textContent = 'الرقمان غير متطابقين — لنبدأ من جديد';
+    this.renderPinDots();
+  },
+
   pinSubmit() {
     if (this._pinMode === 'child-setup') {
+      if (!S.children.some(x => x.id === this._childPinTarget)) { this.showScreen('screen-role'); return; }
+      this._pinAskConfirm('child-setup-confirm', 'أكّد رقمك السري');
+    } else if (this._pinMode === 'child-setup-confirm') {
+      if (this._pinBuffer !== this._pinDraft) {
+        const back = S.children.find(x => x.id === this._childPinTarget);
+        this._pinConfirmFailed('child-setup',
+          back ? `اختر رقمك الشخصي يا ${esc(back.name)}` : 'اختر رقمك الشخصي',
+          'رقم شخصي من أربعة أرقام لا يفتح غرفة الوالدين');
+        return;
+      }
       const c = S.children.find(x => x.id === this._childPinTarget);
       if (!c) { this.showScreen('screen-role'); return; }
-      c.accessPin = this._pinBuffer; save(); this.enterKidAs(c.id);
+      c.accessPin = this._pinDraft; this._pinDraft = ''; save(); this.enterKidAs(c.id);
     } else if (this._pinMode === 'child-enter') {
       const c = S.children.find(x => x.id === this._childPinTarget);
       if (c && c.accessPin === this._pinBuffer) this.enterKidAs(c.id);
       else { document.getElementById('pin-error').textContent = 'رقم غير صحيح، حاول مرة أخرى'; this._pinBuffer = ''; this.renderPinDots(); }
     } else if (this._pinMode === 'setup') {
-      S.pin = this._pinBuffer;
+      this._pinAskConfirm('setup-confirm', 'أكّد الرقم السري');
+    } else if (this._pinMode === 'setup-confirm') {
+      if (this._pinBuffer !== this._pinDraft) {
+        this._pinConfirmFailed('setup', 'أنشئ رقمًا سريًا للوالدين', 'أربعة أرقام يعرفها الوالدان فقط');
+        return;
+      }
+      S.pin = this._pinDraft;
+      this._pinDraft = '';
       // الأسرة المنشأة للتو تبدأ بخطة مخصصة بدل المهام الافتراضية العامة.
       S.onboarding = { version: 1, status: 'pending', draft: null, completedAt: null };
       save();
