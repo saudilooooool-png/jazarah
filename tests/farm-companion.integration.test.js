@@ -100,8 +100,69 @@ test('الصغير يكبر بعد أربعة أيام مكتملة، يخرج �
   assert.equal(grown, 14);
   assert.equal(child.farm.residents.length, 1);
   assert.equal(child.farm.incubator, null);
-  const next = doTask(farm, child, 15);
-  assert.ok(next.gains.some(g => g.kind === 'egg'));             // البيضة لا تأتي بالحظ
+  // البيضة التالية تفضّل لونًا لم يكبر بعد: صندوق الدراسة (بني) يمر، وصندوق الصحة يحملها زرقاء
+  const same = doTask(farm, child, 15);
+  assert.ok(!same.gains.some(g => g.kind === 'egg'));
+  const next = doTask(farm, child, 16);
+  assert.ok(next.gains.some(g => g.kind === 'egg' && g.kin === 'blue'));   // البيضة لا تأتي بالحظ
+});
+
+test('من يكرر روتينًا بلون واحد لا تبقى حاضنته فارغة أكثر من يوم كامل', () => {
+  const { farm, setDay } = loadFarm();
+  const child = kid(farm, 1);                                    // مهمة دراسة واحدة
+  for (let d = 1; d <= 5; d++) { setDay(`2030-04-0${d}`); doTask(farm, child, 0, `2030-04-0${d}`); }
+  assert.equal(child.farm.residents.length, 1);
+  assert.equal(child.farm.incubator, null);
+  // اللون الوحيد في الخطة كبر: البيضة تأتي في صندوقه
+  setDay('2030-04-06');
+  const r = doTask(farm, child, 0, '2030-04-06');
+  assert.ok(r.gains.some(g => g.kind === 'egg' && g.kin === 'brown'));
+});
+
+test('ينتظر يومًا واحدًا فقط حين يكون في الخطة لون جديد لم يُنجَز', () => {
+  const { farm } = loadFarm();
+  const child = kid(farm, 3);
+  child.farm.album.kin.brown = { egg: true, baby: true, grown: true };
+  child.farm.emptySince = '2030-04-01';
+  const t = child.tasks[0];                                      // دراسة = بني
+  const b1 = farm.taskDone(child, { ...t, id: 'a' }, '2030-04-02', false);
+  assert.equal(b1.contents.egg, false);                          // أمس فرغت: ننتظر الصحة أو الرياضة
+  farm.claim(child, b1.id);
+  const b2 = farm.taskDone(child, { ...t, id: 'b' }, '2030-04-03', false);
+  assert.equal(b2.contents.egg, true);                           // مضى يوم كامل: تأتي على أي حال
+});
+
+test('الزينة: إكمال صفحة يفتح زينة مرة واحدة، ومن يستحقها قبل التحديث يجدها', () => {
+  const { farm } = loadFarm();
+  const child = kid(farm, 3);
+  for (let i = 0; i < 15; i++) doTask(farm, child, i);           // أول رفيق كبر
+  assert.ok(child.farm.decor.flowers);
+  assert.deepEqual(serial(child.farm.decorNew), ['flowers']);
+  doTask(farm, child, 16);
+  assert.deepEqual(serial(child.farm.decorNew), ['flowers']);    // لا تكرار
+  // صفحة المحاصيل: الأربعة + الذهبية
+  const f = child.farm;
+  ['carrot', 'strawberry', 'pumpkin', 'grape'].forEach(c => farm._seeCrop(f, c));
+  assert.deepEqual(serial(farm._checkDecor(f)), []);
+  farm._seeCrop(f, 'carrot', { gold: true });
+  assert.deepEqual(serial(farm._checkDecor(f)), ['scarecrow']);
+  // أسرة قديمة: رفيق بالغ قبل التحديث
+  const old = kid(farm, 3);
+  old.farm = serial({ ...farm.blank(), residents: [{ kind: 'brown' }], album: { kin: { brown: { egg: true, baby: true, grown: true } }, crops: {} } });
+  delete old.farm.decor; delete old.farm.decorNew;
+  farm.of(old);
+  assert.ok(old.farm.decor.flowers);
+});
+
+test('المباني بمواد من أي نوع: تُدفع من المفضل أولًا والبذور آخرًا', () => {
+  const { farm } = loadFarm();
+  const f = farm.blank();
+  const well = farm.CATALOG.find(x => x.id === 'well');
+  f.res = { wood: 3, stone: 0, water: 1, light: 0, seed: 2 };
+  assert.equal(farm.can(f, well), true);                          // ٦ ≥ ٥ ولو بلا حجر
+  farm.spend(f, well);
+  assert.deepEqual(serial(f.res), { wood: 0, stone: 0, water: 0, light: 0, seed: 1 });
+  assert.equal(farm.can(f, well), false);
 });
 
 test('صندوق موافقة الوالد: مقفل لا يُفتح، ثم ينفتح عند الاعتماد، ويختفي عند الرفض', () => {

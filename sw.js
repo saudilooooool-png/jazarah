@@ -1,7 +1,7 @@
 /* جَزَرة — عامل الخدمة: تثبيت كتطبيق + عمل كامل دون إنترنت */
 'use strict';
 
-const CACHE = 'jazarah-v25';
+const CACHE = 'jazarah-v26';
 const ASSETS = [
   './',
   './index.html',
@@ -25,6 +25,7 @@ const ASSETS = [
   ...['brown', 'grey', 'blue', 'gold', 'green'].flatMap(k => ['egg', 'baby', 'grown'].map(st => `./farm/companions/${st}_${k}.webp`)),
   ...['strawberry', 'pumpkin', 'grape'].flatMap(c => ['growing', 'ready'].map(st => `./farm/crops/${c}_${st}.webp`)),
   './farm/crops/carrot_golden_ready.webp',
+  ...['flowers', 'scarecrow', 'lantern', 'fountain', 'rainbow'].map(d => `./farm/decor/${d}.webp`),
   './farm/objects/incubator.webp',
   './farm/objects/task_board.webp',
   ...['brown', 'grey', 'blue', 'gold', 'green'].map(c => `./farm/objects/box_${c}.webp`),

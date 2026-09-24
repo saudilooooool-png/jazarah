@@ -2124,3 +2124,20 @@ b { font-weight: 700; }
 @keyframes farmCompanionHatch { 0%,35% { transform:rotate(0) scale(1); filter:brightness(1); } 52% { transform:rotate(-7deg) scale(1.04); filter:brightness(1.35); } 70% { transform:rotate(7deg) scale(.9); opacity:.6; } 100% { transform:rotate(0) scale(.72); opacity:0; } }
 @keyframes farmCompanionBaby { 0% { transform:scale(.76); opacity:0; filter:brightness(1.45); } 72% { transform:scale(1.07) translateY(-4px); opacity:1; } 100% { transform:scale(1); opacity:1; filter:brightness(1); } }
 @media (max-width:480px) { .farm-companion-card { align-items:flex-start; } .farm-companion-card__action { min-height:40px; padding:0 10px; } }
+
+/* ── الزينة: هدية إكمال صفحات الدفتر (المرحلة ٣) */
+.fdecor { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.fdecor img { width: 100%; display: block; pointer-events: none; filter: drop-shadow(0 8px 6px rgba(38, 68, 25, .26)); }
+.fdecor--new img { animation: fDecorIn .9s cubic-bezier(.2, 1.5, .4, 1) both; }
+@keyframes fDecorIn { from { transform: scale(.2) translateY(30%); opacity: 0; } to { transform: none; opacity: 1; } }
+.fdecor.fresident--hi { animation: fHop .6s ease-out; }
+.breveal__prize--decor { width: 190px; }
+.breveal__card--decor .breveal__big { color: #b0521b; }
+.alb h4 small { margin-inline-start: 6px; color: #8a7358; font: 800 11px Cairo, sans-serif; }
+.alb-note { margin: -4px 0 8px; color: #8a7358; font: 700 11px/1.6 Cairo, sans-serif; }
+.alb-card--decor:not(.alb-card--hidden) { border-color: #f5c2d4; background: linear-gradient(135deg, #fff8fb, #ffeef4); }
+@media (prefers-reduced-motion: reduce) { .fdecor--new img { animation: none; } }
+/* نافذة الزينة بلا صندوق يُفتح: تظهر الهدية فورًا */
+.breveal__card--decor .breveal__burst { animation-delay: .1s; }
+.breveal__card--decor .breveal__prize { animation-delay: .15s; }
+.breveal__card--decor .breveal__content { animation-delay: .35s; }

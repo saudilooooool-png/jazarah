@@ -72,12 +72,29 @@ const JazarahFarm = {
   ],
   HOMES: [ { x: 1012, y: 606 }, { x: 724, y: 372 }, { x: 560, y: 616 }, { x: 1076, y: 334 }, { x: 420, y: 616 } ],
 
+  /* التكلفة عدد «مواد» من أي نوع: الطفل الذي لا رياضة في خطته يبني البئر أيضًا.
+     يُدفع أولًا من المورد المفضَّل للمبنى، والبذور آخرًا لأنها للزرع.
+     الأرقام من محاكاة ٨ أسابيع (docs/farm-v2-incubator.md): ٣ مهام ≈ ٢١ مادة في الأسبوع. */
   CATALOG: [
-    { id: 'well', name: 'بئر ماء',   img: 'farm/buildings/well.webp',  w: 118, pad: true, cost: { stone: 6, wood: 2 } },
-    { id: 'barn', name: 'حظيرة',     img: 'farm/buildings/barn.webp',  w: 152, pad: true, cost: { wood: 8, stone: 3 } },
-    { id: 'field',name: 'حقل إضافي', img: 'farm/buildings/field.webp', w: 172, cost: { seed: 4, water: 3 } },
+    { id: 'well', name: 'بئر ماء',   img: 'farm/buildings/well.webp',  w: 118, pad: true, need: 5,  prefer: ['stone', 'water'] },
+    { id: 'barn', name: 'حظيرة',     img: 'farm/buildings/barn.webp',  w: 152, pad: true, need: 9,  prefer: ['wood', 'stone'] },
+    { id: 'field',name: 'حقل إضافي', img: 'farm/buildings/field.webp', w: 172, need: 14, prefer: ['water', 'wood'] },
     // «عش الرفيق» صار الحاضنة؛ يبقى هنا فقط ليُرسم لمن بناه سابقًا
-    { id: 'egg',  name: 'عش الرفيق', img: 'farm/companions/egg_brown.webp', w: 86, cost: { light: 4, seed: 5 }, legacy: true },
+    { id: 'egg',  name: 'عش الرفيق', img: 'farm/companions/egg_brown.webp', w: 86, need: 9, legacy: true },
+  ],
+
+  /* الزينة: هدية إكمال صفحة في الدفتر. تظهر وحدها في مكانها — لا تُشترى ولا تُبنى. */
+  DECOR: [
+    { id: 'flowers',   name: 'حوض الزهور',  img: 'farm/decor/flowers.webp',   x: 796,  y: 632, w: 104, page: 'أول رفيق كبر',
+      hint: 'أول رفيق يكبر في حاضنتك',          test: s => s.grown >= 1 },
+    { id: 'scarecrow', name: 'الفزّاعة',     img: 'farm/decor/scarecrow.webp', x: 548,  y: 372, w: 118, page: 'صفحة المحاصيل',
+      hint: 'احصد الجزر والفراولة واليقطين والعنب، والجزرة الذهبية', test: s => s.crops >= 4 && s.gold },
+    { id: 'lantern',   name: 'الفانوس',      img: 'farm/decor/lantern.webp',   x: 684,  y: 468, w: 128,  page: 'ثلاثة رفاق',
+      hint: 'ثلاثة رفاق مختلفين يكبرون',       test: s => s.grown >= 3 },
+    { id: 'fountain',  name: 'النافورة',     img: 'farm/decor/fountain.webp',  x: 986,  y: 306, w: 124, page: 'صفحة اللامعة',
+      hint: 'أربعة محاصيل مختلفة تلمع تحت المطر', test: s => s.shiny >= 4 },
+    { id: 'rainbow',   name: 'قوس الرفاق',   img: 'farm/decor/rainbow.webp',   x: 594,  y: 150, w: 300, z: 100, page: 'صفحة الرفاق',
+      hint: 'الرفاق الخمسة كلهم يكبرون — القوس بألوانهم', test: s => s.grown >= 5 },
   ],
 
   _rand: Math.random,
@@ -98,6 +115,9 @@ const JazarahFarm = {
       incubator: null,      // { kind, stage: 'egg'|'baby', days }
       residents: [],        // رفاق كبروا ويعيشون في المزرعة
       rain: null,
+      emptySince: null,     // يوم فرغت الحاضنة: بعده يأتي البيض في أي صندوق
+      decor: {},            // الزينة المفتوحة { id: وقت }
+      decorNew: [],         // زينة لم يُحتفل بها بعد
       seenIntro: false,
     };
   },
@@ -123,11 +143,15 @@ const JazarahFarm = {
     if (!Number.isFinite(f.opened)) f.opened = 0;
     if (!Number.isFinite(f.sinceSpecial)) f.sinceSpecial = 0;
     if (f.incubator === undefined) f.incubator = null;
+    if (f.emptySince === undefined) f.emptySince = null;
+    if (!f.decor || typeof f.decor !== 'object') f.decor = {};
+    if (!Array.isArray(f.decorNew)) f.decorNew = [];
     if (!f.v) {
       // رفيق فقس في النظام السابق ينتقل إلى الحاضنة صغيرًا — لا يضيع
       if (f.companion && f.companion.stage === 'baby') f.incubator = { kind: 'brown', stage: 'baby', days: 0 };
       f.v = 2;
     }
+    this._checkDecor(f);     // من يستحق زينة قبل التحديث يجدها تنتظره
     return f;
   },
 
@@ -160,7 +184,7 @@ const JazarahFarm = {
   /* ─────── الصناديق ─────── */
 
   /* يحدد محتوى الصندوق لحظة فتح قفله: مورد مضمون + مفاجأة، وبيضة إن فرغت الحاضنة */
-  _roll(f, box) {
+  _roll(f, box, child) {
     const odds = this.ODDS[box.verified ? 'verified' : 'self'];
     let tier;
     const r = this._rand();
@@ -175,10 +199,33 @@ const JazarahFarm = {
     box.contents = {
       res: this.RES_BY_CAT[box.cat] || 'seed',
       tier, surprise, crop,
-      egg: !eggComing,
+      egg: !eggComing && this._eggHere(f, box, child),
       eggKin: this.KIN[box.color] ? box.color : 'brown',
     };
     return box;
+  },
+
+  /* البيضة تفضّل لونًا جديدًا: من ينجز روتينه بالترتيب نفسه كل يوم كان يحصل على الرفيق نفسه دائمًا.
+     تنتظر صندوقًا بلون لم يكبر بعد إن كان في خطة اليوم — ولا تنتظر أكثر من يوم كامل. */
+  _eggHere(f, box, child) {
+    const a = (f.album && f.album.kin) || {};
+    const grown = k => !!(a[k] && a[k].grown);
+    if (!grown(box.color)) return true;
+    // يوم كامل مضى بلا صندوق بلون جديد: لا تبقى الحاضنة فارغة
+    if (f.emptySince && box.date) {
+      const y = new Date(box.date + 'T00:00:00Z'); y.setUTCDate(y.getUTCDate() - 1);
+      if (!isNaN(y) && f.emptySince < y.toISOString().slice(0, 10)) return true;
+    }
+    const plan = this._planColors(child);
+    return !plan.some(k => !grown(k));
+  },
+  _planColors(child) {
+    let list = [];
+    try {
+      if (child && typeof scheduledTasksForChild === 'function') list = scheduledTasksForChild(child, todayKey());
+    } catch (e) { list = []; }
+    if (!list.length && child) list = child.tasks || [];
+    return [...new Set(list.map(t => this.BOX_BY_CAT[t.cat]).filter(Boolean))];
   },
 
   _findBox(f, taskId, date) {
@@ -207,7 +254,7 @@ const JazarahFarm = {
     }
     box.locked = false;
     box.unlockedAt = Date.now();
-    this._roll(f, box);
+    this._roll(f, box, child);
     return box;
   },
 
@@ -220,7 +267,7 @@ const JazarahFarm = {
     box = { id: uid(), cat: 'faith', color: 'gold', source: 'quran', taskId: id, title: 'ورد القرآن', date,
             locked: false, verified: true, contents: null, at: Date.now() };
     f.boxes.push(box);
-    this._roll(f, box);
+    this._roll(f, box, child);
     return box;
   },
 
@@ -257,6 +304,7 @@ const JazarahFarm = {
     if (k.egg && !f.incubator) {
       const kin = this.KIN[k.eggKin] ? k.eggKin : 'brown';
       f.incubator = { kind: kin, stage: 'egg', days: 0, at: Date.now() };
+      f.emptySince = null;
       this._seeKin(f, kin, 'egg');
       out.gains.push({ kind: 'egg', kin });
       this.note(f, '🥚', 'وصلت بيضة إلى حاضنتك');
@@ -283,12 +331,14 @@ const JazarahFarm = {
         f.residents.push({ kind: inc.kind, at: Date.now() });
         this._seeKin(f, inc.kind, 'grown');
         f.incubator = null;
+        f.emptySince = box.date || todayKey();
         out.events.push({ kind: 'grown', kin: inc.kind });
         this.note(f, '🐉', 'كبر رفيقك وخرج يعيش في مزرعتك');
         if (typeof feedPush === 'function') feedPush(child, '🐉', 'كبر رفيقه وصار يعيش في مزرعته');
       }
     }
     f.opened += 1;
+    this._checkDecor(f).forEach(id => out.events.push({ kind: 'decor', id }));
     return out;
   },
 
@@ -314,6 +364,28 @@ const JazarahFarm = {
     Object.keys(this.CROPS).forEach(c => { total += 2; if (a.crops[c]) got++; if (a.crops[c] && a.crops[c].shiny) got++; });
     total += 1; if (a.crops.carrot && a.crops.carrot.gold) got++;
     return { got, total };
+  },
+
+  /* ─────── الزينة ─────── */
+  _albumStats(f) {
+    const a = f.album || { kin: {}, crops: {} };
+    return {
+      grown: Object.keys(this.KIN).filter(k => a.kin[k] && a.kin[k].grown).length,
+      crops: Object.keys(this.CROPS).filter(c => a.crops[c]).length,
+      gold: !!(a.crops.carrot && a.crops.carrot.gold),
+      shiny: Object.keys(this.CROPS).filter(c => a.crops[c] && a.crops[c].shiny).length,
+    };
+  },
+  /* يفتح كل زينة اكتمل شرطها، ويعيد الجديد منها */
+  _checkDecor(f) {
+    if (!f.decor) f.decor = {};
+    if (!Array.isArray(f.decorNew)) f.decorNew = [];
+    const s = this._albumStats(f), fresh = [];
+    this.DECOR.forEach(d => {
+      if (!f.decor[d.id] && d.test(s)) { f.decor[d.id] = Date.now(); f.decorNew.push(d.id); fresh.push(d.id); }
+    });
+    fresh.forEach(id => this.note(f, '🎀', `زينة جديدة في مزرعتك: ${this.DECOR.find(d => d.id === id).name}`));
+    return fresh;
   },
 
   /* تقدم الحاضنة بالمهام: كم مهمة باقية للمرحلة التالية */
@@ -342,8 +414,16 @@ const JazarahFarm = {
     return this.of(child).crops.filter(c => c.stage === 'ready').length;
   },
 
-  can(f, cost) { return Object.entries(cost).every(([k, n]) => (f.res[k] || 0) >= n); },
-  spend(f, cost) { Object.entries(cost).forEach(([k, n]) => { f.res[k] -= n; }); },
+  materials(f) { return Object.keys(this.RES).reduce((n, k) => n + (f.res[k] || 0), 0); },
+  can(f, it) { return this.materials(f) >= it.need; },
+  /* يدفع من المفضَّل، ثم من الأكثر، والبذور آخرًا */
+  spend(f, it) {
+    const order = [...(it.prefer || []),
+      ...Object.keys(this.RES).filter(k => k !== 'seed' && !(it.prefer || []).includes(k)).sort((a, b) => (f.res[b] || 0) - (f.res[a] || 0)),
+      'seed'];
+    let left = it.need;
+    [...new Set(order)].forEach(k => { const n = Math.min(left, f.res[k] || 0); f.res[k] -= n; left -= n; });
+  },
 
   /* مهام اليوم كما يراها الطفل في صفحة «اليوم» — مصدر واحد */
   boardTasks(child) {
@@ -413,7 +493,7 @@ const JazarahFarm = {
       }
     });
 
-    const canBuild = this.CATALOG.some(it => !it.legacy && this.can(f, it.cost));
+    const canBuild = this.CATALOG.some(it => !it.legacy && this.can(f, it));
     this.SLOTS.forEach((sl, i) => {
       const id = f.built[i];
       const z = Math.round(sl.y);
@@ -426,6 +506,13 @@ const JazarahFarm = {
       if (it.pad) layer += `<span class="fpad" style="width:${it.w * 0.66}px;height:${it.w * 0.24}px;left:${sl.x - it.w * 0.33}px;top:${sl.y - it.w * 0.12}px;z-index:${z - 2}"></span>`;
       layer += `<span class="fshadow" style="width:${it.w * 0.6}px;height:${it.w * 0.14}px;left:${sl.x - it.w * 0.3}px;top:${sl.y - it.w * 0.06}px;z-index:${z - 1}"></span>
         <img class="fbuild" src="${it.img}" style="left:${sl.x - it.w / 2}px;top:${sl.y - it.w * 0.9}px;width:${it.w}px;z-index:${z}" alt="${it.name}">`;
+    });
+
+    // ── الزينة المفتوحة
+    this.DECOR.forEach(d => {
+      if (!f.decor[d.id]) return;
+      const z = d.z || Math.round(d.y);
+      layer += `<button class="fdecor${f.decorNew.includes(d.id) ? ' fdecor--new' : ''}" data-decor="${d.id}" type="button" style="left:${d.x - d.w / 2}px;top:${d.y - d.w * 0.9}px;width:${d.w}px;z-index:${z}" aria-label="${d.name}"><img src="${d.img}" alt=""></button>`;
     });
 
     // ── لوحة المهام
@@ -498,6 +585,8 @@ const JazarahFarm = {
     this._fit();
     save();
     if (raining) VoiceLines.say('cheer');
+    // زينة جديدة: احتفال بعد أن تهدأ الشاشة (لا فوق نافذة صندوق مفتوحة)
+    if (f.decorNew.length && !revealing && !raining) setTimeout(() => this.showDecor(), 450);
   },
 
   /* نداء واحد فوق الحقل: ما الشيء التالي الذي يستحق يد الطفل الآن */
@@ -521,6 +610,9 @@ const JazarahFarm = {
     const empty = f.crops.findIndex(c => c.stage === 'empty');
     const seeds = (f.res.seed || 0) + (f.goldSeed || 0) + this.SPECIAL.reduce((n, c) => n + (f.special[c] || 0), 0);
     if (empty >= 0 && seeds > 0) return { emoji: f.goldSeed ? '✨' : '🌱', title: f.goldSeed ? 'عندك بذرة ذهبية!' : `عندك ${count(seeds, 'بذرة واحدة', 'بذرتان', 'بذور', 'بذرة')} للزرع`, copy: 'اضغط ＋ في أي حفرة تراب لتزرع — وتكبر مع كل صندوق تفتحه.', actionLabel: 'أرِنيها', target: { type: 'crop', index: empty } };
+    const slot = this.SLOTS.findIndex((_, i) => !f.built[i]);
+    const buildable = this.CATALOG.find(it => !it.legacy && this.can(f, it));
+    if (buildable && slot >= 0 && !left) return { emoji: '🏗️', title: `موادك تكفي لـ${buildable.name}!`, copy: 'اضغط ＋ في المرج واختر ما تبني.', actionLabel: 'أرِنيها', target: { type: 'slot', index: slot } };
     if (!f.incubator && !f.residents.length) return { emoji: '🥚', title: 'أول صندوق فيه بيضة لحاضنتك', copy: 'أنجز مهمة من لوحة المهام، وافتح صندوقك هنا.', actionLabel: left ? 'لوحة المهام' : '', target: { type: 'board' } };
     if (prog && left) return { emoji: prog.stage === 'egg' ? '🥚' : '🐣', title: prog.stage === 'egg' ? `باقي ${tasks(prog.tasks)} وتفقس البيضة` : `باقي ${tasks(prog.tasks)} ويكبر رفيقك`, copy: 'كل مهمة تنجزها تعطيك صندوقًا، وكل صندوق يدفّي الحاضنة.', actionLabel: 'لوحة المهام', target: { type: 'board' } };
     if (left) return { emoji: '📋', title: `باقي ${tasks(left)} اليوم`, copy: 'كل مهمة تعطيك صندوق مفاجأة لمزرعتك.', actionLabel: 'لوحة المهام', target: { type: 'board' } };
@@ -535,6 +627,14 @@ const JazarahFarm = {
     if (o.target.type === 'box') { const b = this.openable(C())[0]; if (b) this.openBox(b.id); return; }
     if (o.target.type === 'board') { this.openBoard(); return; }
     if (o.target.type === 'crop') this.focusCrop(o.target.index);
+    if (o.target.type === 'slot') {
+      const view = document.getElementById('farm-view'), sl = this.SLOTS[o.target.index];
+      if (!view || !sl) return;
+      this._pan = { x: view.clientWidth / 2 - sl.x * this._scale, y: view.clientHeight / 2 - sl.y * this._scale };
+      this._clamp(view.clientWidth, view.clientHeight); this._paint();
+      const el = view.querySelector(`[data-slot="${o.target.index}"]`);
+      if (el) { el.classList.remove('fhint'); void el.offsetWidth; el.classList.add('fhint'); }
+    }
   },
 
   /* ─────── فتح الصندوق: لحظة الكشف ─────── */
@@ -567,6 +667,7 @@ const JazarahFarm = {
     const tierLabel = { common: '', uncommon: '<em class="breveal__tier breveal__tier--u">مميز</em>', rare: '<em class="breveal__tier breveal__tier--r">نادر ✨</em>' }[b.contents.tier];
     const ev = res.events.map(e => e.kind === 'hatch' ? `<p class="breveal__big">🐣 فقست البيضة — ${esc(K(e.kin).name)}!</p>`
       : e.kind === 'grown' ? `<p class="breveal__big">🐉 كبر ${esc(K(e.kin).name)} وخرج يعيش في مزرعتك!</p>`
+      : e.kind === 'decor' ? `<p>🎀 وأكملت صفحة في دفترك — هدية تنتظرك في المزرعة!</p>`
       : `<p>🌱 كبرت ${e.n === 1 ? 'نبتة' : ar(e.n) + ' نبتات'} في حقلك</p>`).join('');
     const prog = this.incubatorLeft(child);
     const incLine = prog && !res.events.some(e => e.kind === 'hatch' || e.kind === 'grown')
@@ -598,6 +699,47 @@ const JazarahFarm = {
     if (ov) ov.classList.remove('on');
     this.render();
     if (openNext) { const b = this.openable(C())[0]; if (b) setTimeout(() => this.openBox(b.id), 220); }
+  },
+
+  /* لحظة الزينة: صفحة اكتملت ← هدية تظهر في المزرعة */
+  showDecor() {
+    const f = this.of(C());
+    if (document.getElementById('box-reveal')?.classList.contains('on')) return;
+    const id = f.decorNew[0], d = this.DECOR.find(x => x.id === id);
+    if (!d) { f.decorNew.shift(); return; }
+    let ov = document.getElementById('box-reveal');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'box-reveal'; ov.className = 'breveal'; document.body.appendChild(ov); }
+    ov.innerHTML = `<div class="breveal__card breveal__card--decor" role="dialog" aria-label="زينة جديدة">
+        <div class="breveal__stage">
+          <span class="breveal__burst" aria-hidden="true"></span>
+          <img class="breveal__prize breveal__prize--big breveal__prize--decor" src="${d.img}" alt="">
+        </div>
+        <div class="breveal__content">
+          <p class="breveal__from">🎉 أكملت «${d.page}» في دفترك</p>
+          <p class="breveal__big">هدية لمزرعتك: ${d.name}!</p>
+          <p>${d.hint} — وهذه الزينة تبقى في مزرعتك دائمًا.</p>
+          <button class="btn-primary big" onclick="JazarahFarm.placeDecor('${d.id}')">شوفها في مزرعتي 👀</button>
+        </div>
+      </div>`;
+    ov.classList.remove('on'); void ov.offsetWidth; ov.classList.add('on');
+    VoiceLines.say('cheer');
+    if (typeof feedPush === 'function') feedPush(C(), '🎀', 'زينة جديدة في مزرعته: ' + d.name);
+  },
+
+  placeDecor(id) {
+    const f = this.of(C());
+    f.decorNew = f.decorNew.filter(x => x !== id);
+    save();
+    const ov = document.getElementById('box-reveal');
+    if (ov) ov.classList.remove('on');
+    this.render();
+    const d = this.DECOR.find(x => x.id === id), view = document.getElementById('farm-view');
+    if (!d || !view) return;
+    this._pan = { x: view.clientWidth / 2 - d.x * this._scale, y: view.clientHeight / 2 - (d.y - d.w * 0.4) * this._scale };
+    this._clamp(view.clientWidth, view.clientHeight);
+    this._paint();
+    const el = view.querySelector(`[data-decor="${id}"]`);
+    if (el) { el.classList.remove('fhint'); void el.offsetWidth; el.classList.add('fhint', 'fdecor--new'); }
   },
 
   lockedInfo() {
@@ -654,12 +796,23 @@ const JazarahFarm = {
         <b>${gold ? 'الجزرة الذهبية' : '؟ ؟ ؟'}</b>
         <small>${gold ? 'أندر ما في المزرعة ✨' : 'نادرة — تأتي في صندوق «نادر»'}</small>
       </div>`;
+    const decorCards = this.DECOR.map(d => {
+      const on = !!f.decor[d.id];
+      return `<div class="alb-card alb-card--decor${on ? '' : ' alb-card--hidden'}">
+          <img src="${d.img}" alt="">
+          <b>${on ? d.name : '؟ ؟ ؟'}</b>
+          <small>${on ? `هدية «${d.page}» ✓` : d.hint}</small>
+        </div>`;
+    }).join('');
     document.getElementById('farm-sheet-title').textContent = '📖 دفتر مزرعتي';
     document.getElementById('farm-picks').innerHTML = `
       <div class="alb">
         <div class="alb-progress"><span>اكتشفت <b>${ar(got)}</b> من ${ar(total)}</span><i style="--p:${Math.round(got / total * 100)}"></i></div>
         <h4>🐉 الرفاق</h4><div class="alb-grid">${kinCards}</div>
         <h4>🌾 المحاصيل</h4><div class="alb-grid">${cropCards}${goldCard}</div>
+        <h4>🎀 زينة مزرعتي <small>${ar(this.DECOR.filter(d => f.decor[d.id]).length)} من ${ar(this.DECOR.length)}</small></h4>
+        <p class="alb-note">كل صفحة تكملها تهديك زينة تبقى في مزرعتك.</p>
+        <div class="alb-grid">${decorCards}</div>
       </div>`;
     const sh = document.getElementById('farm-sheet');
     sh.classList.remove('farm-sheet--board');
@@ -756,6 +909,11 @@ const JazarahFarm = {
     tap('[data-board]', () => this.openBoard());
     tap('[data-incub]', () => this.tapIncubator());
     tap('[data-resident]', el => { el.classList.remove('fresident--hi'); void el.offsetWidth; el.classList.add('fresident--hi'); VoiceLines.say('poke1'); App.toast('🐉 رفيقك فرحان فيك!'); });
+    tap('[data-decor]', el => {
+      const d = this.DECOR.find(x => x.id === el.dataset.decor);
+      el.classList.remove('fresident--hi'); void el.offsetWidth; el.classList.add('fresident--hi');
+      if (d) App.toast(`🎀 ${d.name} — هدية «${d.page}» من دفترك`);
+    });
     const jz = document.getElementById('farm-jz');
     if (jz) jz.addEventListener('click', () => { if (this._moved <= 12) VoiceLines.say('poke1'); });
   },
@@ -836,6 +994,7 @@ const JazarahFarm = {
       if (kind === 'carrot') f.res.seed = (f.res.seed || 0) + 1;
       else f.special[kind] = (f.special[kind] || 0) + 1;
       this._seeCrop(f, kind, { gold: crop.gold, shiny: crop.shiny });
+      this._checkDecor(f);
       C().coins += coins;
       C().lifetimeCoins = (C().lifetimeCoins || 0) + coins;
       this.note(f, crop.gold ? '✨' : info.emoji, crop.gold ? 'حصد جزّور جزرة ذهبية!' : `حصد جزّور ${info.one}${crop.shiny ? ' لامعة' : ''}`);
@@ -855,9 +1014,10 @@ const JazarahFarm = {
     const ar = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
     document.getElementById('farm-sheet-title').textContent = 'وش نبني هنا؟';
     document.getElementById('farm-picks').innerHTML = this.CATALOG.filter(it => !it.legacy).map(it => {
-      const ok = this.can(f, it.cost);
-      const cost = Object.entries(it.cost)
-        .map(([k, n]) => `<span><img src="${this.RES[k].img}" alt="">${ar(n)}</span>`).join('');
+      const ok = this.can(f, it);
+      const have = Math.min(this.materials(f), it.need);
+      const word = it.need <= 10 ? 'مواد' : 'مادة';
+      const cost = `${it.prefer.map(k => `<img src="${this.RES[k].img}" alt="">`).join('')}<span>${ok ? `${ar(it.need)} ${word} ✓` : `${ar(have)} من ${ar(it.need)} ${word}`}</span>`;
       return `<button class="fpick${ok ? '' : ' locked'}" onclick="JazarahFarm.build('${it.id}')">
         <img class="fpick-img" src="${it.img}" alt="">
         <span><b>${it.name}</b><span class="fpick-cost">${cost}</span></span></button>`;
@@ -875,8 +1035,8 @@ const JazarahFarm = {
   build(id) {
     const f = this.of(C()), it = this.CATALOG.find(x => x.id === id);
     if (!it || it.legacy) return;
-    if (!this.can(f, it.cost)) { App.toast('الموارد ما تكفي بعد — صناديقك تجمعها لك'); return; }
-    this.spend(f, it.cost);
+    if (!this.can(f, it)) { { const n = it.need - this.materials(f); App.toast(`باقي ${n === 1 ? 'مادة واحدة' : n === 2 ? 'مادتان' : String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]) + (n <= 10 ? ' مواد' : ' مادة')} — صناديقك تجمعها لك`); }; return; }
+    this.spend(f, it);
     f.built[this._slot] = id;
     this.note(f, '🏗️', `اكتمل ${it.name} في المزرعة`);
     save(); this.close(); this.render();
