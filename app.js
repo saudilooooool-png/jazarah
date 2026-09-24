@@ -480,7 +480,7 @@ function defaultTasks() {
 /* ─────────────── الروتينات البصرية ─────────────── */
 const ROUTINE_TEMPLATES = {
   before_school: {
-    title: 'روتين صباح البطل', emoji: '🌤️',
+    title: 'روتين الصباح الهادئ', emoji: '🌤️',
     intro: 'نبدأ صباحنا خطوة صغيرة في كل مرة.',
     steps: [
       ['🛏️', 'رتّب سريرك', 'خمس لمسات سريعة تجعل غرفتك جاهزة.'],
@@ -1328,6 +1328,19 @@ const App = {
   /* شاشة اختيار البطل — تسجيل دخول الأطفال */
   enterKid() {
     dailyUpkeep();
+    /* قبل أن يجهّز الوالد شيئًا لا يوجد طفل حقيقي بعد — وعرض ملف
+       افتراضي هنا يجعل الأسرة تظن أن حسابًا أُنشئ من دونها. */
+    if (this.needsOnboarding()) {
+      this.openModal(`
+        <section class="account-flow" aria-label="لم تبدأ المغامرة بعد">
+          <img class="handoff__jz" src="${this.jzSrc('thinking')}" alt="جزّور" />
+          <p class="onboarding-kicker">أهلًا!</p><h2>مغامرتك لم تُجهَّز بعد</h2>
+          <p class="muted">يبدأ والدك أو والدتك بتجهيز اسمك وأول مهمة، ثم يسلّمانك الجوال ونبدأ معًا.</p>
+          <button class="btn-primary big" onclick="App.closeModal();App.enterParent()">أنا الوالد — أجهّزها الآن</button>
+          <button class="btn-ghost" onclick="App.closeModal()">ليس الآن</button>
+        </section>`);
+      return;
+    }
     this.renderChildSelect();
     this.showScreen('screen-childselect');
   },
@@ -1601,12 +1614,23 @@ const App = {
 
   onboardingDefaults() {
     return {
+      childName: '',
       focusAreas: [],
       routineWindow: '',
       structure: '',
       rewards: '',
       supports: [],
     };
+  },
+
+  /* اسم الطفل يُكتب في أول خطوة؛ يُحفظ مع كل ضغطة مفتاح حتى لا يضيع
+     إن رجع الوالد خطوة أو أعاد فتح الاستبيان. */
+  onboardingName(value) {
+    const d = this._onboardingDraft || this.onboardingDefaults();
+    d.childName = value;
+    this._onboardingDraft = d;
+    const error = document.getElementById('onboarding-name-error');
+    if (error) error.textContent = '';
   },
 
   startOnboarding(step = 0, draft) {
@@ -1632,7 +1656,24 @@ const App = {
 
   onboardingNext() {
     const d = this._onboardingDraft || this.onboardingDefaults();
+    // خطوة الاسم تُكتب ولا تُختار، فرسالتها مختلفة وتظهر تحت الحقل نفسه.
+    if (this._onboardingStep === 0) {
+      const field = document.getElementById('f-onboarding-name');
+      const name = ((field && field.value) || d.childName || '').trim();
+      if (name.length < 2) {
+        const error = document.getElementById('onboarding-name-error');
+        if (error) error.textContent = 'اكتب اسم طفلك ليناديه جزّور به';
+        if (field) field.focus();
+        return;
+      }
+      d.childName = name;
+      this._onboardingDraft = d;
+      this._onboardingStep = 1;
+      this.renderOnboarding();
+      return;
+    }
     const checks = [
+      () => true,
       () => d.focusAreas && d.focusAreas.length,
       () => !!d.routineWindow,
       () => !!d.structure,
@@ -1643,7 +1684,7 @@ const App = {
       this.toast('اختر ما يناسب أسرتك أولًا');
       return;
     }
-    if (this._onboardingStep >= 4) { this.renderOnboardingPreview(); return; }
+    if (this._onboardingStep >= 5) { this.renderOnboardingPreview(); return; }
     this._onboardingStep += 1;
     this.renderOnboarding();
   },
@@ -1670,6 +1711,18 @@ const App = {
       `<button class="onboarding-choice ${(d[key] || []).includes(o.id) ? 'selected' : ''}" onclick="App.onboardingPick('${key}','${o.id}',true,${limit})"><span>${o.emoji}</span><b>${o.title}</b><small>${o.desc}</small></button>`).join('')}</div>`;
 
     const screens = [
+      {
+        kicker: 'لنبدأ باسمه',
+        title: 'من سيخوض المغامرة؟',
+        text: 'جزّور سينادي طفلك بهذا الاسم في كل مهمة وكل احتفال. يمكنك تغييره لاحقًا.',
+        body: `<div class="onboarding-name-field">
+          <label for="f-onboarding-name">اسم الطفل</label>
+          <input id="f-onboarding-name" type="text" maxlength="20" autocomplete="off"
+            value="${esc(d.childName || '')}" placeholder="مثال: سلمان"
+            oninput="App.onboardingName(this.value)" onkeydown="if(event.key==='Enter')App.onboardingNext()" />
+          <p id="onboarding-name-error" class="pin-error"></p>
+        </div>`,
+      },
       {
         kicker: 'نرسم البداية المناسبة لكم',
         title: 'ما الذي تريد أن يصبح أسهل هذا الأسبوع؟',
@@ -1738,7 +1791,7 @@ const App = {
         <p class="onboarding-copy">${current.text}</p>
         ${current.body}
         <div class="onboarding-actions">
-          ${step ? '<button class="btn-ghost" onclick="App.onboardingBack()">→ رجوع</button>' : '<button class="btn-ghost" onclick="App.onboardingSkip()">تخطي الآن</button>'}
+          ${step === 0 ? '' : step === 1 ? '<button class="btn-ghost" onclick="App.onboardingSkip()">تخطي الآن</button>' : '<button class="btn-ghost" onclick="App.onboardingBack()">→ رجوع</button>'}
           <button class="btn-primary big" onclick="App.onboardingNext()">${step === screens.length - 1 ? 'شاهد خطة اليوم الأول ←' : 'التالي ←'}</button>
         </div>
       </section>`);
@@ -1791,7 +1844,7 @@ const App = {
       <section class="onboarding-shell onboarding-preview" aria-label="معاينة خطة اليوم الأول">
         <p class="onboarding-kicker">بداية صغيرة يمكن نجاحها</p>
         <h2>هذه خطة اليوم الأول</h2>
-        <p class="onboarding-copy">${esc(C().name)} سيبدأ في ${esc(labels[d.routineWindow] || 'وقته المناسب')} وبنمط ${esc(labels[d.structure] || 'خفيف')}.</p>
+        <p class="onboarding-copy">${esc(d.childName || C().name)} سيبدأ في ${esc(labels[d.routineWindow] || 'وقته المناسب')} وبنمط ${esc(labels[d.structure] || 'خفيف')}.</p>
         <div class="first-plan-list">${plan.map((t, i) => `<div class="first-plan-item"><span>${i + 1}</span><div><b>${esc(t.title)}</b><small>${CATEGORIES[t.cat].emoji} ${CATEGORIES[t.cat].name} · ${PROOF_MODES[t.proof].short}</small></div><em>+${t.coins} 🥕</em></div>`).join('')}</div>
         <p class="onboarding-note">يمكنك تعديل أي مهمة بعد البداية. الهدف هو يوم أول سهل، لا قائمة طويلة.</p>
         <div class="onboarding-actions">
@@ -1804,6 +1857,9 @@ const App = {
   finishOnboarding() {
     const d = this._onboardingDraft || this.onboardingDefaults();
     const plan = this._onboardingPlan || this.onboardingPlanFor(d);
+    // الاسم أول ما يملكه الطفل في التطبيق؛ يُطبَّق قبل أي نص يناديه به.
+    const childName = (d.childName || '').trim();
+    if (childName) C().name = childName;
     C().tasks = plan;
     // الروتين يوجّه الخطوات ولا يمنح عملات مستقلة؛ تظل مكافآت اليوم مرتبطة بالمهام الفعلية.
     C().routines = [routineFromTemplate(d.routineWindow, d.supports || [])];
@@ -1830,18 +1886,42 @@ const App = {
     save();
     this._onboardingDraft = null;
     this._onboardingPlan = null;
-    this.closeModal();
     this.openParent();
-    this.celebrate('خطة اليوم الأول جاهزة! ✨', `جهزنا لـ${esc(C().name)} ${plan.length} مهام صغيرة قابلة للنجاح.`, ['ابدؤوا بخطوة واحدة فقط'], '🥕');
+    this.renderHandoff();
+  },
+
+  /* الفجوة التي كانت تبتلع الأسرة: الوالد ينتهي من الإعداد فيجد نفسه
+     في لوحة إدارة، ولا شيء يقول له إن الدور صار لطفله. */
+  renderHandoff() {
+    const child = C();
+    const count = (child.tasks || []).length;
+    this.openModal(`
+      <section class="handoff" aria-label="سلّم الجوال لطفلك">
+        <img class="handoff__jz" src="${this.jzSrc('excited')}" alt="جزّور" />
+        <p class="onboarding-kicker">كل شيء جاهز</p>
+        <h2>الآن سلّم الجوال لـ${esc(child.name)}</h2>
+        <p class="onboarding-copy">جهّزنا ${arTasks(count)} صغيرة وروتينًا هادئًا. جزّور ينتظره ليبدآ معًا.</p>
+        <div class="handoff__note"><span>🔐</span><p>مساحتك محمية برقمك السري. ارجع إليها في أي وقت من «أنا الوالد».</p></div>
+        <div class="onboarding-actions">
+          <button class="btn-ghost" onclick="App.closeModal()">أراجع الخطة أولًا</button>
+          <button class="btn-primary big" onclick="App.handoffToChild()">سلّمته الجوال ←</button>
+        </div>
+      </section>`);
+  },
+
+  handoffToChild() {
+    this.closeModal();
+    this.enterKidAs(C().id);
   },
 
   familyPlanForm() {
     const d = S.onboarding && S.onboarding.status === 'complete'
       ? {
+          childName: C().name,
           focusAreas: S.onboarding.focusAreas || [], routineWindow: S.onboarding.routineWindow || '',
           structure: S.onboarding.structure || '', rewards: S.onboarding.rewards || '', supports: S.onboarding.supports || [],
         }
-      : this.onboardingDefaults();
+      : Object.assign(this.onboardingDefaults(), { childName: C().name });
     this.startOnboarding(0, d);
   },
 
@@ -1851,7 +1931,7 @@ const App = {
     const pending = C().pendingProofs.length;
     const requests = S.joinRequests.length;
     document.getElementById('parent-subtitle').textContent =
-      `${C().name} أنجز اليوم ${done} من ${C().tasks.length} مهام` +
+      `${C().name} أنجز اليوم ${done} من ${C().tasks.length}` +
       (pending ? ` · 🔔 ${pending} إثبات بانتظارك` : '') +
       (requests ? ` · 🙋 ${requests} طلب انضمام` : '') +
       (S.children.some(ch => (ch.redemptions || []).some(r => r.status === 'pending' && (r.kind === 'out' || r.kind === 'budget'))) ? ' · 🚨 طلب مكافأة يحتاج موافقتك الخاصة' : '');
@@ -2219,9 +2299,9 @@ const App = {
     const remainingTasks = Math.max(0, totalTasks - doneTasks);
     const nextTask = focusTasks.find(t => !doneIds.has(t.id));
     const progressHtml = `<section class="parent-today-focus" aria-label="تقدم اليوم">
-      <div class="parent-today-focus__top"><span>🗺️</span><div><p>تقدم اليوم</p><h3>${doneTasks} من ${totalTasks || 0} مهام مكتملة</h3></div><b>${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%</b></div>
+      <div class="parent-today-focus__top"><span>🗺️</span><div><p>تقدم اليوم</p><h3>${doneTasks} من ${totalTasks || 0} مكتملة</h3></div><b>${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%</b></div>
       <div class="parent-today-focus__bar"><i style="width:${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%"></i></div>
-      <div class="parent-today-focus__bottom"><span>${gentleToday ? 'خطة اليوم خفيفة؛ ستعود المهام غدًا.' : (nextTask ? `الخطوة التالية: ${esc(nextTask.title)}` : (totalTasks ? 'اكتملت خطة اليوم 🎉' : 'لا توجد مهام اليوم بعد'))}</span><button class="btn-ghost" onclick="App.openParentDayDetails()">${remainingTasks ? `عرض ${remainingTasks} مهام` : 'تفاصيل اليوم'}</button></div>
+      <div class="parent-today-focus__bottom"><span>${gentleToday ? 'خطة اليوم خفيفة؛ ستعود المهام غدًا.' : (nextTask ? `الخطوة التالية: ${esc(nextTask.title)}` : (totalTasks ? 'اكتملت خطة اليوم 🎉' : 'لا توجد مهام اليوم بعد'))}</span><button class="btn-ghost" onclick="App.openParentDayDetails()">${remainingTasks ? `عرض ${arTasks(remainingTasks)}` : 'تفاصيل اليوم'}</button></div>
     </section>`;
     const suggestionHtml = S.onboarding?.status !== 'complete'
       ? `<section class="parent-next-suggestion"><span>🧭</span><div><p>خطوتك المقترحة</p><h3>ابدأ بخطة تناسب أسرتك</h3><small>خمس أسئلة قصيرة تكفي لبداية خفيفة.</small></div><button class="btn-primary purple" onclick="App.familyPlanForm()">أنشئ الخطة</button></section>`
@@ -3902,8 +3982,8 @@ const App = {
 
     let dayFocus = '';
     if (routineFirst) dayFocus = this.routineCardHtml() + afterRoutinePeek;
-    else if (dayComplete) dayFocus = `<section class="day-complete-card" aria-label="اكتمل يومك"><span>🏆</span><div><small>أكملت ${todayDone} من ${todayTotal} مهام اليوم</small><h2>يومك مكتمل</h2><p>أحسنت، صار لعطائك أثر واضح في عالمك.</p></div><div class="day-complete-card__actions"><button class="btn-primary green" onclick="App.kidTab('farm')">شاهد أثري في المزرعة</button><button class="btn-ghost" onclick="App.shareDayReport()">أخبر والدي بإنجازي</button></div></section>`;
-    else if (pendingOnly) dayFocus = `<section class="today-waiting-card" aria-label="مهام بانتظار مراجعة الوالد"><span>⏳</span><div><small>${todayPending} مهام بانتظار المراجعة</small><h2>أرسلت مهامك بهدوء</h2><p>يمكنك الآن إكمال وردك أو زيارة عالمك.</p></div></section>`;
+    else if (dayComplete) dayFocus = `<section class="day-complete-card" aria-label="اكتمل يومك"><span>🏆</span><div><small>أكملت ${todayDone} من ${todayTotal} اليوم</small><h2>يومك مكتمل</h2><p>أحسنت، صار لعطائك أثر واضح في عالمك.</p></div><div class="day-complete-card__actions"><button class="btn-primary green" onclick="App.kidTab('farm')">شاهد أثري في المزرعة</button><button class="btn-ghost" onclick="App.shareDayReport()">أخبر والدي بإنجازي</button></div></section>`;
+    else if (pendingOnly) dayFocus = `<section class="today-waiting-card" aria-label="مهام بانتظار مراجعة الوالد"><span>⏳</span><div><small>${arTasks(todayPending)} بانتظار المراجعة</small><h2>أرسلت مهامك بهدوء</h2><p>يمكنك الآن إكمال وردك أو زيارة عالمك.</p></div></section>`;
     else if (currentTask) dayFocus = taskDeckCard(currentTask, taskIndex) + backToRoutine;
     else dayFocus = `<div class="today-empty"><span>${gentleToday ? '🌤️' : '🗺️'}</span><p>${gentleToday ? 'خطة اليوم خفيفة. خذ وقتًا هادئًا مع وردك أو رحلتك؛ ستعود المهام غدًا.' : 'لا توجد مهام اليوم. خذ وقتًا هادئًا مع وردك أو رحلتك.'}</p></div>`;
 

@@ -1597,6 +1597,24 @@ b { font-weight: 700; }
 .onboarding-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
 .onboarding-actions .btn-primary { flex: 1; }
 .onboarding-preview { text-align: right; }
+
+/* خطوة الاسم: أول ما يملكه الطفل في التطبيق */
+.onboarding-name-field { text-align: right; margin: 6px 0 2px; }
+.onboarding-name-field label { display: block; margin-bottom: 6px; color: #6f5c44; font-size: .8rem; font-weight: 800; }
+.onboarding-name-field input { width: 100%; min-height: 52px; padding: 10px 14px; border: 2px solid #e6d9c3; border-radius: 15px; background: #fffdf8; color: #3a2919; font: 900 17px Cairo, sans-serif; }
+.onboarding-name-field input:focus { border-color: var(--carrot); outline: none; }
+
+/* شاشة التسليم بين الوالد والطفل */
+.handoff { direction: rtl; text-align: center; padding: 2px 1px; }
+.handoff__jz { width: 118px; margin: -54px auto 2px; display: block; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .14)); }
+.handoff h2 { margin: 2px 0 7px; color: #3a2919; font: 900 1.3rem/1.5 Cairo, sans-serif; }
+.handoff .onboarding-copy { margin-bottom: 14px; }
+.handoff__note { display: flex; align-items: center; gap: 9px; margin: 0 0 4px; padding: 11px 12px; border-radius: 15px; background: #f4fbf6; text-align: right; }
+.handoff__note span { flex: 0 0 auto; font-size: 1.1rem; }
+.handoff__note p { margin: 0; color: #4c6e58; font: 700 .78rem/1.65 Cairo, sans-serif; }
+/* على عرض الجوال يتسع الزر الأساسي لسطر واحد حين يعلو الثانوي */
+.handoff .onboarding-actions { flex-direction: column-reverse; align-items: stretch; }
+.handoff .onboarding-actions .btn-ghost { width: 100%; }
 .first-plan-list { display: flex; flex-direction: column; gap: 9px; margin: 14px 0; }
 .first-plan-item { display: flex; align-items: center; gap: 9px; background: #fffaf0; border: 2px solid #ffe0ad; border-radius: 16px; padding: 10px; }
 .first-plan-item > span { width: 28px; height: 28px; display: grid; flex: 0 0 28px; place-items: center; border-radius: 10px; background: var(--carrot); color: #fff; font-size: .78rem; font-weight: 900; }
